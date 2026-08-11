@@ -1,0 +1,92 @@
+{
+  "plugin.name": "AI Note Agent",
+  "ribbon.hint": "AI Note Agent: open the command palette (Ctrl/Cmd+P) to run actions.",
+
+  "cmd.analyzeCurrent": "Analyze current note",
+  "cmd.analyzeVault": "Analyze entire vault",
+  "cmd.enrichCurrent": "Enrich properties of current note",
+  "cmd.optimizeCurrent": "Optimize current note",
+  "cmd.autoprompt": "Autoprompt at cursor",
+  "cmd.openChat": "Open AI chat panel",
+
+  "notice.openNoteFirst": "Open a note first.",
+  "notice.noNotes": "No notes found.",
+  "notice.analyzing": "Analyzing note...",
+  "notice.enriching": "Enriching properties...",
+  "notice.thinking": "Thinking...",
+  "notice.optimizing": "Optimizing note...",
+  "notice.done": "AI Note Agent: done.",
+  "notice.noteUpdated": "AI Note Agent: note updated.",
+  "notice.noSuggestion": "AI Note Agent: no suggestion returned.",
+  "notice.error": "AI Note Agent: {error}",
+
+  "confirm.analyzeMany": "Analyze {count} notes? This makes many API calls.",
+
+  "analyzer.analyzingVault": "AI Note Agent: analyzing vault...",
+  "analyzer.progress": "AI Note Agent: analyzed {done}/{total}",
+  "analyzer.finished": "AI Note Agent: finished analyzing {count} notes.",
+  "analyzer.stopped": "AI Note Agent: analysis stopped — {error}",
+
+  "modal.title": "Optimize note (AI)",
+  "modal.original": "Original (read-only)",
+  "modal.optimized": "Optimized (editable)",
+  "modal.cancel": "Cancel",
+  "modal.apply": "Apply",
+
+  "settings.provider.name": "Provider",
+  "settings.provider.desc": "Choose the AI backend used for all features.",
+  "settings.provider.openai": "OpenAI-compatible",
+  "settings.provider.ollama": "Ollama (local)",
+
+  "settings.test.name": "Test connection",
+  "settings.test.desc": "Send a tiny ping to verify the current provider settings.",
+  "settings.test.button": "Test",
+  "settings.test.testing": "Testing...",
+  "settings.test.success": "AI Note Agent: connection OK.",
+  "settings.test.failure": "AI Note Agent: connection failed — {error}",
+
+  "settings.openaiKey.name": "OpenAI API key",
+  "settings.openaiKey.desc": "Stored locally in plugin data. Sent only to the Base URL you configure.",
+  "settings.openaiBaseUrl.name": "OpenAI Base URL",
+  "settings.openaiBaseUrl.desc": "Default: https://api.openai.com/v1",
+  "settings.openaiModel.name": "OpenAI Model",
+  "settings.openaiModel.desc": "e.g. gpt-4o-mini, gpt-4o, or any compatible model id.",
+
+  "settings.ollamaBaseUrl.name": "Ollama Base URL",
+  "settings.ollamaBaseUrl.desc": "Default: http://localhost:11434",
+  "settings.ollamaModel.name": "Ollama Model",
+  "settings.ollamaModel.desc": "e.g. llama3, qwen2.5, mistral.",
+
+  "settings.linkStyle.name": "Link style",
+  "settings.linkStyle.desc": "Default: standard Markdown relative links [Title](path.md), compatible with plain-Markdown tools. Switch to wikilinks if preferred.",
+  "settings.linkStyle.relative": "Markdown relative [T](p.md)",
+  "settings.linkStyle.wikilink": "Obsidian wikilink [[Note]]",
+
+  "settings.autoLink.name": "Auto-insert bidirectional links",
+  "settings.autoLink.desc": "Insert relation links in both notes so backlinks appear.",
+  "settings.enrich.name": "Enrich properties",
+  "settings.enrich.desc": "Generate tags / aliases / summary and write to frontmatter.",
+  "settings.realtime.name": "Realtime autoprompt",
+  "settings.realtime.desc": "Show inline ghost-text suggestions while typing (accept with Tab).",
+  "settings.debounce.name": "Realtime debounce (ms)",
+  "settings.debounce.desc": "Idle time after typing before a suggestion is requested.",
+  "settings.relatedPerNote.name": "Related notes per note",
+  "settings.relatedPerNote.desc": "Maximum number of related notes to link per note.",
+  "settings.maxTokens.name": "Max tokens",
+  "settings.maxTokens.desc": "Upper bound for AI output length per request.",
+
+  "error.noApiKey": "OpenAI API key is not set. Open Settings → AI Note Agent and enter your key.",
+  "error.openaiFailed": "OpenAI request failed ({status}): {text}",
+  "error.ollamaFailed": "Ollama request failed ({status}): {text}",
+
+  "related.heading": "## Related notes",
+
+  "view.title": "AI Chat",
+  "view.welcome": "Ask me anything about your vault or the active note.",
+  "view.placeholder": "Type a message… (Enter to send, Shift+Enter for newline)",
+  "view.send": "Send",
+  "view.thinking": "Thinking…",
+  "view.clear": "Clear",
+  "view.error": "Error: {error}",
+  "view.openFailed": "Could not open AI chat panel."
+}

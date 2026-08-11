@@ -1,0 +1,184 @@
+/* AI Note Agent - Obsidian Plugin Styles */
+/* 使用 Obsidian 主题 CSS 变量，禁止硬编码颜色 */
+
+/* 实时自动提示的内联幽灵文本 */
+.ana-ghost-text {
+  color: var(--text-faint);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 优化文档弹窗的对比布局 */
+.ana-optimize-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) 0;
+}
+
+.ana-optimize-row {
+  display: flex;
+  gap: var(--size-4-2);
+}
+
+.ana-optimize-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ana-optimize-col h4 {
+  margin: 0 0 var(--size-4-1) 0;
+}
+
+.ana-optimize-textarea {
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  background: var(--background-primary-alt);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: var(--size-4-2);
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+  line-height: var(--line-height-normal);
+}
+
+.ana-optimize-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-2);
+}
+
+/* 相关笔记区块标记（不可见，仅用于幂等识别） */
+.ana-related-marker {
+  display: none;
+}
+
+/* AI 聊天面板（右侧 leaf） */
+.ana-chat-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ana-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--size-4-2) var(--size-4-3);
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.ana-chat-title {
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.ana-chat-header-btn {
+  font-size: var(--font-smallest);
+  padding: var(--size-4-1) var(--size-4-2);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-form-field);
+  color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+}
+
+.ana-chat-header-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.ana-chat-messages {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--size-4-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-3);
+}
+
+.ana-chat-message {
+  display: flex;
+  width: 100%;
+}
+
+.ana-chat-message-user {
+  justify-content: flex-end;
+}
+
+.ana-chat-message-assistant {
+  justify-content: flex-start;
+}
+
+.ana-chat-bubble {
+  max-width: 88%;
+  padding: var(--size-4-2) var(--size-4-3);
+  border-radius: var(--radius-m);
+  font-size: var(--font-smaller);
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ana-chat-message-user .ana-chat-bubble {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.ana-chat-message-assistant .ana-chat-bubble {
+  background: var(--background-primary-alt);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.ana-chat-text:empty::before {
+  content: "…";
+  opacity: 0.5;
+}
+
+.ana-chat-footer {
+  display: flex;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-3);
+  border-top: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  background: var(--background-primary);
+}
+
+.ana-chat-input {
+  flex: 1 1 auto;
+  resize: none;
+  min-height: 44px;
+  max-height: 160px;
+  background: var(--background-modifier-form-field);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: var(--size-4-2);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-smaller);
+  line-height: var(--line-height-normal);
+}
+
+.ana-chat-input:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
+.ana-chat-send {
+  flex-shrink: 0;
+  align-self: flex-end;
+  min-height: 44px;
+  padding: 0 var(--size-4-3);
+}
+
+.ana-chat-send:disabled,
+.ana-chat-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

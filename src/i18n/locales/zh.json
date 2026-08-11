@@ -1,0 +1,92 @@
+{
+  "plugin.name": "AI Note Agent",
+  "ribbon.hint": "AI Note Agent：打开命令面板（Ctrl/Cmd+P）运行功能。",
+
+  "cmd.analyzeCurrent": "分析当前笔记",
+  "cmd.analyzeVault": "分析整个仓库",
+  "cmd.enrichCurrent": "补充当前笔记的属性",
+  "cmd.optimizeCurrent": "优化当前笔记",
+  "cmd.autoprompt": "在光标处自动提示",
+  "cmd.openChat": "打开 AI 对话面板",
+
+  "notice.openNoteFirst": "请先打开一篇笔记。",
+  "notice.noNotes": "未找到任何笔记。",
+  "notice.analyzing": "正在分析笔记……",
+  "notice.enriching": "正在补充属性……",
+  "notice.thinking": "思考中……",
+  "notice.optimizing": "正在优化笔记……",
+  "notice.done": "AI Note Agent：完成。",
+  "notice.noteUpdated": "AI Note Agent：笔记已更新。",
+  "notice.noSuggestion": "AI Note Agent：未返回任何建议。",
+  "notice.error": "AI Note Agent：{error}",
+
+  "confirm.analyzeMany": "要分析 {count} 篇笔记吗？这将发起大量 API 调用。",
+
+  "analyzer.analyzingVault": "AI Note Agent：正在分析仓库……",
+  "analyzer.progress": "AI Note Agent：已分析 {done}/{total}",
+  "analyzer.finished": "AI Note Agent：已完成 {count} 篇笔记的分析。",
+  "analyzer.stopped": "AI Note Agent：分析已停止 —— {error}",
+
+  "modal.title": "优化笔记（AI）",
+  "modal.original": "原文（只读）",
+  "modal.optimized": "优化后（可编辑）",
+  "modal.cancel": "取消",
+  "modal.apply": "应用",
+
+  "settings.provider.name": "AI 后端",
+  "settings.provider.desc": "选择所有功能使用的 AI 后端。",
+  "settings.provider.openai": "OpenAI 兼容",
+  "settings.provider.ollama": "Ollama（本地）",
+
+  "settings.test.name": "测试连接",
+  "settings.test.desc": "发送一个轻量请求，验证当前的 AI 后端配置是否可用。",
+  "settings.test.button": "测试",
+  "settings.test.testing": "测试中……",
+  "settings.test.success": "AI Note Agent：连接正常。",
+  "settings.test.failure": "AI Note Agent：连接失败 —— {error}",
+
+  "settings.openaiKey.name": "OpenAI API Key",
+  "settings.openaiKey.desc": "仅保存在本地插件数据中，只发送给你所配置的 Base URL。",
+  "settings.openaiBaseUrl.name": "OpenAI Base URL",
+  "settings.openaiBaseUrl.desc": "默认：https://api.openai.com/v1",
+  "settings.openaiModel.name": "OpenAI 模型",
+  "settings.openaiModel.desc": "例如 gpt-4o-mini、gpt-4o，或任意兼容的模型 ID。",
+
+  "settings.ollamaBaseUrl.name": "Ollama Base URL",
+  "settings.ollamaBaseUrl.desc": "默认：http://localhost:11434",
+  "settings.ollamaModel.name": "Ollama 模型",
+  "settings.ollamaModel.desc": "例如 llama3、qwen2.5、mistral。",
+
+  "settings.linkStyle.name": "链接样式",
+  "settings.linkStyle.desc": "默认：标准 Markdown 相对链接 [标题](路径.md)，兼容纯 Markdown 工具。如需可切换为 Wikilink。",
+  "settings.linkStyle.relative": "Markdown 相对链接 [标题](路径.md)",
+  "settings.linkStyle.wikilink": "Obsidian Wikilink [[笔记]]",
+
+  "settings.autoLink.name": "自动插入双向链接",
+  "settings.autoLink.desc": "在相关笔记双方都插入关联链接，从而生成反向链接。",
+  "settings.enrich.name": "补充文档属性",
+  "settings.enrich.desc": "生成 tags / aliases / summary 并写入 frontmatter。",
+  "settings.realtime.name": "实时自动提示",
+  "settings.realtime.desc": "输入时显示内联幽灵文本建议（按 Tab 接受）。",
+  "settings.debounce.name": "实时防抖（毫秒）",
+  "settings.debounce.desc": "输入停止多久后发起一次建议请求。",
+  "settings.relatedPerNote.name": "每篇笔记的关联数量",
+  "settings.relatedPerNote.desc": "每篇笔记最多链接的关联笔记数。",
+  "settings.maxTokens.name": "最大 Token 数",
+  "settings.maxTokens.desc": "每次请求 AI 输出长度的上限。",
+
+  "error.noApiKey": "未设置 OpenAI API Key。请打开设置 → AI Note Agent 填入你的 Key。",
+  "error.openaiFailed": "OpenAI 请求失败（{status}）：{text}",
+  "error.ollamaFailed": "Ollama 请求失败（{status}）：{text}",
+
+  "related.heading": "## 相关笔记",
+
+  "view.title": "AI 对话",
+  "view.welcome": "可以问我关于你的知识库或当前笔记的问题。",
+  "view.placeholder": "输入消息……（按 Enter 发送，Shift+Enter 换行）",
+  "view.send": "发送",
+  "view.thinking": "思考中……",
+  "view.clear": "清空",
+  "view.error": "出错：{error}",
+  "view.openFailed": "无法打开 AI 对话面板。"
+}
