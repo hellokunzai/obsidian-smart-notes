@@ -7,7 +7,7 @@ An [Obsidian](https://obsidian.md) plugin that turns your vault into a self-impr
 - **Analyze & bidirectional links** — Scan a note (or the whole vault) and let AI find related notes, then automatically insert links in **both** notes so the relationship shows up in Obsidian's backlinks and graph.
 - **Enrich properties** — AI generates `tags`, `aliases`, and a `summary` and writes them into each note's frontmatter.
 - **Optimize notes** — AI polishes wording, reorganizes structure, or writes a summary. Preview the result in a diff-style modal before applying.
-- **AI chat panel** — Open a dedicated right-sidebar chat. Ask questions about your vault or the active note.
+- **AI chat panel** — Open a dedicated right-sidebar chat. Ask questions about your vault or the active note. Supports **multiple sessions** with a collapsible history sidebar: create, switch to, rename, and delete any session, and continue chatting where you left off.
 - **In-editor autocompletion** — Two modes:
   - **Command** (`AI: Autoprompt`): trigger on demand at the cursor.
   - **Realtime** (optional, toggle in settings): debounced inline "ghost text" suggestion you accept with `Tab`.
@@ -54,6 +54,19 @@ The plugin UI is fully internationalized and **follows your Obsidian language** 
 | Max memory messages | cap of recent messages kept in context and on disk |
 | AI folder name | name of the vault-root folder that stores memory & skills |
 
+## Multiple sessions
+
+The chat panel keeps an ongoing list of **sessions** (conversations) instead of a single thread:
+
+- **New chat** (`+`) starts a fresh session and switches to it.
+- **History sidebar** shows all sessions ordered by last activity; click any item to switch back into that conversation.
+- **Rename** (`✎`) lets you set a title; the first assistant reply also auto-suggests a title from your opening message.
+- **Delete** (`🗑`) removes a session after a confirmation; if you delete the active one, the next session is opened automatically (or a new blank one is created).
+- **Clear current** wipes the messages of the active session but keeps the session itself.
+- The `≡` button collapses/expands the history sidebar.
+
+All sessions are stored together in `memory/chat-history.json` (one file). Legacy single-array files are migrated automatically into a single imported session.
+
 ## AI folder layout
 
 When the plugin loads, it creates the following structure at your vault root (folder name configurable):
@@ -66,8 +79,8 @@ AI-Note-Agent/
     └── README.md            # what this folder is for
 ```
 
-- **Memory** is written after every assistant reply and reloaded when you reopen the chat panel.
-- **Clear** button in the chat header wipes the in-memory history and the saved file.
+- **Memory** stores *all* sessions in one file (`sessions` array). It is written after every assistant reply and reloaded when you reopen the chat panel, restoring the last active session.
+- **Clear current** button in the chat header wipes the active session's messages (but keeps the session and the rest of your history).
 - **Skills** is a reserved directory; later versions will load `.md` files placed here into the chat context.
 
 ## Install (development)

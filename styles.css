@@ -73,12 +73,168 @@
   overflow: hidden;
 }
 
+.ana-chat-body {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 侧栏（会话历史） */
+.ana-chat-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--background-modifier-border);
+  background: var(--background-primary-alt);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.15s ease;
+}
+
+.ana-chat-sidebar.is-collapsed {
+  width: 0;
+  border-right: none;
+}
+
+.ana-chat-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--size-4-2) var(--size-4-2);
+  flex-shrink: 0;
+}
+
+.ana-chat-sidebar-title {
+  font-size: var(--font-smaller);
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ana-chat-sidebar-new {
+  font-size: var(--font-ui-small);
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-form-field);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ana-chat-sidebar-new:hover {
+  background: var(--background-modifier-hover);
+}
+
+.ana-chat-session-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0 var(--size-4-1) var(--size-4-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-1);
+}
+
+.ana-chat-session-empty {
+  color: var(--text-faint);
+  font-size: var(--font-smaller);
+  padding: var(--size-4-1) var(--size-4-2);
+}
+
+.ana-chat-session-item {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding: var(--size-4-1) var(--size-4-2);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  color: var(--text-normal);
+  font-size: var(--font-smaller);
+}
+
+.ana-chat-session-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.ana-chat-session-item.is-active {
+  background: var(--background-modifier-active-hover);
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+}
+
+.ana-chat-session-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ana-chat-session-actions {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.ana-chat-session-item:hover .ana-chat-session-actions {
+  display: flex;
+}
+
+.ana-chat-session-action {
+  font-size: var(--font-smallest);
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-s);
+}
+
+.ana-chat-session-action:hover {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+}
+
+.ana-chat-session-del:hover {
+  color: var(--text-error);
+}
+
+/* 主区 */
+.ana-chat-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
 .ana-chat-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--size-4-2) var(--size-4-3);
   border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  gap: var(--size-4-2);
+}
+
+.ana-chat-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-width: 0;
+}
+
+.ana-chat-header-right {
+  display: flex;
+  gap: var(--size-4-2);
   flex-shrink: 0;
 }
 
@@ -100,6 +256,14 @@
 .ana-chat-header-btn:hover {
   color: var(--text-normal);
   background: var(--background-modifier-hover);
+}
+
+/* 弹窗操作按钮（删除确认） */
+.ana-chat-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-3);
 }
 
 .ana-chat-messages {

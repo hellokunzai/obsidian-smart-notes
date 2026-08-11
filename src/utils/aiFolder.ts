@@ -7,6 +7,8 @@ const MEMORY_FILE = "chat-history.json";
 const SKILLS_DIR = "skills";
 const SKILLS_README = "README.md";
 
+const SESSIONS_VERSION = 2;
+
 const SKILLS_README_CONTENT = `# Skills 目录
 
 此目录用于存放自定义 AI skill 文件（建议 \`.md\` 格式）。
@@ -19,13 +21,32 @@ const SKILLS_README_CONTENT = `# Skills 目录
 \`\`\`
 <AI 文件夹>
 ├── memory/
-│   └── chat-history.json    # 对话记忆（自动生成，可删除以清空记忆）
+│   └── chat-history.json    # 多会话对话记录（自动生成，可删除以清空记忆）
 └── skills/                  # 自定义 skill（当前为预留目录）
     └── README.md            # 本说明文件
 \`\`\`
 
 记忆文件路径：\`../memory/${MEMORY_FILE}\`
 `;
+
+/** 单个对话中的一条消息：仅 user / assistant（system 每次动态构造，不持久化）。 */
+export type SessionMessage = { role: "user" | "assistant"; content: string };
+
+/** 一次完整会话。 */
+export interface Session {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: SessionMessage[];
+}
+
+/** 多会话存储文件结构。 */
+export interface SessionsFile {
+  version: number;
+  activeSessionId: string | null;
+  sessions: Session[];
+}
 
 /** 获取 vault 根目录下的 AI 文件夹名称（去除首尾空格，空值回退默认名）。 */
 export function getAiFolderName(plugin: AiNoteAgentPlugin): string {
@@ -81,60 +102,124 @@ export async function ensureAiFolder(plugin: AiNoteAgentPlugin): Promise<void> {
   }
 }
 
-function isValidMessage(m: unknown): m is ChatMessage {
+function isValidMessage(m: unknown): m is SessionMessage {
   if (!m || typeof m !== "object") return false;
   const obj = m as Record<string, unknown>;
   // 记忆中只保存 user/assistant 消息；system 是每次动态构造的，不应持久化
   return (
-    typeof obj.role === "string" &&
     (obj.role === "user" || obj.role === "assistant") &&
     typeof obj.content === "string"
   );
 }
 
-/**
- * 从 vault 中的记忆文件加载对话历史。
- * 未启用记忆、文件不存在或解析失败时返回空数组。
- */
-export async function loadMemory(plugin: AiNoteAgentPlugin): Promise<ChatMessage[]> {
-  if (!plugin.settings.enableMemory) return [];
-  const file = plugin.app.vault.getAbstractFileByPath(getMemoryFilePath(plugin));
-  if (!(file instanceof TFile)) return [];
-  try {
-    const content = await plugin.app.vault.read(file);
-    const parsed: unknown = JSON.parse(content);
-    if (Array.isArray(parsed)) {
-      return parsed.filter(isValidMessage);
-    }
-  } catch {
-    // 文件损坏或为空，忽略并返回空记忆
+function emptySessions(): SessionsFile {
+  return { version: SESSIONS_VERSION, activeSessionId: null, sessions: [] };
+}
+
+function migrateLegacy(data: unknown): SessionsFile {
+  // 旧版格式：裸数组（version 1 / 无 version）
+  if (Array.isArray(data)) {
+    const msgs = data.filter(isValidMessage);
+    if (msgs.length === 0) return emptySessions();
+    const firstUser = msgs.find((m) => m.role === "user");
+    const title = firstUser
+      ? firstUser.content.slice(0, 30).replace(/\s+/g, " ").trim() || "已导入的对话"
+      : "已导入的对话";
+    const now = Date.now();
+    const session: Session = {
+      id: crypto.randomUUID(),
+      title,
+      createdAt: now,
+      updatedAt: now,
+      messages: msgs,
+    };
+    return {
+      version: SESSIONS_VERSION,
+      activeSessionId: session.id,
+      sessions: [session],
+    };
   }
-  return [];
+
+  // 已经是新版结构
+  if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    const sessions = Array.isArray(obj.sessions)
+      ? obj.sessions.filter((s): s is Session => {
+          if (!s || typeof s !== "object") return false;
+          const sess = s as Record<string, unknown>;
+          return (
+            typeof sess.id === "string" &&
+            typeof sess.title === "string" &&
+            Array.isArray(sess.messages) &&
+            sess.messages.every(isValidMessage)
+          );
+        })
+      : [];
+    return {
+      version: SESSIONS_VERSION,
+      activeSessionId:
+        typeof obj.activeSessionId === "string" ? obj.activeSessionId : null,
+      sessions,
+    };
+  }
+
+  return emptySessions();
 }
 
 /**
- * 将对话历史保存到 vault 中的记忆文件（JSON 格式）。
+ * 从 vault 中的记忆文件加载多会话数据。
+ * 兼容旧版裸数组（自动迁移为单个会话）。
+ * 未启用记忆或文件缺失/损坏时返回空结构。
+ */
+export async function loadSessions(plugin: AiNoteAgentPlugin): Promise<SessionsFile> {
+  if (!plugin.settings.enableMemory) return emptySessions();
+  const file = plugin.app.vault.getAbstractFileByPath(getMemoryFilePath(plugin));
+  if (!(file instanceof TFile)) return emptySessions();
+  try {
+    const content = await plugin.app.vault.read(file);
+    if (!content.trim()) return emptySessions();
+    return migrateLegacy(JSON.parse(content));
+  } catch {
+    // 文件损坏或为空，忽略并返回一个空结构
+  }
+  return emptySessions();
+}
+
+/**
+ * 将多会话数据保存到 vault 中的记忆文件（JSON 格式）。
  * 未启用记忆时直接跳过，不落盘。
  */
-export async function saveMemory(
+export async function saveSessions(
   plugin: AiNoteAgentPlugin,
-  messages: ChatMessage[]
+  data: SessionsFile
 ): Promise<void> {
   if (!plugin.settings.enableMemory) return;
   const vault = plugin.app.vault;
   await ensureFolder(vault, getAiFolderPath(plugin));
   await ensureFolder(vault, getMemoryDir(plugin));
   const path = getMemoryFilePath(plugin);
-  const data = JSON.stringify(messages, null, 2);
+  const out: SessionsFile = { ...data, version: SESSIONS_VERSION };
   const file = vault.getAbstractFileByPath(path);
   if (file instanceof TFile) {
-    await vault.modify(file, data);
+    await vault.modify(file, JSON.stringify(out, null, 2));
   } else {
-    await vault.create(path, data);
+    await vault.create(path, JSON.stringify(out, null, 2));
   }
 }
 
-/** 清空记忆：将记忆文件内容写为空数组（保留文件结构，安全可恢复）。 */
-export async function clearMemory(plugin: AiNoteAgentPlugin): Promise<void> {
-  await saveMemory(plugin, []);
+/** 新建一个空白会话。 */
+export function createSession(title = "新对话"): Session {
+  const now = Date.now();
+  return {
+    id: crypto.randomUUID(),
+    title,
+    createdAt: now,
+    updatedAt: now,
+    messages: [],
+  };
+}
+
+/** 清空当前所有会话（清空记忆文件为结构骨架）。 */
+export async function clearAllSessions(plugin: AiNoteAgentPlugin): Promise<void> {
+  await saveSessions(plugin, emptySessions());
 }
