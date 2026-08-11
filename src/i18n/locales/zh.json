@@ -88,5 +88,23 @@
   "view.thinking": "思考中……",
   "view.clear": "清空",
   "view.error": "出错：{error}",
-  "view.openFailed": "无法打开 AI 对话面板。"
+  "view.openFailed": "无法打开 AI 对话面板。",
+  "view.memoryLoaded": "已从记忆中加载 {count} 条消息。",
+
+  "settings.section.behavior": "AI 行为",
+  "settings.section.memory": "对话记忆",
+
+  "settings.customInstructions.name": "自定义指令",
+  "settings.customInstructions.desc": "会注入到所有 AI 功能（对话、分析、优化、自动提示）的 system prompt 中。留空则不注入。",
+  "settings.customInstructions.placeholder": "例如：用中文回答；回答要简洁；你扮演我的法律顾问。",
+  "settings.customInstructions.reset": "重置",
+
+  "settings.enableMemory.name": "对话记忆",
+  "settings.enableMemory.desc": "将聊天历史持久化到 AI 文件夹，重启插件后对话可继续。",
+  "settings.maxMemoryMessages.name": "记忆最大消息数",
+  "settings.maxMemoryMessages.desc": "保留在上下文与磁盘中的最近消息条数上限。",
+  "settings.aiFolderName.name": "AI 文件夹名称",
+  "settings.aiFolderName.desc": "在 vault 根目录创建、用于存放记忆与 skill 的文件夹名称。仅建议在该文件夹为空时修改。",
+  "settings.aiFolderName.create": "立即创建文件夹",
+  "settings.aiFolderName.created": "AI Note Agent：AI 文件夹已创建。"
 }

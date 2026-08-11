@@ -11,6 +11,9 @@ An [Obsidian](https://obsidian.md) plugin that turns your vault into a self-impr
 - **In-editor autocompletion** — Two modes:
   - **Command** (`AI: Autoprompt`): trigger on demand at the cursor.
   - **Realtime** (optional, toggle in settings): debounced inline "ghost text" suggestion you accept with `Tab`.
+- **Custom instructions** — Set persistent instructions that are injected into the system prompt of *every* AI feature (chat, analysis, optimize, autoprompt). e.g. "Reply in Chinese; keep answers concise; act as my legal advisor."
+- **Conversation memory** — Chat history is persisted in your vault so multi-turn conversations continue after a restart. Toggle it on/off and cap how many recent messages are kept in context/disk.
+- **AI folder** — On load the plugin auto-creates a folder (default `AI-Note-Agent`) at your vault root to store chat memory (`memory/chat-history.json`) and a `skills/` directory where you can drop custom skill `.md` files for future use.
 
 ## AI provider (network usage disclosure)
 
@@ -46,6 +49,26 @@ The plugin UI is fully internationalized and **follows your Obsidian language** 
 | Enrich properties | on/off |
 | Realtime autoprompt | on/off + debounce ms |
 | Related notes per note | how many suggestions to insert |
+| Custom instructions | multi-line text injected into every AI system prompt |
+| Conversation memory | on/off; persist chat history in the vault |
+| Max memory messages | cap of recent messages kept in context and on disk |
+| AI folder name | name of the vault-root folder that stores memory & skills |
+
+## AI folder layout
+
+When the plugin loads, it creates the following structure at your vault root (folder name configurable):
+
+```
+AI-Note-Agent/
+├── memory/
+│   └── chat-history.json    # conversation memory (auto-managed; delete to clear)
+└── skills/                  # custom skill files (reserved for future loading)
+    └── README.md            # what this folder is for
+```
+
+- **Memory** is written after every assistant reply and reloaded when you reopen the chat panel.
+- **Clear** button in the chat header wipes the in-memory history and the saved file.
+- **Skills** is a reserved directory; later versions will load `.md` files placed here into the chat context.
 
 ## Install (development)
 

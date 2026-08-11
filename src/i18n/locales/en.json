@@ -88,5 +88,23 @@
   "view.thinking": "Thinking…",
   "view.clear": "Clear",
   "view.error": "Error: {error}",
-  "view.openFailed": "Could not open AI chat panel."
+  "view.openFailed": "Could not open AI chat panel.",
+  "view.memoryLoaded": "Loaded {count} messages from memory.",
+
+  "settings.section.behavior": "AI behavior",
+  "settings.section.memory": "Conversation memory",
+
+  "settings.customInstructions.name": "Custom instructions",
+  "settings.customInstructions.desc": "Injected into the system prompt for every AI feature (chat, analysis, optimize, autoprompt). Leave empty for none.",
+  "settings.customInstructions.placeholder": "e.g. Reply in Chinese; keep answers concise; act as my legal advisor.",
+  "settings.customInstructions.reset": "Reset",
+
+  "settings.enableMemory.name": "Conversation memory",
+  "settings.enableMemory.desc": "Persist chat history in the AI folder so conversations continue after restart.",
+  "settings.maxMemoryMessages.name": "Max memory messages",
+  "settings.maxMemoryMessages.desc": "Maximum number of recent messages kept in context and saved to disk.",
+  "settings.aiFolderName.name": "AI folder name",
+  "settings.aiFolderName.desc": "Folder created at the vault root to store memory and skills. Change only while the folder is empty.",
+  "settings.aiFolderName.create": "Create folder now",
+  "settings.aiFolderName.created": "AI Note Agent: AI folder created."
 }

@@ -8,6 +8,7 @@ import {
 import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
 import { createProvider } from "./ai/provider";
+import { ensureAiFolder } from "./utils/aiFolder";
 
 export type ProviderType = "openai" | "ollama";
 export type LinkStyle = "relative" | "wikilink";
@@ -27,6 +28,14 @@ export interface AiNoteAgentSettings {
   realtimeEnabled: boolean;
   realtimeDebounceMs: number;
   relatedPerNote: number;
+  // 自定义指令：注入到所有 AI 功能的 system prompt
+  customInstructions: string;
+  // 对话记忆：是否在 vault 中持久化聊天历史
+  enableMemory: boolean;
+  // 记忆保留的最大消息条数（防止 token 膨胀）
+  maxMemoryMessages: number;
+  // vault 根目录中用于存放记忆与 skill 的文件夹名称
+  aiFolderName: string;
 }
 
 export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
@@ -44,6 +53,10 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   realtimeEnabled: false,
   realtimeDebounceMs: 800,
   relatedPerNote: 5,
+  customInstructions: "",
+  enableMemory: true,
+  maxMemoryMessages: 20,
+  aiFolderName: "AI-Note-Agent",
 };
 
 export class AiNoteAgentSettingTab extends PluginSettingTab {
@@ -259,6 +272,92 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             if (!isNaN(n)) {
               this.plugin.settings.maxTokens = n;
               await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    containerEl.createEl("h3", { text: t("settings.section.behavior"), cls: "ana-settings-h3" });
+
+    new Setting(containerEl)
+      .setName(t("settings.customInstructions.name"))
+      .setDesc(t("settings.customInstructions.desc"))
+      .addTextArea((ta) =>
+        ta
+          .setPlaceholder(t("settings.customInstructions.placeholder"))
+          .setValue(this.plugin.settings.customInstructions)
+          .onChange(async (v) => {
+            this.plugin.settings.customInstructions = v;
+            await this.plugin.saveSettings();
+          })
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText(t("settings.customInstructions.reset"))
+          .setWarning()
+          .onClick(async () => {
+            this.plugin.settings.customInstructions = "";
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    containerEl.createEl("h3", { text: t("settings.section.memory"), cls: "ana-settings-h3" });
+
+    new Setting(containerEl)
+      .setName(t("settings.enableMemory.name"))
+      .setDesc(t("settings.enableMemory.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.enableMemory)
+          .onChange(async (v) => {
+            this.plugin.settings.enableMemory = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.maxMemoryMessages.name"))
+      .setDesc(t("settings.maxMemoryMessages.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("20")
+          .setValue(String(this.plugin.settings.maxMemoryMessages))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.maxMemoryMessages = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.aiFolderName.name"))
+      .setDesc(t("settings.aiFolderName.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("AI-Note-Agent")
+          .setValue(this.plugin.settings.aiFolderName)
+          .onChange(async (v) => {
+            const name = v.trim();
+            if (name) {
+              this.plugin.settings.aiFolderName = name;
+              await this.plugin.saveSettings();
+            }
+          })
+      )
+          .addButton((btn) =>
+        btn
+          .setButtonText(t("settings.aiFolderName.create"))
+          .onClick(async () => {
+            btn.setDisabled(true);
+            try {
+              await ensureAiFolder(this.plugin);
+              new Notice(t("settings.aiFolderName.created"));
+            } catch (e) {
+              new Notice(t("notice.error", { error: (e as Error).message }));
+            } finally {
+              btn.setDisabled(false);
             }
           })
       );
