@@ -22,48 +22,6 @@ export function buildSystemPrompt(
   return `${basePrompt}\n\n--- User custom instructions ---\n${ci}`;
 }
 
-export interface CandidateNote {
-  path: string;
-  title: string;
-}
-
-export function buildRelationsPrompt(
-  title: string,
-  content: string,
-  candidates: CandidateNote[],
-  limit: number
-): ChatMessage[] {
-  const candList = candidates
-    .map((c, i) => `${i + 1}. path=${c.path} | title=${c.title}`)
-    .join("\n");
-  const user = `Given the note below, find up to ${limit} related notes from the candidate list.
-Return JSON only: {"related":[{"index":<number>,"reason":"<short reason>"}]}
-
-NOTE TITLE: ${title}
-NOTE CONTENT:
-${content.slice(0, 6000)}
-
-CANDIDATE NOTES:
-${candList || "(none)"}`;
-  return [
-    { role: "system", content: SYSTEM_JSON },
-    { role: "user", content: user },
-  ];
-}
-
-export function buildPropertiesPrompt(content: string): ChatMessage[] {
-  const user = `Analyze the note and suggest metadata. Return JSON only:
-{"tags":["lowercase","kebab-case","topics"],"aliases":["alternate name"],"summary":"one sentence summary","category":"optional short category"}
-Rules: tags lowercase kebab-case, 3-6 tags; summary <= 120 chars; preserve facts; do not invent sensitive data.
-
-NOTE CONTENT:
-${content.slice(0, 6000)}`;
-  return [
-    { role: "system", content: SYSTEM_JSON },
-    { role: "user", content: user },
-  ];
-}
-
 export function buildOptimizePrompt(
   content: string,
   instruction?: string

@@ -1,6 +1,7 @@
 import { TFile, TFolder, Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import {
+  ensureAiFolder,
   getAiFolderPath,
   getMemoryDir,
   loadSessionFile,
@@ -25,18 +26,6 @@ function resolveMemoryPath(plugin: AiNoteAgentPlugin, relativePath: string): str
   return `${getMemoryDir(plugin)}/${relativePath}`;
 }
 
-/** 确保 memory/ 目录存在。 */
-async function ensureMemoryFolder(plugin: AiNoteAgentPlugin): Promise<void> {
-  const vault = plugin.app.vault;
-  const path = getMemoryDir(plugin);
-  if (vault.getAbstractFileByPath(path) instanceof TFolder) return;
-  try {
-    await vault.createFolder(path);
-  } catch (e) {
-    if (!(vault.getAbstractFileByPath(path) instanceof TFolder)) throw e;
-  }
-}
-
 /** 读取 memory/ 下某个相对路径的文件内容，不存在或失败返回空字符串。 */
 export async function loadMemoryFile(
   plugin: AiNoteAgentPlugin,
@@ -59,7 +48,7 @@ export async function saveMemoryFile(
   content: string
 ): Promise<void> {
   const vault = plugin.app.vault;
-  await ensureMemoryFolder(plugin);
+  await ensureAiFolder(plugin);
   const path = resolveMemoryPath(plugin, relativePath);
   const file = vault.getAbstractFileByPath(path);
   if (file instanceof TFile) {
@@ -223,7 +212,7 @@ ${digest}`;
  */
 export async function rebuildProfileMemory(plugin: AiNoteAgentPlugin): Promise<void> {
   try {
-    await ensureMemoryFolder(plugin);
+    await ensureAiFolder(plugin);
     const sessions = await loadAllSessions(plugin);
     const memoryMtime = await fileMtime(plugin, MEMORY_FILE);
     const maxUpdated = sessions.reduce(

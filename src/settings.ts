@@ -8,12 +8,10 @@ import {
 import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
 import { createProvider } from "./ai/provider";
-import { ensureAiFolder } from "./utils/aiFolder";
 import { loadMemoryFile, saveMemoryFile } from "./memory/profileMemory";
 import { listSkills, type SkillEntry } from "./skills/skills";
 
 export type ProviderType = "openai" | "ollama";
-export type LinkStyle = "relative" | "wikilink";
 
 export interface AiNoteAgentSettings {
   provider: ProviderType;
@@ -24,12 +22,8 @@ export interface AiNoteAgentSettings {
   ollamaModel: string;
   maxTokens: number;
   temperature: number;
-  linkStyle: LinkStyle;
-  autoLink: boolean;
-  enrichProperties: boolean;
   realtimeEnabled: boolean;
   realtimeDebounceMs: number;
-  relatedPerNote: number;
   // 自定义指令：注入到所有 AI 功能的 system prompt
   customInstructions: string;
   // vault 根目录中用于存放记忆与 skill 的文件夹名称
@@ -69,12 +63,8 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   ollamaModel: "llama3",
   maxTokens: 1024,
   temperature: 0.3,
-  linkStyle: "relative",
-  autoLink: true,
-  enrichProperties: true,
   realtimeEnabled: false,
   realtimeDebounceMs: 800,
-  relatedPerNote: 5,
   customInstructions: "",
   aiFolderName: ".vaultmind",
   memoryProfileCategories:
@@ -193,6 +183,54 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     }
 
     new Setting(providerBody)
+      .setName(t("settings.maxTokens.name"))
+      .setDesc(t("settings.maxTokens.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("1024")
+          .setValue(String(this.plugin.settings.maxTokens))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.maxTokens = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(providerBody)
+      .setName(t("settings.temperature.name"))
+      .setDesc(t("settings.temperature.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("0.3")
+          .setValue(String(this.plugin.settings.temperature))
+          .onChange(async (v) => {
+            const n = parseFloat(v);
+            if (!isNaN(n) && n >= 0 && n <= 2) {
+              this.plugin.settings.temperature = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(providerBody)
+      .setName(t("settings.aiFolderName.name"))
+      .setDesc(t("settings.aiFolderName.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder(".vaultmind")
+          .setValue(this.plugin.settings.aiFolderName)
+          .onChange(async (v) => {
+            const name = v.trim();
+            if (name) {
+              this.plugin.settings.aiFolderName = name;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(providerBody)
       .setName(t("settings.test.name"))
       .setDesc(t("settings.test.desc"))
       .addButton((btn) => {
@@ -220,112 +258,96 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         });
       });
 
-    // ===== 模型参数 =====
-    const modelBody = this.createSection(
+    // ===== 会话与记忆 =====
+    const memoryChatBody = this.createSection(
       containerEl,
-      "settings.section.modelParams",
-      "settings.section.modelParams.desc"
+      "settings.section.memoryChat",
+      "settings.section.memoryChat.desc"
     );
 
-    new Setting(modelBody)
-      .setName(t("settings.maxTokens.name"))
-      .setDesc(t("settings.maxTokens.desc"))
+    new Setting(memoryChatBody)
+      .setName(t("settings.customInstructions.name"))
+      .setDesc(t("settings.customInstructions.desc"))
+      .addTextArea((ta) =>
+        ta
+          .setPlaceholder(t("settings.customInstructions.placeholder"))
+          .setValue(this.plugin.settings.customInstructions)
+          .onChange(async (v) => {
+            this.plugin.settings.customInstructions = v;
+            await this.plugin.saveSettings();
+          })
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText(t("settings.customInstructions.reset"))
+          .setWarning()
+          .onClick(async () => {
+            this.plugin.settings.customInstructions = "";
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    new Setting(memoryChatBody)
+      .setName(t("settings.includeVaultIndex.name"))
+      .setDesc(t("settings.includeVaultIndex.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.includeVaultIndex)
+          .onChange(async (v) => {
+            this.plugin.settings.includeVaultIndex = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(memoryChatBody)
+      .setName(t("settings.chatContextMaxChars.name"))
+      .setDesc(t("settings.chatContextMaxChars.desc"))
       .addText((t2) =>
         t2
-          .setPlaceholder("1024")
-          .setValue(String(this.plugin.settings.maxTokens))
+          .setPlaceholder("8000")
+          .setValue(String(this.plugin.settings.chatContextMaxChars))
           .onChange(async (v) => {
             const n = parseInt(v, 10);
             if (!isNaN(n) && n > 0) {
-              this.plugin.settings.maxTokens = n;
+              this.plugin.settings.chatContextMaxChars = n;
               await this.plugin.saveSettings();
             }
           })
       );
 
-    new Setting(modelBody)
-      .setName(t("settings.temperature.name"))
-      .setDesc(t("settings.temperature.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("0.3")
-          .setValue(String(this.plugin.settings.temperature))
+    new Setting(memoryChatBody)
+      .setName(t("settings.memoryProfileCategories.name"))
+      .setDesc(t("settings.memoryProfileCategories.desc"))
+      .addTextArea((ta) =>
+        ta
+          .setPlaceholder(t("settings.memoryProfileCategories.placeholder"))
+          .setValue(this.plugin.settings.memoryProfileCategories)
           .onChange(async (v) => {
-            const n = parseFloat(v);
-            if (!isNaN(n) && n >= 0 && n <= 2) {
-              this.plugin.settings.temperature = n;
-              await this.plugin.saveSettings();
+            this.plugin.settings.memoryProfileCategories = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(memoryChatBody)
+      .setName(t("settings.memoryFile.name"))
+      .setDesc(t("settings.memoryFile.desc"))
+      .addTextArea((ta) => {
+        ta.setPlaceholder(t("settings.memoryFile.placeholder"))
+          .setValue("")
+          .onChange((v) => {
+            if (this.memorySaveTimer !== null) {
+              window.clearTimeout(this.memorySaveTimer);
             }
-          })
-      );
-
-    // ===== 链接与关联 =====
-    const linksBody = this.createSection(
-      containerEl,
-      "settings.section.links",
-      "settings.section.links.desc"
-    );
-
-    new Setting(linksBody)
-      .setName(t("settings.linkStyle.name"))
-      .setDesc(t("settings.linkStyle.desc"))
-      .addDropdown((dd: DropdownComponent) =>
-        dd
-          .addOption("relative", t("settings.linkStyle.relative"))
-          .addOption("wikilink", t("settings.linkStyle.wikilink"))
-          .setValue(this.plugin.settings.linkStyle)
-          .onChange(async (v) => {
-            this.plugin.settings.linkStyle = v as LinkStyle;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(linksBody)
-      .setName(t("settings.autoLink.name"))
-      .setDesc(t("settings.autoLink.desc"))
-      .addToggle((t2) =>
-        t2
-          .setValue(this.plugin.settings.autoLink)
-          .onChange(async (v) => {
-            this.plugin.settings.autoLink = v;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(linksBody)
-      .setName(t("settings.relatedPerNote.name"))
-      .setDesc(t("settings.relatedPerNote.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("5")
-          .setValue(String(this.plugin.settings.relatedPerNote))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n > 0) {
-              this.plugin.settings.relatedPerNote = n;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
-
-    // ===== 笔记增强 =====
-    const enrichBody = this.createSection(
-      containerEl,
-      "settings.section.enrichment",
-      "settings.section.enrichment.desc"
-    );
-
-    new Setting(enrichBody)
-      .setName(t("settings.enrich.name"))
-      .setDesc(t("settings.enrich.desc"))
-      .addToggle((t2) =>
-        t2
-          .setValue(this.plugin.settings.enrichProperties)
-          .onChange(async (v) => {
-            this.plugin.settings.enrichProperties = v;
-            await this.plugin.saveSettings();
-          })
-      );
+            this.memorySaveTimer = window.setTimeout(() => {
+              void saveMemoryFile(this.plugin, "MEMORY.md", v);
+            }, 500);
+          });
+        ta.inputEl.rows = 12;
+        void loadMemoryFile(this.plugin, "MEMORY.md").then((content) => {
+          ta.setValue(content);
+        });
+      });
 
     // ===== 实时自动提示 =====
     const promptBody = this.createSection(
@@ -361,150 +383,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       );
-
-    // ===== AI 行为 =====
-    const behaviorBody = this.createSection(
-      containerEl,
-      "settings.section.behavior",
-      "settings.section.behavior.desc"
-    );
-
-    new Setting(behaviorBody)
-      .setName(t("settings.customInstructions.name"))
-      .setDesc(t("settings.customInstructions.desc"))
-      .addTextArea((ta) =>
-        ta
-          .setPlaceholder(t("settings.customInstructions.placeholder"))
-          .setValue(this.plugin.settings.customInstructions)
-          .onChange(async (v) => {
-            this.plugin.settings.customInstructions = v;
-            await this.plugin.saveSettings();
-          })
-      )
-      .addButton((btn) =>
-        btn
-          .setButtonText(t("settings.customInstructions.reset"))
-          .setWarning()
-          .onClick(async () => {
-            this.plugin.settings.customInstructions = "";
-            await this.plugin.saveSettings();
-            this.display();
-          })
-      );
-
-    // ===== 长期画像记忆 =====
-    const memoryBody = this.createSection(
-      containerEl,
-      "settings.section.memory",
-      "settings.section.memory.desc"
-    );
-
-    new Setting(memoryBody)
-      .setName(t("settings.memoryProfileCategories.name"))
-      .setDesc(t("settings.memoryProfileCategories.desc"))
-      .addTextArea((ta) =>
-        ta
-          .setPlaceholder(t("settings.memoryProfileCategories.placeholder"))
-          .setValue(this.plugin.settings.memoryProfileCategories)
-          .onChange(async (v) => {
-            this.plugin.settings.memoryProfileCategories = v;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(memoryBody)
-      .setName(t("settings.aiFolderName.name"))
-      .setDesc(t("settings.aiFolderName.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder(".vaultmind")
-          .setValue(this.plugin.settings.aiFolderName)
-          .onChange(async (v) => {
-            const name = v.trim();
-            if (name) {
-              this.plugin.settings.aiFolderName = name;
-              await this.plugin.saveSettings();
-            }
-          })
-      )
-      .addButton((btn) =>
-        btn
-          .setButtonText(t("settings.aiFolderName.create"))
-          .onClick(async () => {
-            btn.setDisabled(true);
-            try {
-              await ensureAiFolder(this.plugin);
-              new Notice(t("settings.aiFolderName.created"));
-            } catch (e) {
-              new Notice(t("notice.error", { error: (e as Error).message }));
-            } finally {
-              btn.setDisabled(false);
-            }
-          })
-      );
-
-    new Setting(memoryBody)
-      .setName(t("settings.memoryFile.name"))
-      .setDesc(t("settings.memoryFile.desc"))
-      .addTextArea((ta) => {
-        ta.setPlaceholder(t("settings.memoryFile.placeholder"))
-          .setValue("")
-          .onChange((v) => {
-            if (this.memorySaveTimer !== null) {
-              window.clearTimeout(this.memorySaveTimer);
-            }
-            this.memorySaveTimer = window.setTimeout(() => {
-              void saveMemoryFile(this.plugin, "MEMORY.md", v);
-            }, 500);
-          });
-        ta.inputEl.rows = 12;
-        void loadMemoryFile(this.plugin, "MEMORY.md").then((content) => {
-          ta.setValue(content);
-        });
-      });
-
-    // ===== AI 对话上下文 =====
-    const chatBody = this.createSection(
-      containerEl,
-      "settings.section.chat",
-      "settings.section.chat.desc"
-    );
-
-    new Setting(chatBody)
-      .setName(t("settings.includeVaultIndex.name"))
-      .setDesc(t("settings.includeVaultIndex.desc"))
-      .addToggle((t2) =>
-        t2
-          .setValue(this.plugin.settings.includeVaultIndex)
-          .onChange(async (v) => {
-            this.plugin.settings.includeVaultIndex = v;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(chatBody)
-      .setName(t("settings.chatContextMaxChars.name"))
-      .setDesc(t("settings.chatContextMaxChars.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("8000")
-          .setValue(String(this.plugin.settings.chatContextMaxChars))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n > 0) {
-              this.plugin.settings.chatContextMaxChars = n;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
-
-    // ===== Skill 技能 =====
-    const skillsBody = this.createSection(
-      containerEl,
-      "settings.section.skills",
-      "settings.section.skills.desc"
-    );
-    this.renderDefaultSkills(skillsBody);
 
     // ===== 联网搜索 =====
     const webBody = this.createSection(
@@ -621,6 +499,14 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    // ===== Skill 技能 =====
+    const skillsBody = this.createSection(
+      containerEl,
+      "settings.section.skills",
+      "settings.section.skills.desc"
+    );
+    this.renderDefaultSkills(skillsBody);
   }
 
   /** 创建一个设置分组（带标题与可选描述），返回用于放置 Setting 的容器。 */

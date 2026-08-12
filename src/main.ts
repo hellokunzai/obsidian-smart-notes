@@ -5,8 +5,6 @@ import {
   type AiNoteAgentSettings,
 } from "./settings";
 import { createProvider, type AIProvider } from "./ai/provider";
-import { analyzeNote, analyzeVault } from "./analysis/analyzer";
-import { enrichNote } from "./properties/enrich";
 import { optimizeNote } from "./optimize/optimizer";
 import { OptimizeModal } from "./optimize/previewModal";
 import {
@@ -50,54 +48,6 @@ export default class AiNoteAgentPlugin extends Plugin {
 
     this.addRibbonIcon("vault-mind", t("plugin.name"), () => {
       void this.openChatView();
-    });
-
-    this.addCommand({
-      id: "analyze-current",
-      name: t("cmd.analyzeCurrent"),
-      editorCallback: async (editor, ctx) => {
-        const file = ctx.file;
-        if (!(file instanceof TFile)) {
-          new Notice(t("notice.openNoteFirst"));
-          return;
-        }
-        await this.runWithNotice(t("notice.analyzing"), () =>
-          analyzeNote(this, file)
-        );
-      },
-    });
-
-    this.addCommand({
-      id: "analyze-vault",
-      name: t("cmd.analyzeVault"),
-      callback: async () => {
-        const files = this.app.vault.getMarkdownFiles();
-        if (!files.length) {
-          new Notice(t("notice.noNotes"));
-          return;
-        }
-        if (files.length > 200) {
-          const ok = confirm(t("confirm.analyzeMany", { count: files.length }));
-          if (!ok) return;
-        }
-        await analyzeVault(this, files);
-      },
-    });
-
-    this.addCommand({
-      id: "enrich-current",
-      name: t("cmd.enrichCurrent"),
-      editorCallback: async (editor, ctx) => {
-        const file = ctx.file;
-        if (!(file instanceof TFile)) {
-          new Notice(t("notice.openNoteFirst"));
-          return;
-        }
-        await this.runWithNotice(t("notice.enriching"), async () => {
-          const content = await this.app.vault.read(file);
-          await enrichNote(this, file, content);
-        });
-      },
     });
 
     this.addCommand({
