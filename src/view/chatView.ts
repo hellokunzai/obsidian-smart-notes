@@ -839,7 +839,8 @@ export class ChatView extends ItemView {
   private setInputDisabled(disabled: boolean): void {
     this.inputEl.disabled = disabled;
     this.sendBtn.disabled = disabled;
-    this.sendBtn.setText(disabled ? t("view.thinking") : t("view.send"));
+    this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
+    setIcon(this.sendBtn, disabled ? "loader" : "send");
   }
 
   /** 持久化会话：始终写 index.json；仅写已加载会话的独立文件（未加载的不覆盖磁盘）。 */
