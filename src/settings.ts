@@ -79,7 +79,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   customInstructions: "",
   enableMemory: true,
   maxMemoryMessages: 20,
-  aiFolderName: "AI-Note-Agent",
+  aiFolderName: "VaultMind",
   includeVaultIndex: true,
   chatContextMaxChars: 8000,
   defaultSkills: [],
@@ -432,7 +432,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       .setDesc(t("settings.aiFolderName.desc"))
       .addText((t2) =>
         t2
-          .setPlaceholder("AI-Note-Agent")
+          .setPlaceholder("VaultMind")
           .setValue(this.plugin.settings.aiFolderName)
           .onChange(async (v) => {
             const name = v.trim();

@@ -1,7 +1,7 @@
 {
-  "name": "ai-note-agent",
+  "name": "vault-mind",
   "version": "0.7.0",
-  "description": "AI Note Agent - an Obsidian plugin that analyzes your vault with AI.",
+  "description": "Vault Mind - an Obsidian plugin that analyzes your vault with AI.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

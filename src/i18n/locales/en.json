@@ -1,6 +1,6 @@
 {
-  "plugin.name": "AI Note Agent",
-  "ribbon.hint": "AI Note Agent: open the command palette (Ctrl/Cmd+P) to run actions.",
+  "plugin.name": "Vault Mind",
+  "ribbon.hint": "Vault Mind: open the command palette (Ctrl/Cmd+P) to run actions.",
 
   "cmd.analyzeCurrent": "Analyze current note",
   "cmd.analyzeVault": "Analyze entire vault",
@@ -15,17 +15,17 @@
   "notice.enriching": "Enriching properties...",
   "notice.thinking": "Thinking...",
   "notice.optimizing": "Optimizing note...",
-  "notice.done": "AI Note Agent: done.",
-  "notice.noteUpdated": "AI Note Agent: note updated.",
-  "notice.noSuggestion": "AI Note Agent: no suggestion returned.",
-  "notice.error": "AI Note Agent: {error}",
+  "notice.done": "Vault Mind: done.",
+  "notice.noteUpdated": "Vault Mind: note updated.",
+  "notice.noSuggestion": "Vault Mind: no suggestion returned.",
+  "notice.error": "Vault Mind: {error}",
 
   "confirm.analyzeMany": "Analyze {count} notes? This makes many API calls.",
 
-  "analyzer.analyzingVault": "AI Note Agent: analyzing vault...",
-  "analyzer.progress": "AI Note Agent: analyzed {done}/{total}",
-  "analyzer.finished": "AI Note Agent: finished analyzing {count} notes.",
-  "analyzer.stopped": "AI Note Agent: analysis stopped — {error}",
+  "analyzer.analyzingVault": "Vault Mind: analyzing vault...",
+  "analyzer.progress": "Vault Mind: analyzed {done}/{total}",
+  "analyzer.finished": "Vault Mind: finished analyzing {count} notes.",
+  "analyzer.stopped": "Vault Mind: analysis stopped — {error}",
 
   "modal.title": "Optimize note (AI)",
   "modal.original": "Original (read-only)",
@@ -42,8 +42,8 @@
   "settings.test.desc": "Send a tiny ping to verify the current provider settings.",
   "settings.test.button": "Test",
   "settings.test.testing": "Testing...",
-  "settings.test.success": "AI Note Agent: connection OK.",
-  "settings.test.failure": "AI Note Agent: connection failed — {error}",
+  "settings.test.success": "Vault Mind: connection OK.",
+  "settings.test.failure": "Vault Mind: connection failed — {error}",
 
   "settings.openaiKey.name": "API key",
   "settings.openaiKey.desc": "Stored locally in plugin data. Sent only to the Base URL you configure.",
@@ -77,7 +77,7 @@
   "settings.temperature.name": "Temperature",
   "settings.temperature.desc": "Range 0–2; lower is more deterministic, higher is more creative.",
 
-  "error.noApiKey": "OpenAI API key is not set. Open Settings → AI Note Agent and enter your key.",
+  "error.noApiKey": "OpenAI API key is not set. Open Settings → Vault Mind and enter your key.",
   "error.openaiFailed": "OpenAI request failed ({status}): {text}",
   "error.ollamaFailed": "Ollama request failed ({status}): {text}",
 
@@ -143,7 +143,7 @@
   "settings.aiFolderName.name": "AI folder name",
   "settings.aiFolderName.desc": "Folder created at the vault root to store memory and skills. Change only while the folder is empty.",
   "settings.aiFolderName.create": "Create folder now",
-  "settings.aiFolderName.created": "AI Note Agent: AI folder created.",
+  "settings.aiFolderName.created": "Vault Mind: AI folder created.",
 
   "settings.section.web": "Web search",
   "settings.section.web.desc": "Configure web search backends available in chat.",
@@ -173,7 +173,7 @@
   "view.addAttachment": "Attach file/folder",
   "view.removeAttachment": "Remove attachment",
   "view.clearAttachments": "Clear attachments",
-  "view.noNewAttachment": "AI Note Agent: no new files/folders added.",
+  "view.noNewAttachment": "Vault Mind: no new files/folders added.",
   "view.picker.title": "Attach from vault",
   "view.picker.desc": "Select files or folders to attach as context. Only the content of attached files is sent to the AI; everything else is paths-only.",
   "view.picker.searchPlaceholder": "Search files and folders…",
@@ -183,7 +183,7 @@
   "view.manageSkills": "Skills",
   "view.removeSkill": "Remove skill",
   "view.clearSkills": "Clear skills",
-  "view.noNewSkill": "AI Note Agent: no new skills added.",
+  "view.noNewSkill": "Vault Mind: no new skills added.",
   "view.skillPicker.title": "Manage skills for this chat",
   "view.skillPicker.desc": "Enable skills to load their content into the AI context. Inactive skills are only listed by name so the AI knows they exist and can suggest enabling them.",
   "view.skillPicker.searchPlaceholder": "Search skills…",
@@ -193,8 +193,8 @@
   "view.webToggle": "Toggle web search for this chat (only searches when enabled)",
   "view.webOn": "Web on",
   "view.webOff": "Web off",
-  "view.webSearching": "AI Note Agent: searching the web…",
-  "view.webNoResults": "AI Note Agent: web search returned no results.",
-  "view.webNoCredentials": "AI Note Agent: web search is on but no API keys/instances are configured. Add them in settings.",
-  "view.webError": "AI Note Agent: web search failed ({error})."
+  "view.webSearching": "Vault Mind: searching the web…",
+  "view.webNoResults": "Vault Mind: web search returned no results.",
+  "view.webNoCredentials": "Vault Mind: web search is on but no API keys/instances are configured. Add them in settings.",
+  "view.webError": "Vault Mind: web search failed ({error})."
 }

@@ -28,7 +28,7 @@ export default class AiNoteAgentPlugin extends Plugin {
     this.provider = createProvider(this.settings);
     initI18n(this.app);
 
-    addIcon("ai-note-agent", ICON_SVG);
+    addIcon("vault-mind", ICON_SVG);
 
     // 自动在 vault 根目录生成 AI 数据文件夹（记忆 + skills）
     void ensureAiFolder(this);
@@ -40,7 +40,7 @@ export default class AiNoteAgentPlugin extends Plugin {
     // Realtime inline autoprompt editor extension
     this.registerEditorExtension(createRealtimeExtension(this));
 
-    this.addRibbonIcon("ai-note-agent", t("plugin.name"), () => {
+    this.addRibbonIcon("vault-mind", t("plugin.name"), () => {
       void this.openChatView();
     });
 

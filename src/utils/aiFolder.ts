@@ -63,7 +63,7 @@ export interface SessionsFile {
 
 /** 获取 vault 根目录下的 AI 文件夹名称（去除首尾空格，空值回退默认名）。 */
 export function getAiFolderName(plugin: AiNoteAgentPlugin): string {
-  return (plugin.settings.aiFolderName || "AI-Note-Agent").trim() || "AI-Note-Agent";
+  return (plugin.settings.aiFolderName || "VaultMind").trim() || "VaultMind";
 }
 
 /** AI 文件夹根路径（vault 根目录下的相对路径）。 */

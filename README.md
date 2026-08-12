@@ -1,4 +1,4 @@
-# AI Note Agent
+# Vault Mind
 
 An [Obsidian](https://obsidian.md) plugin that turns your vault into a self-improving knowledge base, powered by an AI model of your choice.
 
@@ -13,7 +13,7 @@ An [Obsidian](https://obsidian.md) plugin that turns your vault into a self-impr
   - **Realtime** (optional, toggle in settings): debounced inline "ghost text" suggestion you accept with `Tab`.
 - **Custom instructions** — Set persistent instructions that are injected into the system prompt of *every* AI feature (chat, analysis, optimize, autoprompt). e.g. "Reply in Chinese; keep answers concise; act as my legal advisor."
 - **Conversation memory** — Chat history is persisted in your vault so multi-turn conversations continue after a restart. Toggle it on/off and cap how many recent messages are kept in context/disk.
-- **AI folder** — On load the plugin auto-creates a folder (default `AI-Note-Agent`) at your vault root to store chat memory (`memory/chat-history.json`) and a `skills/` directory where you can drop custom skill `.md` files for future use.
+- **AI folder** — On load the plugin auto-creates a folder (default `VaultMind`) at your vault root to store chat memory (`memory/chat-history.json`) and a `skills/` directory where you can drop custom skill `.md` files for future use.
 
 ## AI provider (network usage disclosure)
 
@@ -22,7 +22,7 @@ This plugin makes **network requests** to an AI provider you configure:
 - **OpenAI-compatible** (e.g. OpenAI, Azure OpenAI, local gateways): sends note text to the `chat/completions` endpoint you configure. Requires an API key.
 - **Ollama** (local): sends note text to a local Ollama instance (default `http://localhost:11434`). No API key, fully offline if the model runs locally.
 
-No data is sent anywhere except the endpoint you explicitly configure. There is no telemetry. Choose the provider in **Settings → AI Note Agent**.
+No data is sent anywhere except the endpoint you explicitly configure. There is no telemetry. Choose the provider in **Settings → Vault Mind**.
 
 ## Link style
 
@@ -72,7 +72,7 @@ All sessions are stored together in `memory/chat-history.json` (one file). Legac
 When the plugin loads, it creates the following structure at your vault root (folder name configurable):
 
 ```
-AI-Note-Agent/
+VaultMind/
 ├── memory/
 │   └── chat-history.json    # conversation memory (auto-managed; delete to clear)
 └── skills/                  # custom skill files (reserved for future loading)
@@ -85,7 +85,7 @@ AI-Note-Agent/
 
 ## Install (development)
 
-1. Copy the built `main.js`, `manifest.json`, and `styles.css` into `<your-test-vault>/.obsidian/plugins/ai-note-agent/`.
+1. Copy the built `main.js`, `manifest.json`, and `styles.css` into `<your-test-vault>/.obsidian/plugins/vault-mind/`.
 2. Enable the plugin in Obsidian settings.
 3. Configure your provider and API key.
 
