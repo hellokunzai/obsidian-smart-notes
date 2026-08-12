@@ -42,7 +42,6 @@ export class ChatView extends ItemView {
   private sendBtn!: HTMLButtonElement;
   private inputWrapEl!: HTMLElement;
   private chipsEl!: HTMLElement;
-  private actionsEl!: HTMLElement;
   private webToggleBtn!: HTMLButtonElement;
   private attachBtn!: HTMLButtonElement;
   private skillBtn!: HTMLButtonElement;
@@ -150,14 +149,20 @@ export class ChatView extends ItemView {
 
     const footer = main.createEl("div", { cls: "ana-chat-footer" });
 
-    // 输入区：输入框包裹层 + 发送按钮横向排列
+    // 文件入口：位于输入框上方
+    const attachRow = footer.createEl("div", { cls: "ana-chat-attach-row" });
+    this.attachBtn = attachRow.createEl("button", {
+      cls: "ana-chat-action ana-chat-attach-action",
+      attr: { title: t("view.addAttachment"), "aria-label": t("view.addAttachment") },
+    });
+    setIcon(this.attachBtn, "paperclip");
+    this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
+
+    // 输入区：包裹层 + 底部操作栏
     const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
 
-    // 输入框包裹层：内部显示已选的附件/Skill chips，下面是 textarea
     this.inputWrapEl = inputArea.createEl("div", { cls: "ana-chat-input-wrap" });
-    this.chipsEl = this.inputWrapEl.createEl("div", {
-      cls: "ana-chat-chips",
-    });
+    this.chipsEl = this.inputWrapEl.createEl("div", { cls: "ana-chat-chips" });
     this.inputEl = this.inputWrapEl.createEl("textarea", {
       cls: "ana-chat-input",
       attr: { placeholder: t("view.placeholder"), rows: "2" },
@@ -169,35 +174,30 @@ export class ChatView extends ItemView {
       }
     });
 
-    this.sendBtn = inputArea.createEl("button", {
-      cls: "ana-chat-send mod-cta",
-    });
-    this.sendBtn.setText(t("view.send"));
-    this.sendBtn.addEventListener("click", () => void this.handleSend());
+    // 输入框内底部工具栏：左下角 Skill / 联网搜索，右下角发送
+    const inputBar = this.inputWrapEl.createEl("div", { cls: "ana-chat-input-bar" });
 
-    // 操作栏：三个入口横向排列，使用 lucide 图标
-    this.actionsEl = footer.createEl("div", { cls: "ana-chat-actions" });
-
-    this.attachBtn = this.actionsEl.createEl("button", {
-      cls: "ana-chat-action",
-      attr: { title: t("view.addAttachment"), "aria-label": t("view.addAttachment") },
-    });
-    setIcon(this.attachBtn, "paperclip");
-    this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
-
-    this.skillBtn = this.actionsEl.createEl("button", {
+    const leftActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-left" });
+    this.skillBtn = leftActions.createEl("button", {
       cls: "ana-chat-action",
       attr: { title: t("view.manageSkills"), "aria-label": t("view.manageSkills") },
     });
     setIcon(this.skillBtn, "puzzle");
     this.skillBtn.addEventListener("click", () => this.openSkillPicker());
 
-    this.webToggleBtn = this.actionsEl.createEl("button", {
+    this.webToggleBtn = leftActions.createEl("button", {
       cls: "ana-chat-action",
       attr: { title: t("view.webToggle"), "aria-label": t("view.webToggle") },
     });
     setIcon(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
+
+    this.sendBtn = inputBar.createEl("button", {
+      cls: "ana-chat-send",
+      attr: { title: t("view.send"), "aria-label": t("view.send") },
+    });
+    setIcon(this.sendBtn, "send");
+    this.sendBtn.addEventListener("click", () => void this.handleSend());
 
     this.renderChips();
     this.renderActions();
@@ -532,15 +532,17 @@ export class ChatView extends ItemView {
 
   // ================= 联网搜索开关 =================
 
-  /** 渲染图标按钮：更新联网搜索图标的 active 状态与 tooltip。 */
+  /** 渲染图标按钮：更新各图标 active 状态与 tooltip。 */
   private renderActions(): void {
     const s = this.activeSession;
-    const on = s ? s.webSearch : false;
+    if (!s) return;
+
+    this.attachBtn.classList.toggle("is-active", s.attachments.length > 0);
+    this.skillBtn.classList.toggle("is-active", s.skills.length > 0);
+
+    const on = s.webSearch;
     this.webToggleBtn.classList.toggle("is-active", on);
-    this.webToggleBtn.setAttribute(
-      "title",
-      on ? t("view.webOn") : t("view.webOff")
-    );
+    this.webToggleBtn.setAttribute("title", on ? t("view.webOn") : t("view.webOff"));
   }
 
   private async toggleWebSearch(): Promise<void> {

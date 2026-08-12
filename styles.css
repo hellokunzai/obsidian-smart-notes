@@ -317,22 +317,27 @@
 .ana-chat-footer {
   display: flex;
   flex-direction: column;
-  gap: var(--size-4-1);
+  gap: 4px;
   padding: var(--size-4-2) var(--size-4-3);
   border-top: 1px solid var(--background-modifier-border);
   flex-shrink: 0;
   background: var(--background-primary);
 }
 
-/* 输入框 + chips 的包裹层 */
+/* 文件入口：输入框上方 */
+.ana-chat-attach-row {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--size-4-1);
+}
+
+/* 输入区 */
 .ana-chat-input-area {
   display: flex;
-  align-items: flex-end;
-  gap: var(--size-4-2);
+  flex-direction: column;
 }
 
 .ana-chat-input-wrap {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   background: var(--background-modifier-form-field);
@@ -358,14 +363,15 @@
 }
 
 .ana-chat-input {
+  flex: 1 1 auto;
   resize: none;
-  min-height: 44px;
+  min-height: 60px;
   max-height: 160px;
   background: transparent;
   color: var(--text-normal);
   border: none;
   border-radius: 0;
-  padding: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-2) var(--size-4-1);
   font-family: var(--font-interface);
   font-size: var(--font-ui-smaller);
   line-height: var(--line-height-normal);
@@ -375,41 +381,44 @@
   outline: none;
 }
 
-.ana-chat-send {
-  flex-shrink: 0;
-  min-height: 44px;
-  padding: 0 var(--size-4-3);
-}
-
 .ana-chat-send:disabled,
 .ana-chat-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* 操作栏：图标按钮横向一行 */
-.ana-chat-actions {
+/* 输入框内底部工具栏：左下角 Skill/联网搜索，右下角发送 */
+.ana-chat-input-bar {
   display: flex;
   align-items: center;
-  gap: var(--size-4-1);
+  justify-content: space-between;
+  padding: 4px var(--size-4-1);
 }
 
+.ana-chat-input-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 图标按钮 */
 .ana-chat-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
+  box-shadow: none;
 }
 
 .ana-chat-action svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .ana-chat-action:hover {
@@ -420,6 +429,31 @@
 .ana-chat-action.is-active {
   color: var(--interactive-accent);
   background: var(--background-modifier-hover);
+}
+
+/* 发送按钮：图标，右下角 */
+.ana-chat-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  cursor: pointer;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.ana-chat-send svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ana-chat-send:hover:not(:disabled) {
+  filter: brightness(1.1);
 }
 
 /* 已选 chips */
@@ -470,12 +504,6 @@
 .ana-chat-chip-x:hover {
   color: var(--text-error);
   background: var(--background-modifier-hover);
-}
-
-.ana-chat-attach-actions {
-  display: flex;
-  gap: var(--size-4-1);
-  flex-shrink: 0;
 }
 
 /* 附件选择器弹窗 */
