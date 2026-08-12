@@ -33,7 +33,7 @@
   "modal.cancel": "Cancel",
   "modal.apply": "Apply",
 
-  "settings.provider.name": "Provider",
+  "settings.provider.name": "Link type",
   "settings.provider.desc": "Choose the AI backend used for all features.",
   "settings.provider.openai": "OpenAI-compatible",
   "settings.provider.ollama": "Ollama (local)",
@@ -45,11 +45,11 @@
   "settings.test.success": "AI Note Agent: connection OK.",
   "settings.test.failure": "AI Note Agent: connection failed — {error}",
 
-  "settings.openaiKey.name": "OpenAI API key",
+  "settings.openaiKey.name": "API key",
   "settings.openaiKey.desc": "Stored locally in plugin data. Sent only to the Base URL you configure.",
-  "settings.openaiBaseUrl.name": "OpenAI Base URL",
+  "settings.openaiBaseUrl.name": "Base URL",
   "settings.openaiBaseUrl.desc": "Default: https://api.openai.com/v1",
-  "settings.openaiModel.name": "OpenAI Model",
+  "settings.openaiModel.name": "Model name",
   "settings.openaiModel.desc": "e.g. gpt-4o-mini, gpt-4o, or any compatible model id.",
 
   "settings.ollamaBaseUrl.name": "Ollama Base URL",
@@ -74,6 +74,8 @@
   "settings.relatedPerNote.desc": "Maximum number of related notes to link per note.",
   "settings.maxTokens.name": "Max tokens",
   "settings.maxTokens.desc": "Upper bound for AI output length per request.",
+  "settings.temperature.name": "Temperature",
+  "settings.temperature.desc": "Range 0–2; lower is more deterministic, higher is more creative.",
 
   "error.noApiKey": "OpenAI API key is not set. Open Settings → AI Note Agent and enter your key.",
   "error.openaiFailed": "OpenAI request failed ({status}): {text}",
@@ -101,8 +103,20 @@
   "view.openFailed": "Could not open AI chat panel.",
   "view.sessionsLoaded": "Loaded {count} sessions from memory.",
 
+  "settings.section.provider": "Model configuration",
+  "settings.section.provider.desc": "Select the AI provider and configure connection credentials.",
+  "settings.section.modelParams": "Model parameters",
+  "settings.section.modelParams.desc": "Control output length and creativity.",
+  "settings.section.links": "Links & relations",
+  "settings.section.links.desc": "Control how relation links between notes are generated.",
+  "settings.section.enrichment": "Note enrichment",
+  "settings.section.enrichment.desc": "Automatically generate frontmatter properties for notes.",
+  "settings.section.autoprompt": "Realtime autoprompt",
+  "settings.section.autoprompt.desc": "AI-powered inline suggestions while typing.",
   "settings.section.behavior": "AI behavior",
+  "settings.section.behavior.desc": "System-level custom instructions injected into every AI feature.",
   "settings.section.memory": "Conversation memory",
+  "settings.section.memory.desc": "Persist chat history and manage storage location.",
 
   "settings.customInstructions.name": "Custom instructions",
   "settings.customInstructions.desc": "Injected into the system prompt for every AI feature (chat, analysis, optimize, autoprompt). Leave empty for none.",
@@ -115,12 +129,14 @@
   "settings.maxMemoryMessages.desc": "Maximum number of recent messages kept in context and saved to disk.",
 
   "settings.section.chat": "AI chat context",
+  "settings.section.chat.desc": "Control what vault information is injected into chats.",
   "settings.includeVaultIndex.name": "Knowledge base index",
   "settings.includeVaultIndex.desc": "Add a list of all Markdown file paths to the system prompt so the AI knows what's in your vault. Contents are NOT loaded unless attached or referenced.",
   "settings.chatContextMaxChars.name": "Max chars per attached file",
   "settings.chatContextMaxChars.desc": "Truncate each attached file's content to this many characters before sending to the AI.",
 
   "settings.section.skills": "Skills",
+  "settings.section.skills.desc": "Manage AI skills enabled by default for new chats.",
   "settings.defaultSkills.desc": "Skills are .md files under the AI folder's skills/ directory (instructions, templates, or reference material). Toggle which skills are enabled by default for new chats. Only enabled skills' content is sent to the AI; inactive ones appear as a name-only index.",
   "settings.defaultSkills.loading": "Loading skills…",
   "settings.defaultSkills.empty": "No skills found. Add .md files under the AI folder's skills/ directory (README.md is ignored).",
@@ -130,6 +146,7 @@
   "settings.aiFolderName.created": "AI Note Agent: AI folder created.",
 
   "settings.section.web": "Web search",
+  "settings.section.web.desc": "Configure web search backends available in chat.",
   "settings.webSearchEnabled.name": "Enable web search",
   "settings.webSearchEnabled.desc": "Master switch for web search. Even when on, it only runs when you explicitly toggle the 🌐 button in a chat.",
   "settings.webSearchProvider.name": "Search provider",

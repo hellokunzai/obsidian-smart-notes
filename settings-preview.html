@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Note Agent 设置 · 分组预览</title>
+<style>
+  :root {
+    --background-primary: #ffffff;
+    --background-primary-alt: #f7f7f7;
+    --background-secondary: #f2f2f2;
+    --text-normal: #1e1e1e;
+    --text-muted: #6b6b6b;
+    --text-faint: #999999;
+    --interactive-accent: #7c6df2;
+    --background-modifier-border: #e2e2e2;
+    --background-modifier-form-field: #f7f7f7;
+    --background-modifier-hover: #ededed;
+    --font-ui-medium: 17px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 36px 24px;
+  }
+  .container { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 8px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 28px; }
+
+  /* 分组 */
+  .ana-settings-section {
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid var(--background-modifier-border);
+  }
+  .ana-settings-section:first-of-type {
+    margin-top: 0; padding-top: 0; border-top: none;
+  }
+  .ana-settings-section-header { margin-bottom: 14px; }
+  .ana-settings-h3 {
+    margin: 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--interactive-accent);
+    font-size: var(--font-ui-medium);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .ana-settings-section-desc {
+    margin: 6px 0 0 12px;
+    padding-left: 3px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* 设置项 */
+  .setting-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 14px 12px;
+    border-top: 1px solid var(--background-modifier-border);
+  }
+  .ana-settings-section-body > .setting-item:first-child { border-top: none; }
+  .setting-item-info { flex: 1 1 auto; min-width: 0; }
+  .setting-item-name { font-weight: 500; font-size: 14px; }
+  .setting-item-desc { color: var(--text-muted); font-size: 12.5px; margin-top: 2px; }
+  .setting-item-control { flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+
+  input[type="text"], textarea, select {
+    background: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: var(--text-normal);
+    min-width: 210px;
+    font-family: inherit;
+  }
+  textarea { width: 320px; min-height: 58px; resize: vertical; font-family: ui-monospace, monospace; }
+  select { cursor: pointer; }
+
+  .toggle {
+    width: 40px; height: 22px; border-radius: 11px;
+    background: var(--background-modifier-border);
+    position: relative; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--interactive-accent); }
+  .toggle::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    transition: left .15s;
+  }
+  .toggle.on::after { left: 20px; }
+
+  .btn {
+    background: var(--interactive-accent); color: #fff;
+    border: none; border-radius: 6px; padding: 6px 16px;
+    font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .btn-ghost {
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+  }
+  .btn-warn {
+    background: var(--background-modifier-form-field);
+    color: #c4563f;
+    border: 1px solid var(--background-modifier-border);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>AI Note Agent 设置</h1>
+  <div class="sub">优化后的设置界面（按功能分组，含分组标题与描述）。此文件仅为预览，可随时删除。</div>
+  <div id="root"></div>
+</div>
+
+<script>
+  const SECTIONS = [
+    {
+      title: "模型配置",
+      desc: "选择 AI 服务提供商并配置连接凭据。",
+      items: [
+        { name: "链接类型", desc: "选择所有功能使用的 AI 后端。", control: "select:OpenAI 兼容|Ollama（本地）" },
+        { name: "API Key", desc: "仅保存在本地插件数据中，只发送给你所配置的 Base URL。", control: "text:sk-..." },
+        { name: "Base URL", desc: "默认：https://api.openai.com/v1", control: "text:https://api.openai.com/v1" },
+        { name: "模型名称", desc: "例如 gpt-4o-mini、gpt-4o，或任意兼容的模型 ID。", control: "text:gpt-4o-mini" },
+        { name: "测试连接", desc: "发送一个轻量请求，验证当前的 AI 后端配置是否可用。", control: "button:测试" },
+      ]
+    },
+    {
+      title: "模型参数",
+      desc: "控制 AI 输出的长度与创造性。",
+      items: [
+        { name: "最大 Token 数", desc: "每次请求 AI 输出长度的上限。", control: "text:1024" },
+        { name: "Temperature", desc: "取值 0–2；越低越稳定，越高越富创造性。", control: "text:0.3" },
+      ]
+    },
+    {
+      title: "链接与关联",
+      desc: "控制笔记之间如何生成关联链接。",
+      items: [
+        { name: "链接样式", desc: "默认：标准 Markdown 相对链接，兼容纯 Markdown 工具。", control: "select:Markdown 相对链接 [标题](路径.md)|Obsidian Wikilink [[笔记]]" },
+        { name: "自动插入双向链接", desc: "在相关笔记双方都插入关联链接，从而生成反向链接。", control: "toggle" },
+        { name: "每篇笔记的关联数量", desc: "每篇笔记最多链接的关联笔记数。", control: "text:5" },
+      ]
+    },
+    {
+      title: "笔记增强",
+      desc: "自动为笔记生成 frontmatter 属性。",
+      items: [
+        { name: "补充文档属性", desc: "生成 tags / aliases / summary 并写入 frontmatter。", control: "toggle" },
+      ]
+    },
+    {
+      title: "实时自动提示",
+      desc: "输入时自动提供 AI 内联建议。",
+      items: [
+        { name: "实时自动提示", desc: "输入时显示内联幽灵文本建议（按 Tab 接受）。", control: "toggle" },
+        { name: "实时防抖（毫秒）", desc: "输入停止多久后发起一次建议请求。", control: "text:800" },
+      ]
+    },
+    {
+      title: "AI 行为",
+      desc: "注入到所有 AI 功能的系统级自定义指令。",
+      items: [
+        { name: "自定义指令", desc: "注入到所有 AI 功能（对话、分析、优化、自动提示）的 system prompt 中。", control: "textarea:例如：用中文回答；回答要简洁；你扮演我的法律顾问。" },
+      ]
+    },
+    {
+      title: "对话记忆",
+      desc: "持久化聊天历史并管理存储位置。",
+      items: [
+        { name: "对话记忆", desc: "将聊天历史持久化到 AI 文件夹，重启插件后对话可继续。", control: "toggle" },
+        { name: "记忆最大消息数", desc: "保留在上下文与磁盘中的最近消息条数上限。", control: "text:20" },
+        { name: "AI 文件夹名称", desc: "在 vault 根目录创建、用于存放记忆与 skill 的文件夹名称。", control: "text:AI-Note-Agent|button:立即创建文件夹" },
+      ]
+    },
+    {
+      title: "AI 对话上下文",
+      desc: "控制对话时注入哪些知识库信息。",
+      items: [
+        { name: "知识库索引", desc: "将所有 Markdown 文件路径清单注入 system prompt，让 AI 知道库里有哪些文件。", control: "toggle" },
+        { name: "单文件注入字符上限", desc: "发送前将每个附加文件的内容截断到此长度，避免超大文件撑爆 token。", control: "text:8000" },
+      ]
+    },
+    {
+      title: "Skill 技能",
+      desc: "管理新对话默认启用的 AI skill。",
+      items: [
+        { name: "默认启用的 Skill", desc: "在 AI 文件夹 skills/ 目录下勾选默认启用的 .md skill。", control: "textarea:（skill 开关列表，异步加载）" },
+      ]
+    },
+    {
+      title: "联网搜索",
+      desc: "配置对话中可用的网络搜索后端。",
+      items: [
+        { name: "启用联网搜索", desc: "联网搜索总开关。即使开启，也只有在对话中显式打开 🌐 按钮时才会真正发起搜索。", control: "toggle" },
+        { name: "搜索提供商", desc: "使用哪个搜索后端：Tavily / Serper / Brave / SearXNG。", control: "select:Tavily|Serper (Google)|Brave Search|SearXNG" },
+        { name: "Tavily API Key", desc: "每行一个 Key（或用逗号分隔）。多个 Key 会按顺序轮询。", control: "textarea:tvly-xxx" },
+        { name: "最大结果数", desc: "每次搜索最多获取的结果条数。", control: "text:5" },
+        { name: "单条结果字符上限", desc: "发送前将每条结果的摘要截断到此长度，避免撑爆 token。", control: "text:1500" },
+        { name: "显示来源引用", desc: "要求 AI 用 [n] 编号标记引用对应的搜索结果。", control: "toggle" },
+      ]
+    },
+  ];
+
+  function renderControl(c) {
+    if (!c) return "";
+    let extra = "";
+    if (c.includes("|button:")) {
+      const parts = c.split("|button:");
+      c = parts[0]; extra = `<button class="btn btn-ghost">${parts[1]}</button>`;
+    }
+    if (c.startsWith("select:")) {
+      const opts = c.slice(7).split("|").map(o => `<option>${o}</option>`).join("");
+      return `<select>${opts}</select>` + extra;
+    }
+    if (c.startsWith("text:")) return `<input type="text" placeholder="${c.slice(5)}">` + extra;
+    if (c.startsWith("textarea:")) return `<textarea placeholder="${c.slice(9)}"></textarea>` + extra;
+    if (c === "toggle") return `<div class="toggle on"></div>`;
+    if (c.startsWith("button:")) return `<button class="btn">${c.slice(7)}</button>`;
+    if (c.startsWith("button-ghost:")) return `<button class="btn btn-ghost">${c.slice(13)}</button>`;
+    return "";
+  }
+
+  document.getElementById("root").innerHTML = SECTIONS.map(sec => `
+    <div class="ana-settings-section">
+      <div class="ana-settings-section-header">
+        <h3 class="ana-settings-h3">${sec.title}</h3>
+        ${sec.desc ? `<p class="ana-settings-section-desc">${sec.desc}</p>` : ""}
+      </div>
+      <div class="ana-settings-section-body">
+        ${sec.items.map(it => `
+          <div class="setting-item">
+            <div class="setting-item-info">
+              <div class="setting-item-name">${it.name}</div>
+              <div class="setting-item-desc">${it.desc}</div>
+            </div>
+            <div class="setting-item-control">${renderControl(it.control)}</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `).join("");
+</script>
+</body>
+</html>

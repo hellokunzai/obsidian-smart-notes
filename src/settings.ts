@@ -106,22 +106,93 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl)
+    // ===== AI 后端 =====
+    const providerBody = this.createSection(
+      containerEl,
+      "settings.section.provider",
+      "settings.section.provider.desc"
+    );
+
+    new Setting(providerBody)
       .setName(t("settings.provider.name"))
       .setDesc(t("settings.provider.desc"))
-        .addDropdown((dd: DropdownComponent) =>
-          dd
-            .addOption("openai", t("settings.provider.openai"))
-            .addOption("ollama", t("settings.provider.ollama"))
-            .setValue(this.plugin.settings.provider)
+      .addDropdown((dd: DropdownComponent) =>
+        dd
+          .addOption("openai", t("settings.provider.openai"))
+          .addOption("ollama", t("settings.provider.ollama"))
+          .setValue(this.plugin.settings.provider)
+          .onChange(async (v) => {
+            this.plugin.settings.provider = v as ProviderType;
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    if (this.plugin.settings.provider === "openai") {
+      new Setting(providerBody)
+        .setName(t("settings.openaiKey.name"))
+        .setDesc(t("settings.openaiKey.desc"))
+        .addText((t2) =>
+          t2
+            .setPlaceholder("sk-...")
+            .setValue(this.plugin.settings.openaiApiKey)
             .onChange(async (v) => {
-              this.plugin.settings.provider = v as ProviderType;
+              this.plugin.settings.openaiApiKey = v.trim();
               await this.plugin.saveSettings();
-              this.display();
             })
         );
+      new Setting(providerBody)
+        .setName(t("settings.openaiBaseUrl.name"))
+        .setDesc(t("settings.openaiBaseUrl.desc"))
+        .addText((t2) =>
+          t2
+            .setPlaceholder("https://api.openai.com/v1")
+            .setValue(this.plugin.settings.openaiBaseUrl)
+            .onChange(async (v) => {
+              this.plugin.settings.openaiBaseUrl = v.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+      new Setting(providerBody)
+        .setName(t("settings.openaiModel.name"))
+        .setDesc(t("settings.openaiModel.desc"))
+        .addText((t2) =>
+          t2
+            .setPlaceholder("gpt-4o-mini")
+            .setValue(this.plugin.settings.openaiModel)
+            .onChange(async (v) => {
+              this.plugin.settings.openaiModel = v.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    } else {
+      new Setting(providerBody)
+        .setName(t("settings.ollamaBaseUrl.name"))
+        .setDesc(t("settings.ollamaBaseUrl.desc"))
+        .addText((t2) =>
+          t2
+            .setPlaceholder("http://localhost:11434")
+            .setValue(this.plugin.settings.ollamaBaseUrl)
+            .onChange(async (v) => {
+              this.plugin.settings.ollamaBaseUrl = v.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+      new Setting(providerBody)
+        .setName(t("settings.ollamaModel.name"))
+        .setDesc(t("settings.ollamaModel.desc"))
+        .addText((t2) =>
+          t2
+            .setPlaceholder("llama3")
+            .setValue(this.plugin.settings.ollamaModel)
+            .onChange(async (v) => {
+              this.plugin.settings.ollamaModel = v.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    }
 
-    new Setting(containerEl)
+    new Setting(providerBody)
       .setName(t("settings.test.name"))
       .setDesc(t("settings.test.desc"))
       .addButton((btn) => {
@@ -149,71 +220,53 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         });
       });
 
-    if (this.plugin.settings.provider === "openai") {
-      new Setting(containerEl)
-        .setName(t("settings.openaiKey.name"))
-        .setDesc(t("settings.openaiKey.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("sk-...")
-            .setValue(this.plugin.settings.openaiApiKey)
-            .onChange(async (v) => {
-              this.plugin.settings.openaiApiKey = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-      new Setting(containerEl)
-        .setName(t("settings.openaiBaseUrl.name"))
-        .setDesc(t("settings.openaiBaseUrl.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("https://api.openai.com/v1")
-            .setValue(this.plugin.settings.openaiBaseUrl)
-            .onChange(async (v) => {
-              this.plugin.settings.openaiBaseUrl = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-      new Setting(containerEl)
-        .setName(t("settings.openaiModel.name"))
-        .setDesc(t("settings.openaiModel.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("gpt-4o-mini")
-            .setValue(this.plugin.settings.openaiModel)
-            .onChange(async (v) => {
-              this.plugin.settings.openaiModel = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-    } else {
-      new Setting(containerEl)
-        .setName(t("settings.ollamaBaseUrl.name"))
-        .setDesc(t("settings.ollamaBaseUrl.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("http://localhost:11434")
-            .setValue(this.plugin.settings.ollamaBaseUrl)
-            .onChange(async (v) => {
-              this.plugin.settings.ollamaBaseUrl = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-      new Setting(containerEl)
-        .setName(t("settings.ollamaModel.name"))
-        .setDesc(t("settings.ollamaModel.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("llama3")
-            .setValue(this.plugin.settings.ollamaModel)
-            .onChange(async (v) => {
-              this.plugin.settings.ollamaModel = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-    }
+    // ===== 模型参数 =====
+    const modelBody = this.createSection(
+      containerEl,
+      "settings.section.modelParams",
+      "settings.section.modelParams.desc"
+    );
 
-    new Setting(containerEl)
+    new Setting(modelBody)
+      .setName(t("settings.maxTokens.name"))
+      .setDesc(t("settings.maxTokens.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("1024")
+          .setValue(String(this.plugin.settings.maxTokens))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.maxTokens = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(modelBody)
+      .setName(t("settings.temperature.name"))
+      .setDesc(t("settings.temperature.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("0.3")
+          .setValue(String(this.plugin.settings.temperature))
+          .onChange(async (v) => {
+            const n = parseFloat(v);
+            if (!isNaN(n) && n >= 0 && n <= 2) {
+              this.plugin.settings.temperature = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    // ===== 链接与关联 =====
+    const linksBody = this.createSection(
+      containerEl,
+      "settings.section.links",
+      "settings.section.links.desc"
+    );
+
+    new Setting(linksBody)
       .setName(t("settings.linkStyle.name"))
       .setDesc(t("settings.linkStyle.desc"))
       .addDropdown((dd: DropdownComponent) =>
@@ -227,7 +280,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(linksBody)
       .setName(t("settings.autoLink.name"))
       .setDesc(t("settings.autoLink.desc"))
       .addToggle((t2) =>
@@ -239,7 +292,30 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(linksBody)
+      .setName(t("settings.relatedPerNote.name"))
+      .setDesc(t("settings.relatedPerNote.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("5")
+          .setValue(String(this.plugin.settings.relatedPerNote))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.relatedPerNote = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    // ===== 笔记增强 =====
+    const enrichBody = this.createSection(
+      containerEl,
+      "settings.section.enrichment",
+      "settings.section.enrichment.desc"
+    );
+
+    new Setting(enrichBody)
       .setName(t("settings.enrich.name"))
       .setDesc(t("settings.enrich.desc"))
       .addToggle((t2) =>
@@ -251,7 +327,14 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    // ===== 实时自动提示 =====
+    const promptBody = this.createSection(
+      containerEl,
+      "settings.section.autoprompt",
+      "settings.section.autoprompt.desc"
+    );
+
+    new Setting(promptBody)
       .setName(t("settings.realtime.name"))
       .setDesc(t("settings.realtime.desc"))
       .addToggle((t2) =>
@@ -263,7 +346,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(promptBody)
       .setName(t("settings.debounce.name"))
       .setDesc(t("settings.debounce.desc"))
       .addText((t2) =>
@@ -272,48 +355,21 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           .setValue(String(this.plugin.settings.realtimeDebounceMs))
           .onChange(async (v) => {
             const n = parseInt(v, 10);
-            if (!isNaN(n)) {
+            if (!isNaN(n) && n > 0) {
               this.plugin.settings.realtimeDebounceMs = n;
               await this.plugin.saveSettings();
             }
           })
       );
 
-    new Setting(containerEl)
-      .setName(t("settings.relatedPerNote.name"))
-      .setDesc(t("settings.relatedPerNote.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("5")
-          .setValue(String(this.plugin.settings.relatedPerNote))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n)) {
-              this.plugin.settings.relatedPerNote = n;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
+    // ===== AI 行为 =====
+    const behaviorBody = this.createSection(
+      containerEl,
+      "settings.section.behavior",
+      "settings.section.behavior.desc"
+    );
 
-    new Setting(containerEl)
-      .setName(t("settings.maxTokens.name"))
-      .setDesc(t("settings.maxTokens.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("1024")
-          .setValue(String(this.plugin.settings.maxTokens))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n)) {
-              this.plugin.settings.maxTokens = n;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
-
-    containerEl.createEl("h3", { text: t("settings.section.behavior"), cls: "ana-settings-h3" });
-
-    new Setting(containerEl)
+    new Setting(behaviorBody)
       .setName(t("settings.customInstructions.name"))
       .setDesc(t("settings.customInstructions.desc"))
       .addTextArea((ta) =>
@@ -336,9 +392,14 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    containerEl.createEl("h3", { text: t("settings.section.memory"), cls: "ana-settings-h3" });
+    // ===== 对话记忆 =====
+    const memoryBody = this.createSection(
+      containerEl,
+      "settings.section.memory",
+      "settings.section.memory.desc"
+    );
 
-    new Setting(containerEl)
+    new Setting(memoryBody)
       .setName(t("settings.enableMemory.name"))
       .setDesc(t("settings.enableMemory.desc"))
       .addToggle((t2) =>
@@ -350,7 +411,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(memoryBody)
       .setName(t("settings.maxMemoryMessages.name"))
       .setDesc(t("settings.maxMemoryMessages.desc"))
       .addText((t2) =>
@@ -366,7 +427,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(memoryBody)
       .setName(t("settings.aiFolderName.name"))
       .setDesc(t("settings.aiFolderName.desc"))
       .addText((t2) =>
@@ -381,7 +442,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       )
-          .addButton((btn) =>
+      .addButton((btn) =>
         btn
           .setButtonText(t("settings.aiFolderName.create"))
           .onClick(async () => {
@@ -397,9 +458,14 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    containerEl.createEl("h3", { text: t("settings.section.chat"), cls: "ana-settings-h3" });
+    // ===== AI 对话上下文 =====
+    const chatBody = this.createSection(
+      containerEl,
+      "settings.section.chat",
+      "settings.section.chat.desc"
+    );
 
-    new Setting(containerEl)
+    new Setting(chatBody)
       .setName(t("settings.includeVaultIndex.name"))
       .setDesc(t("settings.includeVaultIndex.desc"))
       .addToggle((t2) =>
@@ -411,7 +477,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(chatBody)
       .setName(t("settings.chatContextMaxChars.name"))
       .setDesc(t("settings.chatContextMaxChars.desc"))
       .addText((t2) =>
@@ -427,18 +493,22 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    // 默认 Skill（全局默认启用的 skill，新会话继承）
-    containerEl.createEl("h3", { text: t("settings.section.skills"), cls: "ana-settings-h3" });
-    const skillsDesc = containerEl.createEl("p", {
-      text: t("settings.defaultSkills.desc"),
-      cls: "ana-settings-desc",
-    });
-    void skillsDesc;
-    this.renderDefaultSkills(containerEl);
+    // ===== Skill 技能 =====
+    const skillsBody = this.createSection(
+      containerEl,
+      "settings.section.skills",
+      "settings.section.skills.desc"
+    );
+    this.renderDefaultSkills(skillsBody);
 
-    containerEl.createEl("h3", { text: t("settings.section.web"), cls: "ana-settings-h3" });
+    // ===== 联网搜索 =====
+    const webBody = this.createSection(
+      containerEl,
+      "settings.section.web",
+      "settings.section.web.desc"
+    );
 
-    new Setting(containerEl)
+    new Setting(webBody)
       .setName(t("settings.webSearchEnabled.name"))
       .setDesc(t("settings.webSearchEnabled.desc"))
       .addToggle((t2) =>
@@ -450,7 +520,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(webBody)
       .setName(t("settings.webSearchProvider.name"))
       .setDesc(t("settings.webSearchProvider.desc"))
       .addDropdown((dd) =>
@@ -473,7 +543,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
     // 根据当前选中的 provider 显示对应的多凭据输入框
     const prov = this.plugin.settings.webSearchProvider;
-    const keySetting = new Setting(containerEl)
+    const keySetting = new Setting(webBody)
       .setName(t(`settings.webKeys.${prov}.name`))
       .setDesc(t(`settings.webKeys.${prov}.desc`));
     keySetting.addTextArea((ta) =>
@@ -503,7 +573,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     );
     (keySetting.components[0] as any)?.inputEl?.addClass("ana-settings-keys");
 
-    new Setting(containerEl)
+    new Setting(webBody)
       .setName(t("settings.webSearchMaxResults.name"))
       .setDesc(t("settings.webSearchMaxResults.desc"))
       .addText((t2) =>
@@ -519,7 +589,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(webBody)
       .setName(t("settings.webSearchMaxChars.name"))
       .setDesc(t("settings.webSearchMaxChars.desc"))
       .addText((t2) =>
@@ -535,7 +605,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(containerEl)
+    new Setting(webBody)
       .setName(t("settings.webSearchShowCitations.name"))
       .setDesc(t("settings.webSearchShowCitations.desc"))
       .addToggle((t2) =>
@@ -546,6 +616,23 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+  }
+
+  /** 创建一个设置分组（带标题与可选描述），返回用于放置 Setting 的容器。 */
+  private createSection(
+    containerEl: HTMLElement,
+    titleKey: string,
+    descKey?: string
+  ): HTMLElement {
+    const section = containerEl.createEl("div", { cls: "ana-settings-section" });
+    const header = section.createEl("div", {
+      cls: "ana-settings-section-header",
+    });
+    header.createEl("h3", { text: t(titleKey), cls: "ana-settings-h3" });
+    if (descKey) {
+      header.createEl("p", { text: t(descKey), cls: "ana-settings-section-desc" });
+    }
+    return section.createEl("div", { cls: "ana-settings-section-body" });
   }
 
   /** 渲染全局默认 skill 开关列表（异步加载 skills/ 目录）。 */
