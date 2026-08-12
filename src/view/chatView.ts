@@ -42,6 +42,7 @@ export class ChatView extends ItemView {
   private sendBtn!: HTMLButtonElement;
   private inputWrapEl!: HTMLElement;
   private chipsEl!: HTMLElement;
+  private resizeHandleEl!: HTMLElement;
   private webToggleBtn!: HTMLButtonElement;
   private attachBtn!: HTMLButtonElement;
   private skillBtn!: HTMLButtonElement;
@@ -162,6 +163,11 @@ export class ChatView extends ItemView {
     const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
 
     this.inputWrapEl = inputArea.createEl("div", { cls: "ana-chat-input-wrap" });
+    // 顶部 6px 拖拽条：方便鼠标调整输入框高度
+    this.resizeHandleEl = this.inputWrapEl.createEl("div", {
+      cls: "ana-chat-resize-handle",
+      prepend: true,
+    });
     this.chipsEl = this.inputWrapEl.createEl("div", { cls: "ana-chat-chips" });
     this.inputEl = this.inputWrapEl.createEl("textarea", {
       cls: "ana-chat-input",
@@ -202,6 +208,36 @@ export class ChatView extends ItemView {
     this.renderChips();
     this.renderActions();
     this.renderMessages();
+    this.attachResizeDrag();
+  }
+
+  /** 顶部 6px 拖拽条：按住拖动调整输入框高度，向上拖变高，最低 60px。 */
+  private attachResizeDrag(): void {
+    const handle = this.resizeHandleEl;
+    const input = this.inputEl;
+    const MIN = 60;
+    let startY = 0;
+    let startH = 0;
+
+    const onMove = (e: PointerEvent) => {
+      const delta = startY - e.clientY; // 向上拖动为正
+      const newH = Math.max(MIN, startH + delta);
+      input.style.height = `${newH}px`;
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+    };
+
+    handle.addEventListener("pointerdown", (e: PointerEvent) => {
+      e.preventDefault();
+      startY = e.clientY;
+      startH = input.offsetHeight;
+      document.body.style.userSelect = "none";
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    });
   }
 
   // ================= 侧栏 =================
