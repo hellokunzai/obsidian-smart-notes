@@ -20,6 +20,7 @@ import {
   type AttachmentRef,
 } from "../utils/aiFolder";
 import { buildKnowledgeIndex, buildAttachmentContext } from "../context/knowledge";
+import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills";
 
 export const CHAT_VIEW_TYPE = "ai-note-agent-chat";
 
@@ -37,6 +38,7 @@ export class ChatView extends ItemView {
   private inputEl!: HTMLTextAreaElement;
   private sendBtn!: HTMLButtonElement;
   private attachmentsEl!: HTMLElement;
+  private skillsEl!: HTMLElement;
 
   private isStreaming = false;
   private sidebarCollapsed = false;
@@ -68,9 +70,12 @@ export class ChatView extends ItemView {
     this.sessions = data.sessions;
     this.activeId = data.activeSessionId;
 
-    // 兼容：没有任何会话时创建一个空白会话
+    // 兼容：没有任何会话时创建一个空白会话（继承全局默认 skill）
     if (this.sessions.length === 0) {
-      const s = createSession(t("view.defaultTitle"));
+      const s = createSession(
+        t("view.defaultTitle"),
+        this.plugin.settings.defaultSkills
+      );
       this.sessions.push(s);
       this.activeId = s.id;
     } else if (!this.activeSession) {
@@ -139,6 +144,10 @@ export class ChatView extends ItemView {
     // 附件栏（位于聊天框上方，可显式附加文件/文件夹）
     this.attachmentsEl = main.createEl("div", { cls: "ana-chat-attachments" });
     this.renderAttachments();
+
+    // Skill 栏（位于聊天框上方，可显式启用 skill）
+    this.skillsEl = main.createEl("div", { cls: "ana-chat-skills" });
+    this.renderSkills();
 
     const footer = main.createEl("div", { cls: "ana-chat-footer" });
     this.inputEl = footer.createEl("textarea", {
@@ -243,13 +252,17 @@ export class ChatView extends ItemView {
   // ================= 会话操作 =================
 
   private async newSession(): Promise<void> {
-    const s = createSession(t("view.defaultTitle"));
+    const s = createSession(
+      t("view.defaultTitle"),
+      this.plugin.settings.defaultSkills
+    );
     this.sessions.push(s);
     this.activeId = s.id;
     await this.persist();
     this.renderSessionList();
     this.renderMessages();
     this.renderAttachments();
+    this.renderSkills();
     this.inputEl.focus();
   }
 
@@ -260,6 +273,7 @@ export class ChatView extends ItemView {
     this.renderSessionList();
     this.renderMessages();
     this.renderAttachments();
+    this.renderSkills();
   }
 
   private renameSession(s: Session): void {
@@ -308,7 +322,10 @@ export class ChatView extends ItemView {
           if (next) {
             this.activeId = next.id;
           } else {
-            const fresh = createSession(t("view.defaultTitle"));
+            const fresh = createSession(
+              t("view.defaultTitle"),
+              this.plugin.settings.defaultSkills
+            );
             this.sessions.push(fresh);
             this.activeId = fresh.id;
           }
@@ -317,6 +334,7 @@ export class ChatView extends ItemView {
         this.renderSessionList();
         this.renderMessages();
         this.renderAttachments();
+        this.renderSkills();
       });
     modal.open();
   }
@@ -332,6 +350,7 @@ export class ChatView extends ItemView {
     this.renderMessages();
     this.renderSessionList();
     this.renderAttachments();
+    this.renderSkills();
   }
 
   // ================= 附件栏 =================
@@ -418,6 +437,91 @@ export class ChatView extends ItemView {
     ).open();
   }
 
+  // ================= Skill 栏 =================
+
+  /** 渲染 Skill 栏：chips 展示当前会话启用的 skill + 选择/清空按钮。 */
+  private renderSkills(): void {
+    this.skillsEl.empty();
+    const s = this.activeSession;
+    if (!s) return;
+
+    const list = this.skillsEl.createEl("div", { cls: "ana-chat-attach-list" });
+
+    for (let i = 0; i < s.skills.length; i++) {
+      const path = s.skills[i];
+      const chip = list.createEl("div", { cls: "ana-chat-chip ana-chat-chip-skill" });
+      chip.createSpan({ text: `🧩 ${path}`, cls: "ana-chat-chip-label" });
+      const x = chip.createEl("button", {
+        cls: "ana-chat-chip-x",
+        attr: { "aria-label": t("view.removeSkill") },
+      });
+      x.setText("×");
+      x.addEventListener("click", () => void this.removeSkill(i));
+    }
+
+    const actions = this.skillsEl.createEl("div", { cls: "ana-chat-attach-actions" });
+    const addBtn = actions.createEl("button", { cls: "ana-chat-header-btn" });
+    addBtn.setText(`🧩 ${t("view.manageSkills")}`);
+    addBtn.addEventListener("click", () => this.openSkillPicker());
+
+    if (s.skills.length > 0) {
+      const clearBtn = actions.createEl("button", { cls: "ana-chat-header-btn" });
+      clearBtn.setText(t("view.clearSkills"));
+      clearBtn.addEventListener("click", () => void this.clearSkills());
+    }
+  }
+
+  private async addSkills(paths: string[]): Promise<void> {
+    const s = this.activeSession;
+    if (!s) return;
+    const set = new Set(s.skills);
+    let added = 0;
+    for (const p of paths) {
+      if (!set.has(p)) {
+        s.skills.push(p);
+        set.add(p);
+        added++;
+      }
+    }
+    if (added === 0) {
+      new Notice(t("view.noNewSkill"));
+      return;
+    }
+    s.updatedAt = Date.now();
+    await this.persist();
+    this.renderSkills();
+  }
+
+  private async removeSkill(index: number): Promise<void> {
+    const s = this.activeSession;
+    if (!s) return;
+    s.skills.splice(index, 1);
+    s.updatedAt = Date.now();
+    await this.persist();
+    this.renderSkills();
+  }
+
+  private async clearSkills(): Promise<void> {
+    const s = this.activeSession;
+    if (!s) return;
+    s.skills = [];
+    s.updatedAt = Date.now();
+    await this.persist();
+    this.renderSkills();
+  }
+
+  /** 打开 skill 选择器：列出 skills/ 下所有 skill，支持搜索与多选。 */
+  private openSkillPicker(): void {
+    const s = this.activeSession;
+    if (!s) return;
+    new SkillPickerModal(
+      this.plugin.app,
+      this.plugin,
+      s.skills,
+      (paths) => void this.addSkills(paths)
+    ).open();
+  }
+
   // ================= 消息渲染 =================
 
   private renderMessages(): void {
@@ -472,7 +576,7 @@ export class ChatView extends ItemView {
     s.messages.push({ role: "user", content: text });
     s.updatedAt = Date.now();
 
-    const system = this.buildSystem();
+    const system = await this.buildSystem();
     // 仅按用户显式附加的附件 + 消息中点名的文件读取内容（不自动加载任何文件）
     const noteContext = await buildAttachmentContext(
       this.plugin.app,
@@ -552,19 +656,32 @@ export class ChatView extends ItemView {
     }
   }
 
-  /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库路径索引（仅路径）。 */
-  private buildSystem(): string {
+  /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。 */
+  private async buildSystem(): Promise<string> {
     const base =
-      "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise. Note: you can see the vault's file paths via the knowledge base index, but file contents are only provided when the user explicitly attaches them or references them by name.";
+      "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise. Note: you can see the vault's file paths and available skill names via the knowledge base index / skill index, but file/skill contents are only provided when the user explicitly attaches them, references them, or activates them.";
     const sys = buildSystemPrompt(this.plugin.settings.customInstructions, base);
-    const index = buildKnowledgeIndex(
-      this.plugin.app,
-      this.plugin.settings.includeVaultIndex
-    );
-    if (index) {
-      return `${sys}\n\n${index}`;
+    const parts: string[] = [sys];
+
+    if (this.plugin.settings.includeVaultIndex) {
+      const index = buildKnowledgeIndex(
+        this.plugin.app,
+        this.plugin.settings.includeVaultIndex
+      );
+      if (index) parts.push(index);
     }
-    return sys;
+
+    // skill 上下文（索引 + 启用内容）
+    const s = this.activeSession;
+    const skillContext = await buildSkillContext(
+      this.plugin,
+      this.plugin.app,
+      s ? s.skills : [],
+      this.plugin.settings.chatContextMaxChars
+    );
+    if (skillContext) parts.push(skillContext);
+
+    return parts.join("\n\n");
   }
 }
 
@@ -670,6 +787,113 @@ class AttachmentPickerModal extends Modal {
       });
       const icon = e.type === "folder" ? "📁" : "📄";
       row.createSpan({ text: `${icon} ${e.path}`, cls: "ana-picker-name" });
+    }
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+/**
+ * Skill 选择器：列出 skills/ 下所有 skill，支持搜索与多选。
+ * 勾选的 skill 路径回传给回调。可预先勾选当前已启用的 skill。
+ */
+class SkillPickerModal extends Modal {
+  private plugin: AiNoteAgentPlugin;
+  private initialSelected: string[];
+  private onSubmit: (paths: string[]) => void;
+  private selected = new Set<string>();
+  private listEl!: HTMLElement;
+  private searchEl!: HTMLInputElement;
+  private all: SkillEntry[] = [];
+
+  constructor(
+    app: import("obsidian").App,
+    plugin: AiNoteAgentPlugin,
+    initialSelected: string[],
+    onSubmit: (paths: string[]) => void
+  ) {
+    super(app);
+    this.plugin = plugin;
+    this.initialSelected = initialSelected;
+    this.onSubmit = onSubmit;
+    this.selected = new Set(initialSelected);
+  }
+
+  async onOpen(): Promise<void> {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("ana-picker");
+    this.titleEl.setText(t("view.skillPicker.title"));
+
+    contentEl.createEl("p", {
+      text: t("view.skillPicker.desc"),
+      cls: "ana-picker-desc",
+    });
+
+    this.searchEl = contentEl.createEl("input", {
+      cls: "ana-picker-search",
+      attr: { type: "text", placeholder: t("view.skillPicker.searchPlaceholder") },
+    });
+    this.searchEl.addEventListener("input", () => this.renderList());
+
+    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+
+    try {
+      this.all = await listSkills(this.plugin, this.app);
+    } catch {
+      this.all = [];
+    }
+    this.renderList();
+
+    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new ButtonComponent(btns)
+      .setButtonText(t("modal.cancel"))
+      .onClick(() => this.close());
+    new ButtonComponent(btns)
+      .setButtonText(t("view.skillPicker.confirm"))
+      .setCta()
+      .onClick(() => {
+        const paths = Array.from(this.selected);
+        this.close();
+        this.onSubmit(paths);
+      });
+
+    this.scope.register([], "Escape", () => this.close());
+  }
+
+  private renderList(): void {
+    this.listEl.empty();
+    const q = this.searchEl.value.trim().toLowerCase();
+    const filtered = q
+      ? this.all.filter(
+          (e) => e.name.toLowerCase().includes(q) || e.path.toLowerCase().includes(q)
+        )
+      : this.all;
+
+    if (filtered.length === 0) {
+      this.listEl.createEl("div", {
+        text: t("view.skillPicker.empty"),
+        cls: "ana-picker-empty",
+      });
+      return;
+    }
+
+    for (const e of filtered) {
+      const row = this.listEl.createEl("label", { cls: "ana-picker-row" });
+      const cb = row.createEl("input", { attr: { type: "checkbox" } });
+      cb.checked = this.selected.has(e.path);
+      cb.addEventListener("change", () => {
+        if (cb.checked) this.selected.add(e.path);
+        else this.selected.delete(e.path);
+      });
+      row.createSpan({ text: `🧩 ${e.name}`, cls: "ana-picker-name" });
+      const pathSpan = row.createEl("span", {
+        text: e.path,
+        cls: "ana-picker-path",
+      });
+      void pathSpan;
     }
   }
 

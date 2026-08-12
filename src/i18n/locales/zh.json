@@ -124,6 +124,11 @@
   "settings.chatContextMaxChars.name": "单文件注入字符上限",
   "settings.chatContextMaxChars.desc": "发送前将每个附加文件的内容截断到此长度，避免超大文件撑爆 token。",
 
+  "settings.section.skills": "Skill 技能",
+  "settings.defaultSkills.desc": "Skill 是 AI 文件夹 skills/ 目录下的 .md 文件（指令、模板或参考资料）。在此勾选新对话默认启用的 skill。只有启用的 skill 内容才会发给 AI；未启用的仅以名字索引形式列出。",
+  "settings.defaultSkills.loading": "正在加载 skill……",
+  "settings.defaultSkills.empty": "未找到任何 skill。请在 AI 文件夹的 skills/ 目录下添加 .md 文件（README.md 会被忽略）。",
+
   "view.addAttachment": "添加文件/文件夹",
   "view.removeAttachment": "移除附件",
   "view.clearAttachments": "清空附件",
@@ -132,5 +137,15 @@
   "view.picker.desc": "选择要作为上下文附加的文件或文件夹。只有被附加文件的内容才会发给 AI，其余文件仅以路径形式存在。",
   "view.picker.searchPlaceholder": "搜索文件与文件夹……",
   "view.picker.confirm": "附加所选",
-  "view.picker.empty": "没有匹配的文件或文件夹。"
+  "view.picker.empty": "没有匹配的文件或文件夹。",
+
+  "view.manageSkills": "Skill 技能",
+  "view.removeSkill": "移除 skill",
+  "view.clearSkills": "清空 skill",
+  "view.noNewSkill": "AI Note Agent：没有新增任何 skill。",
+  "view.skillPicker.title": "管理本对话的 Skill",
+  "view.skillPicker.desc": "启用 skill 会将其内容加载进 AI 上下文。未启用的 skill 仅列出名字，AI 知道它们存在并可建议你开启。",
+  "view.skillPicker.searchPlaceholder": "搜索 skill……",
+  "view.skillPicker.confirm": "应用 skill",
+  "view.skillPicker.empty": "没有匹配的 skill。"
 }

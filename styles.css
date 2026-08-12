@@ -479,3 +479,51 @@
   font-size: var(--font-smaller);
   padding: var(--size-4-2);
 }
+
+/* Skill 栏：复用附件栏布局，仅作视觉区分 */
+.ana-chat-skills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding: var(--size-4-1) var(--size-4-3);
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  flex-shrink: 0;
+}
+
+/* Skill chip 用淡紫描边与附件 chip 区分 */
+.ana-chat-chip-skill {
+  border-color: var(--interactive-accent);
+}
+
+.ana-picker-path {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--font-smallest);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 50%;
+  flex-shrink: 0;
+}
+
+/* 设置面板说明文字与 skill 列表 */
+.ana-settings-desc {
+  color: var(--text-muted);
+  font-size: var(--font-smaller);
+  margin: 0 0 var(--size-4-2);
+}
+
+.ana-settings-skills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-1);
+}
+
+.ana-settings-skills-loading,
+.ana-settings-skills-empty {
+  color: var(--text-faint);
+  font-size: var(--font-smaller);
+  padding: var(--size-4-1) 0;
+}

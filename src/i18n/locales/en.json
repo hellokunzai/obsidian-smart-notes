@@ -119,6 +119,11 @@
   "settings.includeVaultIndex.desc": "Add a list of all Markdown file paths to the system prompt so the AI knows what's in your vault. Contents are NOT loaded unless attached or referenced.",
   "settings.chatContextMaxChars.name": "Max chars per attached file",
   "settings.chatContextMaxChars.desc": "Truncate each attached file's content to this many characters before sending to the AI.",
+
+  "settings.section.skills": "Skills",
+  "settings.defaultSkills.desc": "Skills are .md files under the AI folder's skills/ directory (instructions, templates, or reference material). Toggle which skills are enabled by default for new chats. Only enabled skills' content is sent to the AI; inactive ones appear as a name-only index.",
+  "settings.defaultSkills.loading": "Loading skills…",
+  "settings.defaultSkills.empty": "No skills found. Add .md files under the AI folder's skills/ directory (README.md is ignored).",
   "settings.aiFolderName.name": "AI folder name",
   "settings.aiFolderName.desc": "Folder created at the vault root to store memory and skills. Change only while the folder is empty.",
   "settings.aiFolderName.create": "Create folder now",
@@ -132,5 +137,15 @@
   "view.picker.desc": "Select files or folders to attach as context. Only the content of attached files is sent to the AI; everything else is paths-only.",
   "view.picker.searchPlaceholder": "Search files and folders…",
   "view.picker.confirm": "Attach selected",
-  "view.picker.empty": "No matching files or folders."
+  "view.picker.empty": "No matching files or folders.",
+
+  "view.manageSkills": "Skills",
+  "view.removeSkill": "Remove skill",
+  "view.clearSkills": "Clear skills",
+  "view.noNewSkill": "AI Note Agent: no new skills added.",
+  "view.skillPicker.title": "Manage skills for this chat",
+  "view.skillPicker.desc": "Enable skills to load their content into the AI context. Inactive skills are only listed by name so the AI knows they exist and can suggest enabling them.",
+  "view.skillPicker.searchPlaceholder": "Search skills…",
+  "view.skillPicker.confirm": "Apply skills",
+  "view.skillPicker.empty": "No matching skills."
 }

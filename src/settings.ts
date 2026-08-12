@@ -9,6 +9,7 @@ import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
 import { createProvider } from "./ai/provider";
 import { ensureAiFolder } from "./utils/aiFolder";
+import { listSkills, type SkillEntry } from "./skills/skills";
 
 export type ProviderType = "openai" | "ollama";
 export type LinkStyle = "relative" | "wikilink";
@@ -40,6 +41,8 @@ export interface AiNoteAgentSettings {
   includeVaultIndex: boolean;
   // 对话：单文件注入到上下文的内容字符上限（防止超大文件撑爆 token）
   chatContextMaxChars: number;
+  // 对话：全局默认启用的 skill（skills/ 目录下的 .md 相对路径）；新会话继承此列表
+  defaultSkills: string[];
 }
 
 export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
@@ -63,6 +66,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   aiFolderName: "AI-Note-Agent",
   includeVaultIndex: true,
   chatContextMaxChars: 8000,
+  defaultSkills: [],
 };
 
 export class AiNoteAgentSettingTab extends PluginSettingTab {
@@ -397,5 +401,61 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       );
+
+    // 默认 Skill（全局默认启用的 skill，新会话继承）
+    containerEl.createEl("h3", { text: t("settings.section.skills"), cls: "ana-settings-h3" });
+    const skillsDesc = containerEl.createEl("p", {
+      text: t("settings.defaultSkills.desc"),
+      cls: "ana-settings-desc",
+    });
+    void skillsDesc;
+    this.renderDefaultSkills(containerEl);
+  }
+
+  /** 渲染全局默认 skill 开关列表（异步加载 skills/ 目录）。 */
+  private async renderDefaultSkills(containerEl: HTMLElement): Promise<void> {
+    const listEl = containerEl.createEl("div", { cls: "ana-settings-skills" });
+    listEl.createEl("div", {
+      text: t("settings.defaultSkills.loading"),
+      cls: "ana-settings-skills-loading",
+    });
+    let skills: SkillEntry[] = [];
+    try {
+      skills = await listSkills(this.plugin, this.app);
+    } catch {
+      skills = [];
+    }
+    listEl.empty();
+    if (skills.length === 0) {
+      listEl.createEl("div", {
+        text: t("settings.defaultSkills.empty"),
+        cls: "ana-settings-skills-empty",
+      });
+      return;
+    }
+    for (const sk of skills) {
+      new Setting(listEl)
+        .setName(sk.name)
+        .setDesc(sk.path)
+        .addToggle((t2) =>
+          t2
+            .setValue(this.plugin.settings.defaultSkills.includes(sk.path))
+            .onChange(async (v) => {
+              const arr = this.plugin.settings.defaultSkills.filter(
+                (p) => typeof p === "string"
+              );
+              const has = arr.includes(sk.path);
+              if (v && !has) arr.push(sk.path);
+              if (!v && has) {
+                this.plugin.settings.defaultSkills = arr.filter(
+                  (p) => p !== sk.path
+                );
+              } else {
+                this.plugin.settings.defaultSkills = arr;
+              }
+              await this.plugin.saveSettings();
+            })
+        );
+    }
   }
 }

@@ -48,6 +48,8 @@ export interface Session {
   messages: SessionMessage[];
   /** 显式附加的文件/文件夹（每个会话独立保存）。 */
   attachments: AttachmentRef[];
+  /** 当前会话启用的 skill（skills/ 目录下的 .md 路径），按会话独立保存。 */
+  skills: string[];
 }
 
 /** 多会话存储文件结构。 */
@@ -152,6 +154,7 @@ function migrateLegacy(data: unknown): SessionsFile {
       updatedAt: now,
       messages: msgs,
       attachments: [],
+      skills: [],
     };
     return {
       version: SESSIONS_VERSION,
@@ -175,10 +178,13 @@ function migrateLegacy(data: unknown): SessionsFile {
           );
         })
       : [];
-    // 为旧版会话补齐 attachments 字段（向后兼容，旧数据无附件）
+    // 为旧版会话补齐 attachments / skills 字段（向后兼容，旧数据无这些字段）
     for (const sess of sessions) {
       sess.attachments = Array.isArray(sess.attachments)
         ? sess.attachments.filter(isValidAttachment)
+        : [];
+      sess.skills = Array.isArray(sess.skills)
+        ? sess.skills.filter((p) => typeof p === "string")
         : [];
     }
     return {
@@ -234,7 +240,7 @@ export async function saveSessions(
 }
 
 /** 新建一个空白会话。 */
-export function createSession(title = "新对话"): Session {
+export function createSession(title = "新对话", defaultSkills: string[] = []): Session {
   const now = Date.now();
   return {
     id: crypto.randomUUID(),
@@ -243,6 +249,7 @@ export function createSession(title = "新对话"): Session {
     updatedAt: now,
     messages: [],
     attachments: [],
+    skills: [...defaultSkills],
   };
 }
 
