@@ -48,7 +48,7 @@ export class ChatView extends ItemView {
   private skillBtn!: HTMLButtonElement;
 
   private isStreaming = false;
-  private sidebarCollapsed = false;
+  private sidebarCollapsed = true;
 
   constructor(leaf: WorkspaceLeaf, plugin: AiNoteAgentPlugin) {
     super(leaf);
@@ -112,6 +112,7 @@ export class ChatView extends ItemView {
     // 侧栏（会话历史）
     this.sidebarEl = body.createEl("div", { cls: "ana-chat-sidebar" });
     this.renderSidebar();
+    this.sidebarEl.toggleClass("is-collapsed", this.sidebarCollapsed);
 
     // 右侧主区
     const main = body.createEl("div", { cls: "ana-chat-main" });
