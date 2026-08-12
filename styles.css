@@ -313,6 +313,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--size-4-3);
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .ana-chat-message {
@@ -336,6 +338,13 @@
   line-height: var(--line-height-normal);
   white-space: pre-wrap;
   word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ana-chat-text {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .ana-chat-message-user .ana-chat-bubble {

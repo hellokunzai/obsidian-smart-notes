@@ -221,6 +221,7 @@ export class ChatView extends ItemView {
     const MIN = 60;
     let startY = 0;
     let startH = 0;
+    let originalUserSelect = "";
 
     const onMove = (e: PointerEvent) => {
       const delta = startY - e.clientY; // 向上拖动为正
@@ -230,16 +231,19 @@ export class ChatView extends ItemView {
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      document.body.style.userSelect = "";
+      window.removeEventListener("pointercancel", onUp);
+      document.body.style.userSelect = originalUserSelect;
     };
 
     handle.addEventListener("pointerdown", (e: PointerEvent) => {
       e.preventDefault();
       startY = e.clientY;
       startH = input.offsetHeight;
+      originalUserSelect = document.body.style.userSelect;
       document.body.style.userSelect = "none";
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
     });
   }
 
