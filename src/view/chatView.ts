@@ -136,14 +136,16 @@ export class ChatView extends ItemView {
 
     const newBtn = rightGroup.createEl("button", {
       cls: "ana-chat-header-btn",
+      attr: { "aria-label": t("view.newSession") },
     });
-    newBtn.setText(t("view.newSession"));
+    setIcon(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
 
     const clearBtn = rightGroup.createEl("button", {
       cls: "ana-chat-header-btn",
+      attr: { "aria-label": t("view.clearCurrent") },
     });
-    clearBtn.setText(t("view.clearCurrent"));
+    setIcon(clearBtn, "trash");
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
 
     this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
@@ -154,7 +156,7 @@ export class ChatView extends ItemView {
     const attachRow = footer.createEl("div", { cls: "ana-chat-attach-row" });
     this.attachBtn = attachRow.createEl("button", {
       cls: "ana-chat-action ana-chat-attach-action",
-      attr: { title: t("view.addAttachment"), "aria-label": t("view.addAttachment") },
+      attr: { "aria-label": t("view.addAttachment") },
     });
     setIcon(this.attachBtn, "paperclip");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
@@ -186,21 +188,21 @@ export class ChatView extends ItemView {
     const leftActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-left" });
     this.skillBtn = leftActions.createEl("button", {
       cls: "ana-chat-action",
-      attr: { title: t("view.manageSkills"), "aria-label": t("view.manageSkills") },
+      attr: { "aria-label": t("view.manageSkills") },
     });
     setIcon(this.skillBtn, "puzzle");
     this.skillBtn.addEventListener("click", () => this.openSkillPicker());
 
     this.webToggleBtn = leftActions.createEl("button", {
       cls: "ana-chat-action",
-      attr: { title: t("view.webToggle"), "aria-label": t("view.webToggle") },
+      attr: { "aria-label": t("view.webToggle") },
     });
     setIcon(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
 
     this.sendBtn = inputBar.createEl("button", {
       cls: "ana-chat-send",
-      attr: { title: t("view.send"), "aria-label": t("view.send") },
+      attr: { "aria-label": t("view.send") },
     });
     setIcon(this.sendBtn, "send");
     this.sendBtn.addEventListener("click", () => void this.handleSend());

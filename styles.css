@@ -244,13 +244,22 @@
 }
 
 .ana-chat-header-btn {
-  font-size: var(--font-smallest);
-  padding: var(--size-4-1) var(--size-4-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: none;
   border-radius: var(--radius-s);
-  background: var(--background-modifier-form-field);
+  background: transparent;
   color: var(--text-muted);
-  border: 1px solid var(--background-modifier-border);
   cursor: pointer;
+}
+
+.ana-chat-header-btn svg,
+.ana-chat-header-btn .svg-icon {
+  width: 18px !important;
+  height: 18px !important;
 }
 
 .ana-chat-header-btn:hover {
@@ -443,9 +452,10 @@
   box-shadow: none;
 }
 
-.ana-chat-action svg {
-  width: 26px;
-  height: 26px;
+.ana-chat-action svg,
+.ana-chat-action .svg-icon {
+  width: 28px !important;
+  height: 28px !important;
 }
 
 .ana-chat-action:hover {
@@ -474,9 +484,10 @@
   flex-shrink: 0;
 }
 
-.ana-chat-send svg {
-  width: 26px;
-  height: 26px;
+.ana-chat-send svg,
+.ana-chat-send .svg-icon {
+  width: 28px !important;
+  height: 28px !important;
 }
 
 .ana-chat-send:hover:not(:disabled) {
