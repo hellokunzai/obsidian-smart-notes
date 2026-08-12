@@ -13,7 +13,7 @@ An [Obsidian](https://obsidian.md) plugin that turns your vault into a self-impr
   - **Realtime** (optional, toggle in settings): debounced inline "ghost text" suggestion you accept with `Tab`.
 - **Custom instructions** — Set persistent instructions that are injected into the system prompt of *every* AI feature (chat, analysis, optimize, autoprompt). e.g. "Reply in Chinese; keep answers concise; act as my legal advisor."
 - **Conversation memory** — Chat history is persisted in your vault so multi-turn conversations continue after a restart. Toggle it on/off and cap how many recent messages are kept in context/disk.
-- **AI folder** — On load the plugin auto-creates a folder (default `VaultMind`) at your vault root to store chat memory (`memory/chat-history.json`) and a `skills/` directory where you can drop custom skill `.md` files for future use.
+- **AI folder** — On load the plugin auto-creates a folder (default `.vaultmind`) at your vault root to store chat memory (`sessions/index.json` plus one `session-<id>.json` per conversation) and a `skills/` directory where you can drop custom skill `.md` files for future use.
 
 ## AI provider (network usage disclosure)
 
@@ -72,14 +72,16 @@ All sessions are stored together in `memory/chat-history.json` (one file). Legac
 When the plugin loads, it creates the following structure at your vault root (folder name configurable):
 
 ```
-VaultMind/
-├── memory/
-│   └── chat-history.json    # conversation memory (auto-managed; delete to clear)
+.vaultmind/
+├── sessions/
+│   ├── index.json            # session index (lightweight metadata only: id, title, time, message count)
+│   └── session-<id>.json     # full content of one conversation (messages, attachments, skills, web search)
 └── skills/                  # custom skill files (reserved for future loading)
     └── README.md            # what this folder is for
 ```
 
-- **Memory** stores *all* sessions in one file (`sessions` array). It is written after every assistant reply and reloaded when you reopen the chat panel, restoring the last active session.
+- **Index** (`index.json`) holds only lightweight metadata for every session — fast to load even with many conversations. The last N sessions (most recent) are fully loaded on startup; older ones are read lazily from their own file only when you click them.
+- **Per-session files** (`session-<id>.json`) store the full conversation. Each is written only when that session changes, so an unused old session is never rewritten.
 - **Clear current** button in the chat header wipes the active session's messages (but keeps the session and the rest of your history).
 - **Skills** is a reserved directory; later versions will load `.md` files placed here into the chat context.
 

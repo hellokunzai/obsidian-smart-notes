@@ -14,11 +14,17 @@ import { t } from "../i18n";
 import { ChatMessage } from "../ai/provider";
 import { buildSystemPrompt } from "../ai/prompt";
 import {
-  loadSessions,
-  saveSessions,
+  loadSessionsIndex,
+  loadSessionFile,
+  saveSessionsIndex,
+  saveSessionFile,
+  deleteSessionFile,
+  sessionToMeta,
   createSession,
   type Session,
   type AttachmentRef,
+  type SessionMeta,
+  type SessionsIndex,
 } from "../utils/aiFolder";
 import { buildKnowledgeIndex, buildAttachmentContext } from "../context/knowledge";
 import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills";
@@ -27,12 +33,19 @@ import { buildWebSearchContext } from "../search/prompt";
 
 export const CHAT_VIEW_TYPE = "ai-note-agent-chat";
 
+/** 启动时预加载的最近会话数量；其余会话在点击时再懒加载。 */
+const RECENT_SESSION_COUNT = 10;
+
 export class ChatView extends ItemView {
   private plugin: AiNoteAgentPlugin;
 
   // 多会话状态
   private sessions: Session[] = [];
   private activeId: string | null = null;
+  /** 已加载完整内容的会话 id（其余会话仅在内存保留索引元数据占位）。 */
+  private loadedIds = new Set<string>();
+  /** 每个会话的磁盘索引元数据快照（用于未加载会话的 messageCount 等）。 */
+  private metaSnapshot = new Map<string, SessionMeta>();
 
   // DOM 引用
   private sidebarEl!: HTMLElement;
@@ -73,9 +86,45 @@ export class ChatView extends ItemView {
   }
 
   async onOpen(): Promise<void> {
-    const data = await loadSessions(this.plugin);
-    this.sessions = data.sessions;
-    this.activeId = data.activeSessionId;
+    const index = await loadSessionsIndex(this.plugin);
+    this.metaSnapshot.clear();
+    for (const m of index.sessions) this.metaSnapshot.set(m.id, m);
+
+    // 内存中先全部作为索引占位（messages 等为空，点击时再懒加载）
+    this.sessions = index.sessions.map((m) => ({
+      id: m.id,
+      title: m.title,
+      createdAt: m.createdAt,
+      updatedAt: m.updatedAt,
+      messages: [],
+      attachments: [],
+      skills: [],
+      webSearch: false,
+    }));
+    this.activeId = index.activeSessionId;
+    this.loadedIds.clear();
+
+    // 加载最近 N 个会话的完整内容（按 updatedAt 倒序）
+    const ordered = [...index.sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+    const recent = ordered.slice(0, RECENT_SESSION_COUNT);
+    // 保证当前激活会话一定被加载（它可能不在最近 N 个之内）
+    if (this.activeId) {
+      const activeMeta = ordered.find((m) => m.id === this.activeId);
+      if (activeMeta && !recent.includes(activeMeta)) recent.unshift(activeMeta);
+    }
+    for (const m of recent) {
+      const full = await loadSessionFile(this.plugin, m.id);
+      if (full) {
+        this.replaceSession(full);
+        this.loadedIds.add(m.id);
+      }
+    }
+
+    // 兜底：若记录的激活会话文件损坏/缺失导致未加载成功，回退到最近一个已成功加载的会话
+    if (this.activeId && !this.loadedIds.has(this.activeId)) {
+      const firstLoaded = recent.find((m) => this.loadedIds.has(m.id));
+      if (firstLoaded) this.activeId = firstLoaded.id;
+    }
 
     // 兼容：没有任何会话时创建一个空白会话（继承全局默认 skill）
     if (this.sessions.length === 0) {
@@ -85,8 +134,19 @@ export class ChatView extends ItemView {
       );
       this.sessions.push(s);
       this.activeId = s.id;
+      this.loadedIds.add(s.id);
+      await this.persist();
     } else if (!this.activeSession) {
-      this.activeId = this.sessions[0].id;
+      // active 指向了不存在/未加载的会话：取最近的一个并确保加载
+      const first = ordered[0];
+      this.activeId = first.id;
+      if (!this.loadedIds.has(first.id)) {
+        const full = await loadSessionFile(this.plugin, first.id);
+        if (full) {
+          this.replaceSession(full);
+          this.loadedIds.add(first.id);
+        }
+      }
     }
 
     this.renderLayout();
@@ -94,6 +154,13 @@ export class ChatView extends ItemView {
     if (this.plugin.settings.enableMemory && this.sessions.length > 0) {
       new Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
     }
+  }
+
+  /** 用完整会话数据替换内存中同 id 的占位对象（不存在则追加）。 */
+  private replaceSession(full: Session): void {
+    const i = this.sessions.findIndex((s) => s.id === full.id);
+    if (i >= 0) this.sessions[i] = full;
+    else this.sessions.push(full);
   }
 
   async onClose(): Promise<void> {
@@ -335,6 +402,7 @@ export class ChatView extends ItemView {
     );
     this.sessions.push(s);
     this.activeId = s.id;
+    this.loadedIds.add(s.id);
     await this.persist();
     this.renderSessionList();
     this.renderMessages();
@@ -345,6 +413,14 @@ export class ChatView extends ItemView {
 
   private async selectSession(id: string): Promise<void> {
     if (id === this.activeId) return;
+    // 目标会话若尚未加载完整内容，则懒加载其独立文件
+    if (!this.loadedIds.has(id)) {
+      const full = await loadSessionFile(this.plugin, id);
+      if (full) {
+        this.replaceSession(full);
+        this.loadedIds.add(id);
+      }
+    }
     this.activeId = id;
     await this.persist();
     this.renderSessionList();
@@ -394,6 +470,9 @@ export class ChatView extends ItemView {
       .onClick(async () => {
         modal.close();
         this.sessions = this.sessions.filter((x) => x.id !== s.id);
+        this.metaSnapshot.delete(s.id);
+        this.loadedIds.delete(s.id);
+        await deleteSessionFile(this.plugin, s.id);
         if (this.activeId === s.id) {
           const next = this.sessions[0];
           if (next) {
@@ -763,15 +842,32 @@ export class ChatView extends ItemView {
     this.sendBtn.setText(disabled ? t("view.thinking") : t("view.send"));
   }
 
-  /** 持久化整个多会话文件（含当前激活会话 id）。 */
+  /** 持久化会话：始终写 index.json；仅写已加载会话的独立文件（未加载的不覆盖磁盘）。 */
   private async persist(): Promise<void> {
     if (!this.plugin.settings.enableMemory) return;
     try {
-      await saveSessions(this.plugin, {
-        version: 2,
+      const index: SessionsIndex = {
+        version: 3,
         activeSessionId: this.activeId,
-        sessions: this.sessions,
-      });
+        sessions: this.sessions.map((s) =>
+          this.loadedIds.has(s.id)
+            ? sessionToMeta(s)
+            : (this.metaSnapshot.get(s.id) ?? {
+                id: s.id,
+                title: s.title,
+                createdAt: s.createdAt,
+                updatedAt: s.updatedAt,
+                messageCount: 0,
+              })
+        ),
+      };
+      await saveSessionsIndex(this.plugin, index);
+      // 仅把已加载会话的完整内容写回磁盘；未加载会话磁盘文件保持不变
+      for (const s of this.sessions) {
+        if (this.loadedIds.has(s.id)) {
+          await saveSessionFile(this.plugin, s);
+        }
+      }
     } catch {
       // 记忆写入失败不应影响对话
     }

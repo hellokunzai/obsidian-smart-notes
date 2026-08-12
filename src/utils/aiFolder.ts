@@ -1,13 +1,18 @@
 import { TFile, TFolder, Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
-import type { ChatMessage } from "../ai/provider";
 
-const MEMORY_DIR = "memory";
-const MEMORY_FILE = "chat-history.json";
+const SESSIONS_DIR = "sessions";
+const SESSIONS_INDEX = "index.json";
+const SESSION_FILE_PREFIX = "session-";
+const SESSION_FILE_SUFFIX = ".json";
+const SESSIONS_VERSION = 3;
+
+/** 旧版记忆目录与文件名（用于向后迁移）。 */
+const MEMORY_LEGACY_DIR = "memory";
+const MEMORY_LEGACY_FILE = "chat-history.json";
+
 const SKILLS_DIR = "skills";
 const SKILLS_README = "README.md";
-
-const SESSIONS_VERSION = 2;
 
 const SKILLS_README_CONTENT = `# Skills 目录
 
@@ -16,17 +21,23 @@ const SKILLS_README_CONTENT = `# Skills 目录
 你可以在这里放置给 AI 的额外指令、模板或参考资料。
 插件后续版本将支持扫描本目录下的 \`.md\` 文件，并将其内容注入到对话的上下文（system prompt）中。
 
-## 目录结构
+## 会话记忆目录结构
+
+对话记忆存放在 \`sessions/\` 目录下：
 
 \`\`\`
 <AI 文件夹>
-├── memory/
-│   └── chat-history.json    # 多会话对话记录（自动生成，可删除以清空记忆）
-└── skills/                  # 自定义 skill（当前为预留目录）
-    └── README.md            # 本说明文件
+├── sessions/
+│   ├── index.json            # 会话索引（仅基本信息，轻量，始终加载）
+│   └── session-<id>.json     # 单个会话的完整内容（消息 / 附件 / skill / 联网开关）
+└── skills/                   # 自定义 skill（当前为预留目录）
+    └── README.md             # 本说明文件
 \`\`\`
 
-记忆文件路径：\`../memory/${MEMORY_FILE}\`
+- \`index.json\` 只保存每个会话的 id、标题、时间、消息数等基本信息，不含对话内容。
+- 每个会话的完整内容独立存于 \`session-<id>.json\`，仅在打开该会话时才读取（懒加载）。
+
+记忆文件路径：\`../sessions/index.json\`
 `;
 
 /** 单个对话中的一条消息：仅 user / assistant（system 每次动态构造，不持久化）。 */
@@ -39,7 +50,7 @@ export type AttachmentRef = {
   path: string;
 };
 
-/** 一次完整会话。 */
+/** 一次完整会话（存于 session-<id>.json）。 */
 export interface Session {
   id: string;
   title: string;
@@ -54,16 +65,25 @@ export interface Session {
   webSearch: boolean;
 }
 
-/** 多会话存储文件结构。 */
-export interface SessionsFile {
+/** 会话元数据（仅存于 index.json，不含对话内容）。 */
+export interface SessionMeta {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+}
+
+/** sessions/index.json 结构。 */
+export interface SessionsIndex {
   version: number;
   activeSessionId: string | null;
-  sessions: Session[];
+  sessions: SessionMeta[];
 }
 
 /** 获取 vault 根目录下的 AI 文件夹名称（去除首尾空格，空值回退默认名）。 */
 export function getAiFolderName(plugin: AiNoteAgentPlugin): string {
-  return (plugin.settings.aiFolderName || "VaultMind").trim() || "VaultMind";
+  return (plugin.settings.aiFolderName || ".vaultmind").trim() || ".vaultmind";
 }
 
 /** AI 文件夹根路径（vault 根目录下的相对路径）。 */
@@ -71,14 +91,19 @@ export function getAiFolderPath(plugin: AiNoteAgentPlugin): string {
   return getAiFolderName(plugin);
 }
 
-/** memory 目录路径。 */
-export function getMemoryDir(plugin: AiNoteAgentPlugin): string {
-  return `${getAiFolderPath(plugin)}/${MEMORY_DIR}`;
+/** sessions 目录路径。 */
+export function getSessionsDir(plugin: AiNoteAgentPlugin): string {
+  return `${getAiFolderPath(plugin)}/${SESSIONS_DIR}`;
 }
 
-/** 记忆文件路径（chat-history.json）。 */
-export function getMemoryFilePath(plugin: AiNoteAgentPlugin): string {
-  return `${getMemoryDir(plugin)}/${MEMORY_FILE}`;
+/** 会话索引文件路径（index.json）。 */
+export function getSessionsIndexFile(plugin: AiNoteAgentPlugin): string {
+  return `${getSessionsDir(plugin)}/${SESSIONS_INDEX}`;
+}
+
+/** 单个会话文件路径（session-<id>.json）。 */
+export function getSessionFile(plugin: AiNoteAgentPlugin, id: string): string {
+  return `${getSessionsDir(plugin)}/${SESSION_FILE_PREFIX}${id}${SESSION_FILE_SUFFIX}`;
 }
 
 /** skills 目录路径。 */
@@ -98,7 +123,7 @@ async function ensureFolder(vault: Vault, path: string): Promise<void> {
 }
 
 /**
- * 确保 AI 文件夹及其 memory/、skills/ 子目录存在，
+ * 确保 AI 文件夹及其 sessions/、skills/ 子目录存在，
  * 并在 skills/ 下写入 README 说明文件（若不存在）。
  * 在插件 onload 时调用，即可在 vault 根目录自动生成 AI 数据目录。
  */
@@ -106,7 +131,7 @@ export async function ensureAiFolder(plugin: AiNoteAgentPlugin): Promise<void> {
   const vault = plugin.app.vault;
   const root = getAiFolderPath(plugin);
   await ensureFolder(vault, root);
-  await ensureFolder(vault, getMemoryDir(plugin));
+  await ensureFolder(vault, getSessionsDir(plugin));
   await ensureFolder(vault, getSkillsDir(plugin));
 
   const readmePath = `${getSkillsDir(plugin)}/${SKILLS_README}`;
@@ -135,15 +160,225 @@ function isValidAttachment(m: unknown): m is AttachmentRef {
   );
 }
 
-function emptySessions(): SessionsFile {
+/** 校验一个对象是否为合法的完整会话，并对旧数据补齐可选字段。 */
+function isValidSession(m: unknown): m is Session {
+  if (!m || typeof m !== "object") return false;
+  const obj = m as Record<string, unknown>;
+  if (typeof obj.id !== "string" || typeof obj.title !== "string") return false;
+  if (!Array.isArray(obj.messages) || !obj.messages.every(isValidMessage)) return false;
+  // 补齐旧版缺失字段
+  if (!Array.isArray(obj.attachments)) obj.attachments = [];
+  if (!Array.isArray(obj.skills)) obj.skills = [];
+  if (typeof obj.createdAt !== "number") obj.createdAt = Date.now();
+  if (typeof obj.updatedAt !== "number") obj.updatedAt = obj.createdAt;
+  if (typeof obj.webSearch !== "boolean") obj.webSearch = false;
+  return true;
+}
+
+function emptyIndex(): SessionsIndex {
   return { version: SESSIONS_VERSION, activeSessionId: null, sessions: [] };
 }
 
-function migrateLegacy(data: unknown): SessionsFile {
+/**
+ * 将任意对象规整为合法的 SessionsIndex。
+ * 过滤非法条目，缺失的时间/数量字段补默认值。
+ */
+function normalizeIndex(data: unknown): SessionsIndex {
+  if (!data || typeof data !== "object") return emptyIndex();
+  const obj = data as Record<string, unknown>;
+  const metas = Array.isArray(obj.sessions)
+    ? obj.sessions
+        .filter((m): m is SessionMeta => {
+          if (!m || typeof m !== "object") return false;
+          const meta = m as Record<string, unknown>;
+          return typeof meta.id === "string" && typeof meta.title === "string";
+        })
+        .map((meta) => ({
+          id: meta.id,
+          title: meta.title,
+          createdAt: typeof meta.createdAt === "number" ? meta.createdAt : Date.now(),
+          updatedAt: typeof meta.updatedAt === "number" ? meta.updatedAt : Date.now(),
+          messageCount: typeof meta.messageCount === "number" ? meta.messageCount : 0,
+        }))
+    : [];
+  return {
+    version: SESSIONS_VERSION,
+    activeSessionId: typeof obj.activeSessionId === "string" ? obj.activeSessionId : null,
+    sessions: metas,
+  };
+}
+
+/** 从完整会话提取元数据。 */
+export function sessionToMeta(s: Session): SessionMeta {
+  return {
+    id: s.id,
+    title: s.title,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+    messageCount: s.messages.length,
+  };
+}
+
+/**
+ * 将完整会话写入其独立文件 session-<id>.json。
+ */
+export async function saveSessionFile(
+  plugin: AiNoteAgentPlugin,
+  session: Session
+): Promise<void> {
+  if (!plugin.settings.enableMemory) return;
+  const vault = plugin.app.vault;
+  await ensureFolder(vault, getAiFolderPath(plugin));
+  await ensureFolder(vault, getSessionsDir(plugin));
+  const path = getSessionFile(plugin, session.id);
+  const file = vault.getAbstractFileByPath(path);
+  const json = JSON.stringify(session, null, 2);
+  if (file instanceof TFile) {
+    await vault.modify(file, json);
+  } else {
+    await vault.create(path, json);
+  }
+}
+
+/**
+ * 删除指定会话的独立文件 session-<id>.json。
+ */
+export async function deleteSessionFile(
+  plugin: AiNoteAgentPlugin,
+  id: string
+): Promise<void> {
+  const vault = plugin.app.vault;
+  const path = getSessionFile(plugin, id);
+  const file = vault.getAbstractFileByPath(path);
+  if (file instanceof TFile) {
+    await vault.delete(file);
+  }
+}
+
+/**
+ * 将会话索引写入 index.json。
+ */
+export async function saveSessionsIndex(
+  plugin: AiNoteAgentPlugin,
+  index: SessionsIndex
+): Promise<void> {
+  if (!plugin.settings.enableMemory) return;
+  const vault = plugin.app.vault;
+  await ensureFolder(vault, getAiFolderPath(plugin));
+  await ensureFolder(vault, getSessionsDir(plugin));
+  const path = getSessionsIndexFile(plugin);
+  const out: SessionsIndex = { ...index, version: SESSIONS_VERSION };
+  const json = JSON.stringify(out, null, 2);
+  const file = vault.getAbstractFileByPath(path);
+  if (file instanceof TFile) {
+    await vault.modify(file, json);
+  } else {
+    await vault.create(path, json);
+  }
+}
+
+/**
+ * 加载会话索引（index.json）。
+ * 若 index.json 不存在但存在旧版 memory/chat-history.json，则自动迁移：
+ * 把旧数据拆分为 index.json + 各 session-<id>.json 后再返回。
+ * 未启用记忆或文件缺失/损坏时返回空结构。
+ */
+export async function loadSessionsIndex(
+  plugin: AiNoteAgentPlugin
+): Promise<SessionsIndex> {
+  if (!plugin.settings.enableMemory) return emptyIndex();
+  const vault = plugin.app.vault;
+
+  const idxFile = vault.getAbstractFileByPath(getSessionsIndexFile(plugin));
+  if (idxFile instanceof TFile) {
+    try {
+      const content = await vault.read(idxFile);
+      if (content.trim()) return normalizeIndex(JSON.parse(content));
+    } catch {
+      // 损坏则继续尝试迁移 / 返回空
+    }
+  }
+
+  const migrated = await tryMigrateLegacy(plugin);
+  if (migrated) return migrated;
+
+  return emptyIndex();
+}
+
+/**
+ * 加载单个会话的完整内容（session-<id>.json）。
+ * 文件缺失/损坏或校验失败时返回 null。
+ */
+export async function loadSessionFile(
+  plugin: AiNoteAgentPlugin,
+  id: string
+): Promise<Session | null> {
+  if (!plugin.settings.enableMemory) return null;
+  const vault = plugin.app.vault;
+  const file = vault.getAbstractFileByPath(getSessionFile(plugin, id));
+  if (!(file instanceof TFile)) return null;
+  try {
+    const content = await vault.read(file);
+    if (!content.trim()) return null;
+    const obj = JSON.parse(content);
+    if (isValidSession(obj)) return obj;
+  } catch {
+    // 损坏忽略
+  }
+  return null;
+}
+
+/**
+ * 尝试将旧版 memory/chat-history.json 迁移为新结构。
+ * 成功返回索引；无可迁移数据时返回 null。
+ */
+async function tryMigrateLegacy(
+  plugin: AiNoteAgentPlugin
+): Promise<SessionsIndex | null> {
+  const vault = plugin.app.vault;
+  const legacyPath = `${getAiFolderPath(plugin)}/${MEMORY_LEGACY_DIR}/${MEMORY_LEGACY_FILE}`;
+  const file = vault.getAbstractFileByPath(legacyPath);
+  if (!(file instanceof TFile)) return null;
+
+  try {
+    const content = await vault.read(file);
+    if (!content.trim()) return null;
+    const legacy = migrateLegacy(JSON.parse(content));
+    if (legacy.sessions.length === 0) return null;
+
+    await ensureFolder(vault, getSessionsDir(plugin));
+    const index: SessionsIndex = {
+      version: SESSIONS_VERSION,
+      activeSessionId: legacy.activeSessionId,
+      sessions: legacy.sessions.map(sessionToMeta),
+    };
+    for (const s of legacy.sessions) {
+      await saveSessionFile(plugin, s);
+    }
+    await saveSessionsIndex(plugin, index);
+    // 迁移完成后删除旧文件，避免重复迁移
+    await vault.delete(file).catch(() => undefined);
+    return index;
+  } catch {
+    return null;
+  }
+}
+
+/** 旧版完整存储结构（用于迁移）。 */
+interface LegacySessionsFile {
+  version: number;
+  activeSessionId: string | null;
+  sessions: Session[];
+}
+
+/**
+ * 将旧版任意数据迁移为完整会话数组结构（兼容裸数组）。
+ */
+function migrateLegacy(data: unknown): LegacySessionsFile {
   // 旧版格式：裸数组（version 1 / 无 version）
   if (Array.isArray(data)) {
     const msgs = data.filter(isValidMessage);
-    if (msgs.length === 0) return emptySessions();
+    if (msgs.length === 0) return { version: SESSIONS_VERSION, activeSessionId: null, sessions: [] };
     const firstUser = msgs.find((m) => m.role === "user");
     const title = firstUser
       ? firstUser.content.slice(0, 30).replace(/\s+/g, " ").trim() || "已导入的对话"
@@ -166,7 +401,7 @@ function migrateLegacy(data: unknown): SessionsFile {
     };
   }
 
-  // 已经是新版结构
+  // 已经是多会话结构（含 sessions 数组）
   if (data && typeof data === "object") {
     const obj = data as Record<string, unknown>;
     const sessions = Array.isArray(obj.sessions)
@@ -181,7 +416,7 @@ function migrateLegacy(data: unknown): SessionsFile {
           );
         })
       : [];
-    // 为旧版会话补齐 attachments / skills 字段（向后兼容，旧数据无这些字段）
+    // 为旧版会话补齐 attachments / skills / webSearch 字段（向后兼容）
     for (const sess of sessions) {
       sess.attachments = Array.isArray(sess.attachments)
         ? sess.attachments.filter(isValidAttachment)
@@ -199,48 +434,7 @@ function migrateLegacy(data: unknown): SessionsFile {
     };
   }
 
-  return emptySessions();
-}
-
-/**
- * 从 vault 中的记忆文件加载多会话数据。
- * 兼容旧版裸数组（自动迁移为单个会话）。
- * 未启用记忆或文件缺失/损坏时返回空结构。
- */
-export async function loadSessions(plugin: AiNoteAgentPlugin): Promise<SessionsFile> {
-  if (!plugin.settings.enableMemory) return emptySessions();
-  const file = plugin.app.vault.getAbstractFileByPath(getMemoryFilePath(plugin));
-  if (!(file instanceof TFile)) return emptySessions();
-  try {
-    const content = await plugin.app.vault.read(file);
-    if (!content.trim()) return emptySessions();
-    return migrateLegacy(JSON.parse(content));
-  } catch {
-    // 文件损坏或为空，忽略并返回一个空结构
-  }
-  return emptySessions();
-}
-
-/**
- * 将多会话数据保存到 vault 中的记忆文件（JSON 格式）。
- * 未启用记忆时直接跳过，不落盘。
- */
-export async function saveSessions(
-  plugin: AiNoteAgentPlugin,
-  data: SessionsFile
-): Promise<void> {
-  if (!plugin.settings.enableMemory) return;
-  const vault = plugin.app.vault;
-  await ensureFolder(vault, getAiFolderPath(plugin));
-  await ensureFolder(vault, getMemoryDir(plugin));
-  const path = getMemoryFilePath(plugin);
-  const out: SessionsFile = { ...data, version: SESSIONS_VERSION };
-  const file = vault.getAbstractFileByPath(path);
-  if (file instanceof TFile) {
-    await vault.modify(file, JSON.stringify(out, null, 2));
-  } else {
-    await vault.create(path, JSON.stringify(out, null, 2));
-  }
+  return { version: SESSIONS_VERSION, activeSessionId: null, sessions: [] };
 }
 
 /** 新建一个空白会话。 */
@@ -258,7 +452,21 @@ export function createSession(title = "新对话", defaultSkills: string[] = [])
   };
 }
 
-/** 清空当前所有会话（清空记忆文件为结构骨架）。 */
+/** 清空当前所有会话（重建空索引并删除所有会话文件）。 */
 export async function clearAllSessions(plugin: AiNoteAgentPlugin): Promise<void> {
-  await saveSessions(plugin, emptySessions());
+  if (!plugin.settings.enableMemory) return;
+  const vault = plugin.app.vault;
+  const dir = vault.getAbstractFileByPath(getSessionsDir(plugin));
+  if (dir instanceof TFolder) {
+    for (const child of [...dir.children]) {
+      if (
+        child instanceof TFile &&
+        child.name.startsWith(SESSION_FILE_PREFIX) &&
+        child.name.endsWith(SESSION_FILE_SUFFIX)
+      ) {
+        await vault.delete(child).catch(() => undefined);
+      }
+    }
+  }
+  await saveSessionsIndex(plugin, emptyIndex());
 }
