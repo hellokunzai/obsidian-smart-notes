@@ -387,7 +387,7 @@
 .ana-chat-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
   padding: var(--size-4-1) var(--size-4-2) 0;
   min-height: 0;
 }
@@ -477,8 +477,8 @@
   height: 32px;
   border: none;
   border-radius: var(--radius-s);
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
+  background: transparent;
+  color: var(--interactive-accent);
   cursor: pointer;
   box-shadow: none;
   flex-shrink: 0;
@@ -491,34 +491,35 @@
 }
 
 .ana-chat-send:hover:not(:disabled) {
-  filter: brightness(1.1);
+  background: var(--background-modifier-hover);
 }
 
 /* 已选 chips */
 .ana-chat-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px 2px;
-  border-radius: var(--radius-s);
-  background: var(--background-modifier-form-field);
-  border: 1px solid var(--background-modifier-border);
-  color: var(--text-normal);
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  border: none;
+  color: var(--text-muted);
   font-size: var(--font-smallest);
-  max-width: 200px;
+  line-height: 1.3;
+  max-width: 220px;
 }
 
 .ana-chat-chip-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--text-faint);
   flex-shrink: 0;
 }
 
 .ana-chat-chip-icon svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .ana-chat-chip-label {
@@ -529,19 +530,29 @@
 
 .ana-chat-chip-x {
   border: none;
-  background: transparent;
-  color: var(--text-muted);
+  background: none;
+  color: var(--text-faint);
   cursor: pointer;
-  font-size: var(--font-smallest);
+  font-size: 14px;
   line-height: 1;
-  padding: 0 2px;
-  border-radius: var(--radius-s);
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
   flex-shrink: 0;
+  opacity: 0.5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  min-width: 16px;
+  min-height: 16px;
 }
 
 .ana-chat-chip-x:hover {
   color: var(--text-error);
-  background: var(--background-modifier-hover);
+  opacity: 1;
+  background: none;
 }
 
 /* 附件选择器弹窗 */
@@ -607,9 +618,13 @@
   padding: var(--size-4-2);
 }
 
-/* Skill chip 用主题强调色描边与附件 chip 区分 */
+/* Skill chip 用主题强调色图标与附件 chip 区分 */
 .ana-chat-chip-skill {
-  border-color: var(--interactive-accent);
+  background: var(--background-secondary-alt);
+}
+
+.ana-chat-chip-skill .ana-chat-chip-icon {
+  color: var(--interactive-accent);
 }
 
 .ana-picker-path {
