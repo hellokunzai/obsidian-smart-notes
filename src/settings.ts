@@ -36,6 +36,10 @@ export interface AiNoteAgentSettings {
   maxMemoryMessages: number;
   // vault 根目录中用于存放记忆与 skill 的文件夹名称
   aiFolderName: string;
+  // 对话：是否把知识库路径索引（仅路径）注入 system prompt，让 AI 知道库里有哪些文件
+  includeVaultIndex: boolean;
+  // 对话：单文件注入到上下文的内容字符上限（防止超大文件撑爆 token）
+  chatContextMaxChars: number;
 }
 
 export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
@@ -57,6 +61,8 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   enableMemory: true,
   maxMemoryMessages: 20,
   aiFolderName: "AI-Note-Agent",
+  includeVaultIndex: true,
+  chatContextMaxChars: 8000,
 };
 
 export class AiNoteAgentSettingTab extends PluginSettingTab {
@@ -358,6 +364,36 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               new Notice(t("notice.error", { error: (e as Error).message }));
             } finally {
               btn.setDisabled(false);
+            }
+          })
+      );
+
+    containerEl.createEl("h3", { text: t("settings.section.chat"), cls: "ana-settings-h3" });
+
+    new Setting(containerEl)
+      .setName(t("settings.includeVaultIndex.name"))
+      .setDesc(t("settings.includeVaultIndex.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.includeVaultIndex)
+          .onChange(async (v) => {
+            this.plugin.settings.includeVaultIndex = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.chatContextMaxChars.name"))
+      .setDesc(t("settings.chatContextMaxChars.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("8000")
+          .setValue(String(this.plugin.settings.chatContextMaxChars))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.chatContextMaxChars = n;
+              await this.plugin.saveSettings();
             }
           })
       );

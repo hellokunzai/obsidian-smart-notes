@@ -116,5 +116,21 @@
   "settings.aiFolderName.name": "AI 文件夹名称",
   "settings.aiFolderName.desc": "在 vault 根目录创建、用于存放记忆与 skill 的文件夹名称。仅建议在该文件夹为空时修改。",
   "settings.aiFolderName.create": "立即创建文件夹",
-  "settings.aiFolderName.created": "AI Note Agent：AI 文件夹已创建。"
+  "settings.aiFolderName.created": "AI Note Agent：AI 文件夹已创建。",
+
+  "settings.section.chat": "AI 对话上下文",
+  "settings.includeVaultIndex.name": "知识库索引",
+  "settings.includeVaultIndex.desc": "将所有 Markdown 文件路径清单注入 system prompt，让 AI 知道库里有哪些文件。文件内容不会自动加载，只有在被附加或被消息点名时才会发送。",
+  "settings.chatContextMaxChars.name": "单文件注入字符上限",
+  "settings.chatContextMaxChars.desc": "发送前将每个附加文件的内容截断到此长度，避免超大文件撑爆 token。",
+
+  "view.addAttachment": "添加文件/文件夹",
+  "view.removeAttachment": "移除附件",
+  "view.clearAttachments": "清空附件",
+  "view.noNewAttachment": "AI Note Agent：没有新增任何文件/文件夹。",
+  "view.picker.title": "从知识库附加",
+  "view.picker.desc": "选择要作为上下文附加的文件或文件夹。只有被附加文件的内容才会发给 AI，其余文件仅以路径形式存在。",
+  "view.picker.searchPlaceholder": "搜索文件与文件夹……",
+  "view.picker.confirm": "附加所选",
+  "view.picker.empty": "没有匹配的文件或文件夹。"
 }

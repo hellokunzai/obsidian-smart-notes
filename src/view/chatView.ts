@@ -2,7 +2,7 @@ import {
   ItemView,
   WorkspaceLeaf,
   TFile,
-  MarkdownView,
+  TFolder,
   Notice,
   Modal,
   Setting,
@@ -17,7 +17,9 @@ import {
   saveSessions,
   createSession,
   type Session,
+  type AttachmentRef,
 } from "../utils/aiFolder";
+import { buildKnowledgeIndex, buildAttachmentContext } from "../context/knowledge";
 
 export const CHAT_VIEW_TYPE = "ai-note-agent-chat";
 
@@ -34,6 +36,7 @@ export class ChatView extends ItemView {
   private messagesEl!: HTMLElement;
   private inputEl!: HTMLTextAreaElement;
   private sendBtn!: HTMLButtonElement;
+  private attachmentsEl!: HTMLElement;
 
   private isStreaming = false;
   private sidebarCollapsed = false;
@@ -132,6 +135,10 @@ export class ChatView extends ItemView {
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
 
     this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
+
+    // 附件栏（位于聊天框上方，可显式附加文件/文件夹）
+    this.attachmentsEl = main.createEl("div", { cls: "ana-chat-attachments" });
+    this.renderAttachments();
 
     const footer = main.createEl("div", { cls: "ana-chat-footer" });
     this.inputEl = footer.createEl("textarea", {
@@ -242,6 +249,7 @@ export class ChatView extends ItemView {
     await this.persist();
     this.renderSessionList();
     this.renderMessages();
+    this.renderAttachments();
     this.inputEl.focus();
   }
 
@@ -251,6 +259,7 @@ export class ChatView extends ItemView {
     await this.persist();
     this.renderSessionList();
     this.renderMessages();
+    this.renderAttachments();
   }
 
   private renameSession(s: Session): void {
@@ -307,6 +316,7 @@ export class ChatView extends ItemView {
         await this.persist();
         this.renderSessionList();
         this.renderMessages();
+        this.renderAttachments();
       });
     modal.open();
   }
@@ -315,11 +325,97 @@ export class ChatView extends ItemView {
     const s = this.activeSession;
     if (!s) return;
     s.messages = [];
+    s.attachments = [];
     s.title = t("view.defaultTitle");
     s.updatedAt = Date.now();
     await this.persist();
     this.renderMessages();
     this.renderSessionList();
+    this.renderAttachments();
+  }
+
+  // ================= 附件栏 =================
+
+  /** 渲染附件栏：chips 展示当前会话附加的文件/文件夹 + 添加/清空按钮。 */
+  private renderAttachments(): void {
+    this.attachmentsEl.empty();
+    const s = this.activeSession;
+    if (!s) return;
+
+    const list = this.attachmentsEl.createEl("div", { cls: "ana-chat-attach-list" });
+
+    for (let i = 0; i < s.attachments.length; i++) {
+      const ref = s.attachments[i];
+      const chip = list.createEl("div", { cls: "ana-chat-chip" });
+      const icon = ref.type === "folder" ? "📁" : "📄";
+      chip.createSpan({ text: `${icon} ${ref.path}`, cls: "ana-chat-chip-label" });
+      const x = chip.createEl("button", {
+        cls: "ana-chat-chip-x",
+        attr: { "aria-label": t("view.removeAttachment") },
+      });
+      x.setText("×");
+      x.addEventListener("click", () => void this.removeAttachment(i));
+    }
+
+    const actions = this.attachmentsEl.createEl("div", { cls: "ana-chat-attach-actions" });
+    const addBtn = actions.createEl("button", { cls: "ana-chat-header-btn" });
+    addBtn.setText(`+ ${t("view.addAttachment")}`);
+    addBtn.addEventListener("click", () => this.openAttachmentPicker());
+
+    if (s.attachments.length > 0) {
+      const clearBtn = actions.createEl("button", { cls: "ana-chat-header-btn" });
+      clearBtn.setText(t("view.clearAttachments"));
+      clearBtn.addEventListener("click", () => void this.clearAttachments());
+    }
+  }
+
+  private async addAttachments(refs: AttachmentRef[]): Promise<void> {
+    const s = this.activeSession;
+    if (!s) return;
+    const existing = new Set(s.attachments.map((a) => `${a.type}:${a.path}`));
+    let added = 0;
+    for (const ref of refs) {
+      const key = `${ref.type}:${ref.path}`;
+      if (!existing.has(key)) {
+        s.attachments.push(ref);
+        existing.add(key);
+        added++;
+      }
+    }
+    if (added === 0) {
+      new Notice(t("view.noNewAttachment"));
+      return;
+    }
+    s.updatedAt = Date.now();
+    await this.persist();
+    this.renderAttachments();
+  }
+
+  private async removeAttachment(index: number): Promise<void> {
+    const s = this.activeSession;
+    if (!s) return;
+    s.attachments.splice(index, 1);
+    s.updatedAt = Date.now();
+    await this.persist();
+    this.renderAttachments();
+  }
+
+  private async clearAttachments(): Promise<void> {
+    const s = this.activeSession;
+    if (!s) return;
+    s.attachments = [];
+    s.updatedAt = Date.now();
+    await this.persist();
+    this.renderAttachments();
+  }
+
+  /** 打开附件选择器：可搜索的库内文件夹/Markdown 文件多选列表。 */
+  private openAttachmentPicker(): void {
+    const s = this.activeSession;
+    if (!s) return;
+    new AttachmentPickerModal(this.plugin.app, this.plugin, (refs) =>
+      void this.addAttachments(refs)
+    ).open();
   }
 
   // ================= 消息渲染 =================
@@ -377,7 +473,13 @@ export class ChatView extends ItemView {
     s.updatedAt = Date.now();
 
     const system = this.buildSystem();
-    const noteContext = await this.getNoteContext();
+    // 仅按用户显式附加的附件 + 消息中点名的文件读取内容（不自动加载任何文件）
+    const noteContext = await buildAttachmentContext(
+      this.plugin.app,
+      s.attachments,
+      text,
+      this.plugin.settings.chatContextMaxChars
+    );
     const currentUser: ChatMessage = {
       role: "user",
       content: noteContext ? `${text}\n\n${noteContext}` : text,
@@ -450,33 +552,128 @@ export class ChatView extends ItemView {
     }
   }
 
-  /** 构造 system prompt：基础助手提示 + 用户自定义指令。 */
+  /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库路径索引（仅路径）。 */
   private buildSystem(): string {
     const base =
-      "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise.";
-    return buildSystemPrompt(this.plugin.settings.customInstructions, base);
+      "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise. Note: you can see the vault's file paths via the knowledge base index, but file contents are only provided when the user explicitly attaches them or references them by name.";
+    const sys = buildSystemPrompt(this.plugin.settings.customInstructions, base);
+    const index = buildKnowledgeIndex(
+      this.plugin.app,
+      this.plugin.settings.includeVaultIndex
+    );
+    if (index) {
+      return `${sys}\n\n${index}`;
+    }
+    return sys;
+  }
+}
+
+/**
+ * 附件选择器：展示库内所有文件夹与 Markdown 文件，支持搜索与多选。
+ * 确认后将选中的 file/folder 引用回传给回调。
+ */
+class AttachmentPickerModal extends Modal {
+  private plugin: AiNoteAgentPlugin;
+  private onSubmit: (refs: AttachmentRef[]) => void;
+  private selected = new Map<string, AttachmentRef>();
+  private listEl!: HTMLElement;
+  private searchEl!: HTMLInputElement;
+  private allEntries: { type: "file" | "folder"; path: string; name: string }[] = [];
+
+  constructor(
+    app: import("obsidian").App,
+    plugin: AiNoteAgentPlugin,
+    onSubmit: (refs: AttachmentRef[]) => void
+  ) {
+    super(app);
+    this.plugin = plugin;
+    this.onSubmit = onSubmit;
   }
 
-  /** 读取当前活动笔记内容，作为当前轮次的可选上下文。 */
-  private async getNoteContext(): Promise<string> {
-    const activeFile = this.getActiveNote();
-    if (!activeFile) return "";
-    try {
-      const content = await this.plugin.app.vault.cachedRead(activeFile);
-      return `--- Active note context ---\nTitle: ${activeFile.basename}\nPath: ${activeFile.path}\n${content.slice(0, 4000)}`;
-    } catch {
-      return "";
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("ana-picker");
+    this.titleEl.setText(t("view.picker.title"));
+
+    contentEl.createEl("p", {
+      text: t("view.picker.desc"),
+      cls: "ana-picker-desc",
+    });
+
+    // 搜索框
+    this.searchEl = contentEl.createEl("input", {
+      cls: "ana-picker-search",
+      attr: { type: "text", placeholder: t("view.picker.searchPlaceholder") },
+    });
+    this.searchEl.addEventListener("input", () => this.renderList());
+
+    // 列表容器
+    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+
+    // 收集所有文件夹与 Markdown 文件
+    this.allEntries = [];
+    for (const af of this.app.vault.getAllLoadedFiles()) {
+      if (af instanceof TFolder) {
+        this.allEntries.push({ type: "folder", path: af.path, name: af.name + "/" });
+      } else if (af instanceof TFile && af.extension === "md") {
+        this.allEntries.push({ type: "file", path: af.path, name: af.name });
+      }
+    }
+    this.allEntries.sort((a, b) => a.path.localeCompare(b.path));
+
+    this.renderList();
+
+    // 操作按钮
+    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new ButtonComponent(btns)
+      .setButtonText(t("modal.cancel"))
+      .onClick(() => this.close());
+    new ButtonComponent(btns)
+      .setButtonText(t("view.picker.confirm"))
+      .setCta()
+      .onClick(() => {
+        const refs = Array.from(this.selected.values());
+        this.close();
+        this.onSubmit(refs);
+      });
+
+    this.scope.register([], "Escape", () => this.close());
+  }
+
+  private renderList(): void {
+    this.listEl.empty();
+    const q = this.searchEl.value.trim().toLowerCase();
+    const filtered = q
+      ? this.allEntries.filter((e) => e.path.toLowerCase().includes(q))
+      : this.allEntries;
+
+    if (filtered.length === 0) {
+      this.listEl.createEl("div", {
+        text: t("view.picker.empty"),
+        cls: "ana-picker-empty",
+      });
+      return;
+    }
+
+    for (const e of filtered) {
+      const key = `${e.type}:${e.path}`;
+      const row = this.listEl.createEl("label", { cls: "ana-picker-row" });
+      const cb = row.createEl("input", { attr: { type: "checkbox" } });
+      cb.checked = this.selected.has(key);
+      cb.addEventListener("change", () => {
+        if (cb.checked) {
+          this.selected.set(key, { type: e.type, path: e.path });
+        } else {
+          this.selected.delete(key);
+        }
+      });
+      const icon = e.type === "folder" ? "📁" : "📄";
+      row.createSpan({ text: `${icon} ${e.path}`, cls: "ana-picker-name" });
     }
   }
 
-  private getActiveNote(): TFile | null {
-    const leaf = this.plugin.app.workspace.getMostRecentLeaf();
-    if (!leaf) return null;
-    const view = leaf.view;
-    if (view instanceof MarkdownView) {
-      return view.file ?? null;
-    }
-    const file = this.plugin.app.workspace.getActiveFile();
-    return file instanceof TFile ? file : null;
+  onClose(): void {
+    this.contentEl.empty();
   }
 }

@@ -32,6 +32,13 @@ const SKILLS_README_CONTENT = `# Skills 目录
 /** 单个对话中的一条消息：仅 user / assistant（system 每次动态构造，不持久化）。 */
 export type SessionMessage = { role: "user" | "assistant"; content: string };
 
+/** 附件引用：用户显式附加到会话的文件或文件夹（仅此部分内容会被读取并注入上下文）。 */
+export type AttachmentRef = {
+  type: "file" | "folder";
+  /** vault 内相对路径 */
+  path: string;
+};
+
 /** 一次完整会话。 */
 export interface Session {
   id: string;
@@ -39,6 +46,8 @@ export interface Session {
   createdAt: number;
   updatedAt: number;
   messages: SessionMessage[];
+  /** 显式附加的文件/文件夹（每个会话独立保存）。 */
+  attachments: AttachmentRef[];
 }
 
 /** 多会话存储文件结构。 */
@@ -112,6 +121,16 @@ function isValidMessage(m: unknown): m is SessionMessage {
   );
 }
 
+/** 校验一个附件引用是否合法（文件/文件夹、路径为字符串）。 */
+function isValidAttachment(m: unknown): m is AttachmentRef {
+  if (!m || typeof m !== "object") return false;
+  const obj = m as Record<string, unknown>;
+  return (
+    (obj.type === "file" || obj.type === "folder") &&
+    typeof obj.path === "string"
+  );
+}
+
 function emptySessions(): SessionsFile {
   return { version: SESSIONS_VERSION, activeSessionId: null, sessions: [] };
 }
@@ -132,6 +151,7 @@ function migrateLegacy(data: unknown): SessionsFile {
       createdAt: now,
       updatedAt: now,
       messages: msgs,
+      attachments: [],
     };
     return {
       version: SESSIONS_VERSION,
@@ -155,6 +175,12 @@ function migrateLegacy(data: unknown): SessionsFile {
           );
         })
       : [];
+    // 为旧版会话补齐 attachments 字段（向后兼容，旧数据无附件）
+    for (const sess of sessions) {
+      sess.attachments = Array.isArray(sess.attachments)
+        ? sess.attachments.filter(isValidAttachment)
+        : [];
+    }
     return {
       version: SESSIONS_VERSION,
       activeSessionId:
@@ -216,6 +242,7 @@ export function createSession(title = "新对话"): Session {
     createdAt: now,
     updatedAt: now,
     messages: [],
+    attachments: [],
   };
 }
 
