@@ -316,22 +316,55 @@
 
 .ana-chat-footer {
   display: flex;
-  gap: var(--size-4-2);
+  flex-direction: column;
+  gap: var(--size-4-1);
   padding: var(--size-4-2) var(--size-4-3);
   border-top: 1px solid var(--background-modifier-border);
   flex-shrink: 0;
   background: var(--background-primary);
 }
 
-.ana-chat-input {
+/* 输入框 + chips 的包裹层 */
+.ana-chat-input-area {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--size-4-2);
+}
+
+.ana-chat-input-wrap {
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+
+.ana-chat-input-wrap:focus-within {
+  border-color: var(--interactive-accent);
+}
+
+.ana-chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: var(--size-4-1) var(--size-4-2) 0;
+  min-height: 0;
+}
+
+.ana-chat-chips:empty {
+  display: none;
+}
+
+.ana-chat-input {
   resize: none;
   min-height: 44px;
   max-height: 160px;
-  background: var(--background-modifier-form-field);
+  background: transparent;
   color: var(--text-normal);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s);
+  border: none;
+  border-radius: 0;
   padding: var(--size-4-2);
   font-family: var(--font-interface);
   font-size: var(--font-ui-smaller);
@@ -340,12 +373,10 @@
 
 .ana-chat-input:focus {
   outline: none;
-  border-color: var(--interactive-accent);
 }
 
 .ana-chat-send {
   flex-shrink: 0;
-  align-self: flex-end;
   min-height: 44px;
   padding: 0 var(--size-4-3);
 }
@@ -356,37 +387,66 @@
   cursor: not-allowed;
 }
 
-/* 附件栏（位于聊天框上方） */
-.ana-chat-attachments {
+/* 操作栏：图标按钮横向一行 */
+.ana-chat-actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: var(--size-4-1);
-  padding: var(--size-4-1) var(--size-4-3);
-  border-top: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
-  flex-shrink: 0;
 }
 
-.ana-chat-attach-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--size-4-1);
-  flex: 1 1 auto;
-  min-width: 0;
+.ana-chat-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
 }
 
+.ana-chat-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ana-chat-action:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ana-chat-action.is-active {
+  color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+/* 已选 chips */
 .ana-chat-chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px var(--size-4-1);
+  padding: 2px 4px 2px 2px;
   border-radius: var(--radius-s);
   background: var(--background-modifier-form-field);
   border: 1px solid var(--background-modifier-border);
   color: var(--text-normal);
   font-size: var(--font-smallest);
-  max-width: 240px;
+  max-width: 200px;
+}
+
+.ana-chat-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ana-chat-chip-icon svg {
+  width: 12px;
+  height: 12px;
 }
 
 .ana-chat-chip-label {
@@ -404,6 +464,7 @@
   line-height: 1;
   padding: 0 2px;
   border-radius: var(--radius-s);
+  flex-shrink: 0;
 }
 
 .ana-chat-chip-x:hover {
@@ -480,19 +541,7 @@
   padding: var(--size-4-2);
 }
 
-/* Skill 栏：复用附件栏布局，仅作视觉区分 */
-.ana-chat-skills {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--size-4-1);
-  padding: var(--size-4-1) var(--size-4-3);
-  border-top: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
-  flex-shrink: 0;
-}
-
-/* Skill chip 用淡紫描边与附件 chip 区分 */
+/* Skill chip 用主题强调色描边与附件 chip 区分 */
 .ana-chat-chip-skill {
   border-color: var(--interactive-accent);
 }
@@ -536,26 +585,4 @@
   resize: vertical;
 }
 
-/* 聊天框工具栏（联网搜索开关） */
-.ana-chat-toolbar {
-  display: flex;
-  align-items: center;
-  margin-top: var(--size-4-1);
-}
-
-.ana-chat-web-toggle {
-  background: var(--background-secondary);
-  color: var(--text-muted);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s);
-  padding: var(--size-4-1) var(--size-4-2);
-  font-size: var(--font-smaller);
-  cursor: pointer;
-}
-
-.ana-chat-web-toggle.is-active {
-  color: var(--text-on-accent);
-  background: var(--interactive-accent);
-  border-color: var(--interactive-accent);
-}
 

@@ -7,6 +7,7 @@ import {
   Modal,
   Setting,
   ButtonComponent,
+  setIcon,
 } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { t } from "../i18n";
@@ -39,9 +40,12 @@ export class ChatView extends ItemView {
   private messagesEl!: HTMLElement;
   private inputEl!: HTMLTextAreaElement;
   private sendBtn!: HTMLButtonElement;
-  private attachmentsEl!: HTMLElement;
-  private skillsEl!: HTMLElement;
+  private inputWrapEl!: HTMLElement;
+  private chipsEl!: HTMLElement;
+  private actionsEl!: HTMLElement;
   private webToggleBtn!: HTMLButtonElement;
+  private attachBtn!: HTMLButtonElement;
+  private skillBtn!: HTMLButtonElement;
 
   private isStreaming = false;
   private sidebarCollapsed = false;
@@ -144,16 +148,17 @@ export class ChatView extends ItemView {
 
     this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
 
-    // 附件栏（位于聊天框上方，可显式附加文件/文件夹）
-    this.attachmentsEl = main.createEl("div", { cls: "ana-chat-attachments" });
-    this.renderAttachments();
-
-    // Skill 栏（位于聊天框上方，可显式启用 skill）
-    this.skillsEl = main.createEl("div", { cls: "ana-chat-skills" });
-    this.renderSkills();
-
     const footer = main.createEl("div", { cls: "ana-chat-footer" });
-    this.inputEl = footer.createEl("textarea", {
+
+    // 输入区：输入框包裹层 + 发送按钮横向排列
+    const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
+
+    // 输入框包裹层：内部显示已选的附件/Skill chips，下面是 textarea
+    this.inputWrapEl = inputArea.createEl("div", { cls: "ana-chat-input-wrap" });
+    this.chipsEl = this.inputWrapEl.createEl("div", {
+      cls: "ana-chat-chips",
+    });
+    this.inputEl = this.inputWrapEl.createEl("textarea", {
       cls: "ana-chat-input",
       attr: { placeholder: t("view.placeholder"), rows: "2" },
     });
@@ -164,21 +169,38 @@ export class ChatView extends ItemView {
       }
     });
 
-    this.sendBtn = footer.createEl("button", {
+    this.sendBtn = inputArea.createEl("button", {
       cls: "ana-chat-send mod-cta",
     });
     this.sendBtn.setText(t("view.send"));
     this.sendBtn.addEventListener("click", () => void this.handleSend());
 
-    // 联网搜索开关（per-session 显式触发）：默认关闭
-    const toolbar = footer.createEl("div", { cls: "ana-chat-toolbar" });
-    this.webToggleBtn = toolbar.createEl("button", {
-      cls: "ana-chat-web-toggle",
-      attr: { "aria-label": t("view.webToggle") },
-    });
-    this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
-    this.renderWebToggle();
+    // 操作栏：三个入口横向排列，使用 lucide 图标
+    this.actionsEl = footer.createEl("div", { cls: "ana-chat-actions" });
 
+    this.attachBtn = this.actionsEl.createEl("button", {
+      cls: "ana-chat-action",
+      attr: { title: t("view.addAttachment"), "aria-label": t("view.addAttachment") },
+    });
+    setIcon(this.attachBtn, "paperclip");
+    this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
+
+    this.skillBtn = this.actionsEl.createEl("button", {
+      cls: "ana-chat-action",
+      attr: { title: t("view.manageSkills"), "aria-label": t("view.manageSkills") },
+    });
+    setIcon(this.skillBtn, "puzzle");
+    this.skillBtn.addEventListener("click", () => this.openSkillPicker());
+
+    this.webToggleBtn = this.actionsEl.createEl("button", {
+      cls: "ana-chat-action",
+      attr: { title: t("view.webToggle"), "aria-label": t("view.webToggle") },
+    });
+    setIcon(this.webToggleBtn, "globe");
+    this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
+
+    this.renderChips();
+    this.renderActions();
     this.renderMessages();
   }
 
@@ -273,8 +295,8 @@ export class ChatView extends ItemView {
     await this.persist();
     this.renderSessionList();
     this.renderMessages();
-    this.renderAttachments();
-    this.renderSkills();
+    this.renderChips();
+    this.renderActions();
     this.inputEl.focus();
   }
 
@@ -284,9 +306,8 @@ export class ChatView extends ItemView {
     await this.persist();
     this.renderSessionList();
     this.renderMessages();
-    this.renderAttachments();
-    this.renderSkills();
-    this.renderWebToggle();
+    this.renderChips();
+    this.renderActions();
   }
 
   private renameSession(s: Session): void {
@@ -346,8 +367,8 @@ export class ChatView extends ItemView {
         await this.persist();
         this.renderSessionList();
         this.renderMessages();
-        this.renderAttachments();
-        this.renderSkills();
+        this.renderChips();
+        this.renderActions();
       });
     modal.open();
   }
@@ -357,30 +378,31 @@ export class ChatView extends ItemView {
     if (!s) return;
     s.messages = [];
     s.attachments = [];
+    s.skills = [];
     s.title = t("view.defaultTitle");
     s.updatedAt = Date.now();
     await this.persist();
     this.renderMessages();
     this.renderSessionList();
-    this.renderAttachments();
-    this.renderSkills();
+    this.renderChips();
+    this.renderActions();
   }
 
-  // ================= 附件栏 =================
+  // ================= Chips（显示在输入框内部） =================
 
-  /** 渲染附件栏：chips 展示当前会话附加的文件/文件夹 + 添加/清空按钮。 */
-  private renderAttachments(): void {
-    this.attachmentsEl.empty();
+  /** 渲染所有已选上下文 chip（附件 + skill）到输入框内部。 */
+  private renderChips(): void {
+    this.chipsEl.empty();
     const s = this.activeSession;
     if (!s) return;
 
-    const list = this.attachmentsEl.createEl("div", { cls: "ana-chat-attach-list" });
-
     for (let i = 0; i < s.attachments.length; i++) {
       const ref = s.attachments[i];
-      const chip = list.createEl("div", { cls: "ana-chat-chip" });
-      const icon = ref.type === "folder" ? "📁" : "📄";
-      chip.createSpan({ text: `${icon} ${ref.path}`, cls: "ana-chat-chip-label" });
+      const chip = this.chipsEl.createEl("div", { cls: "ana-chat-chip" });
+      const icon = ref.type === "folder" ? "folder" : "file-text";
+      const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
+      setIcon(iconSpan, icon);
+      chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "ana-chat-chip-x",
         attr: { "aria-label": t("view.removeAttachment") },
@@ -389,15 +411,20 @@ export class ChatView extends ItemView {
       x.addEventListener("click", () => void this.removeAttachment(i));
     }
 
-    const actions = this.attachmentsEl.createEl("div", { cls: "ana-chat-attach-actions" });
-    const addBtn = actions.createEl("button", { cls: "ana-chat-header-btn" });
-    addBtn.setText(`+ ${t("view.addAttachment")}`);
-    addBtn.addEventListener("click", () => this.openAttachmentPicker());
-
-    if (s.attachments.length > 0) {
-      const clearBtn = actions.createEl("button", { cls: "ana-chat-header-btn" });
-      clearBtn.setText(t("view.clearAttachments"));
-      clearBtn.addEventListener("click", () => void this.clearAttachments());
+    for (let i = 0; i < s.skills.length; i++) {
+      const path = s.skills[i];
+      const chip = this.chipsEl.createEl("div", {
+        cls: "ana-chat-chip ana-chat-chip-skill",
+      });
+      const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
+      setIcon(iconSpan, "puzzle");
+      chip.createSpan({ text: path, cls: "ana-chat-chip-label" });
+      const x = chip.createEl("button", {
+        cls: "ana-chat-chip-x",
+        attr: { "aria-label": t("view.removeSkill") },
+      });
+      x.setText("×");
+      x.addEventListener("click", () => void this.removeSkill(i));
     }
   }
 
@@ -420,7 +447,7 @@ export class ChatView extends ItemView {
     }
     s.updatedAt = Date.now();
     await this.persist();
-    this.renderAttachments();
+    this.renderChips();
   }
 
   private async removeAttachment(index: number): Promise<void> {
@@ -429,7 +456,7 @@ export class ChatView extends ItemView {
     s.attachments.splice(index, 1);
     s.updatedAt = Date.now();
     await this.persist();
-    this.renderAttachments();
+    this.renderChips();
   }
 
   private async clearAttachments(): Promise<void> {
@@ -438,7 +465,7 @@ export class ChatView extends ItemView {
     s.attachments = [];
     s.updatedAt = Date.now();
     await this.persist();
-    this.renderAttachments();
+    this.renderChips();
   }
 
   /** 打开附件选择器：可搜索的库内文件夹/Markdown 文件多选列表。 */
@@ -450,39 +477,7 @@ export class ChatView extends ItemView {
     ).open();
   }
 
-  // ================= Skill 栏 =================
-
-  /** 渲染 Skill 栏：chips 展示当前会话启用的 skill + 选择/清空按钮。 */
-  private renderSkills(): void {
-    this.skillsEl.empty();
-    const s = this.activeSession;
-    if (!s) return;
-
-    const list = this.skillsEl.createEl("div", { cls: "ana-chat-attach-list" });
-
-    for (let i = 0; i < s.skills.length; i++) {
-      const path = s.skills[i];
-      const chip = list.createEl("div", { cls: "ana-chat-chip ana-chat-chip-skill" });
-      chip.createSpan({ text: `🧩 ${path}`, cls: "ana-chat-chip-label" });
-      const x = chip.createEl("button", {
-        cls: "ana-chat-chip-x",
-        attr: { "aria-label": t("view.removeSkill") },
-      });
-      x.setText("×");
-      x.addEventListener("click", () => void this.removeSkill(i));
-    }
-
-    const actions = this.skillsEl.createEl("div", { cls: "ana-chat-attach-actions" });
-    const addBtn = actions.createEl("button", { cls: "ana-chat-header-btn" });
-    addBtn.setText(`🧩 ${t("view.manageSkills")}`);
-    addBtn.addEventListener("click", () => this.openSkillPicker());
-
-    if (s.skills.length > 0) {
-      const clearBtn = actions.createEl("button", { cls: "ana-chat-header-btn" });
-      clearBtn.setText(t("view.clearSkills"));
-      clearBtn.addEventListener("click", () => void this.clearSkills());
-    }
-  }
+  // ================= Skill 操作 =================
 
   private async addSkills(paths: string[]): Promise<void> {
     const s = this.activeSession;
@@ -502,7 +497,7 @@ export class ChatView extends ItemView {
     }
     s.updatedAt = Date.now();
     await this.persist();
-    this.renderSkills();
+    this.renderChips();
   }
 
   private async removeSkill(index: number): Promise<void> {
@@ -511,7 +506,7 @@ export class ChatView extends ItemView {
     s.skills.splice(index, 1);
     s.updatedAt = Date.now();
     await this.persist();
-    this.renderSkills();
+    this.renderChips();
   }
 
   private async clearSkills(): Promise<void> {
@@ -520,7 +515,7 @@ export class ChatView extends ItemView {
     s.skills = [];
     s.updatedAt = Date.now();
     await this.persist();
-    this.renderSkills();
+    this.renderChips();
   }
 
   /** 打开 skill 选择器：列出 skills/ 下所有 skill，支持搜索与多选。 */
@@ -537,12 +532,15 @@ export class ChatView extends ItemView {
 
   // ================= 联网搜索开关 =================
 
-  /** 渲染联网搜索切换按钮的视觉状态（开/关）。 */
-  private renderWebToggle(): void {
+  /** 渲染图标按钮：更新联网搜索图标的 active 状态与 tooltip。 */
+  private renderActions(): void {
     const s = this.activeSession;
     const on = s ? s.webSearch : false;
     this.webToggleBtn.classList.toggle("is-active", on);
-    this.webToggleBtn.setText(on ? `🌐 ${t("view.webOn")}` : `🌐 ${t("view.webOff")}`);
+    this.webToggleBtn.setAttribute(
+      "title",
+      on ? t("view.webOn") : t("view.webOff")
+    );
   }
 
   private async toggleWebSearch(): Promise<void> {
@@ -550,7 +548,7 @@ export class ChatView extends ItemView {
     if (!s) return;
     s.webSearch = !s.webSearch;
     s.updatedAt = Date.now();
-    this.renderWebToggle();
+    this.renderActions();
     await this.persist();
 
     // 开启时若未配置凭据，给出提示
