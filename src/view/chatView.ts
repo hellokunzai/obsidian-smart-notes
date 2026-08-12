@@ -21,6 +21,8 @@ import {
 } from "../utils/aiFolder";
 import { buildKnowledgeIndex, buildAttachmentContext } from "../context/knowledge";
 import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills";
+import { WebSearchService, type SearchProviderConfig } from "../search/search";
+import { buildWebSearchContext } from "../search/prompt";
 
 export const CHAT_VIEW_TYPE = "ai-note-agent-chat";
 
@@ -39,6 +41,7 @@ export class ChatView extends ItemView {
   private sendBtn!: HTMLButtonElement;
   private attachmentsEl!: HTMLElement;
   private skillsEl!: HTMLElement;
+  private webToggleBtn!: HTMLButtonElement;
 
   private isStreaming = false;
   private sidebarCollapsed = false;
@@ -167,6 +170,15 @@ export class ChatView extends ItemView {
     this.sendBtn.setText(t("view.send"));
     this.sendBtn.addEventListener("click", () => void this.handleSend());
 
+    // 联网搜索开关（per-session 显式触发）：默认关闭
+    const toolbar = footer.createEl("div", { cls: "ana-chat-toolbar" });
+    this.webToggleBtn = toolbar.createEl("button", {
+      cls: "ana-chat-web-toggle",
+      attr: { "aria-label": t("view.webToggle") },
+    });
+    this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
+    this.renderWebToggle();
+
     this.renderMessages();
   }
 
@@ -274,6 +286,7 @@ export class ChatView extends ItemView {
     this.renderMessages();
     this.renderAttachments();
     this.renderSkills();
+    this.renderWebToggle();
   }
 
   private renameSession(s: Session): void {
@@ -522,6 +535,48 @@ export class ChatView extends ItemView {
     ).open();
   }
 
+  // ================= 联网搜索开关 =================
+
+  /** 渲染联网搜索切换按钮的视觉状态（开/关）。 */
+  private renderWebToggle(): void {
+    const s = this.activeSession;
+    const on = s ? s.webSearch : false;
+    this.webToggleBtn.classList.toggle("is-active", on);
+    this.webToggleBtn.setText(on ? `🌐 ${t("view.webOn")}` : `🌐 ${t("view.webOff")}`);
+  }
+
+  private async toggleWebSearch(): Promise<void> {
+    const s = this.activeSession;
+    if (!s) return;
+    s.webSearch = !s.webSearch;
+    s.updatedAt = Date.now();
+    this.renderWebToggle();
+    await this.persist();
+
+    // 开启时若未配置凭据，给出提示
+    if (s.webSearch) {
+      const cfg = this.buildSearchConfig();
+      if (!new WebSearchService(cfg).hasCredentials()) {
+        new Notice(t("view.webNoCredentials"));
+      }
+    }
+  }
+
+  /** 从当前插件设置构造搜索配置。 */
+  private buildSearchConfig(): SearchProviderConfig {
+    const st = this.plugin.settings;
+    return {
+      enabled: st.webSearchEnabled,
+      provider: st.webSearchProvider,
+      tavilyApiKeys: st.tavilyApiKeys,
+      serperApiKeys: st.serperApiKeys,
+      braveApiKeys: st.braveApiKeys,
+      searxngInstances: st.searxngInstances,
+      maxResults: st.webSearchMaxResults,
+      maxCharsPerResult: st.webSearchMaxCharsPerResult,
+    };
+  }
+
   // ================= 消息渲染 =================
 
   private renderMessages(): void {
@@ -584,9 +639,32 @@ export class ChatView extends ItemView {
       text,
       this.plugin.settings.chatContextMaxChars
     );
+
+    // 联网搜索：仅当前会话显式开启、且全局启用并已配置凭据时才调用外部 API
+    let webContext = "";
+    if (s.webSearch && this.plugin.settings.webSearchEnabled) {
+      try {
+        const svc = new WebSearchService(this.buildSearchConfig());
+        if (svc.hasCredentials()) {
+          new Notice(t("view.webSearching"));
+          const results = await svc.search(text);
+          webContext = buildWebSearchContext(
+            results,
+            this.plugin.settings.webSearchShowCitations
+          );
+          if (results.length === 0) new Notice(t("view.webNoResults"));
+        } else {
+          new Notice(t("view.webNoCredentials"));
+        }
+      } catch (e) {
+        new Notice(t("view.webError", { error: (e as Error).message }));
+      }
+    }
+
+    const extra = [noteContext, webContext].filter((x) => x).join("\n\n");
     const currentUser: ChatMessage = {
       role: "user",
-      content: noteContext ? `${text}\n\n${noteContext}` : text,
+      content: extra ? `${text}\n\n${extra}` : text,
     };
 
     // 滑动窗口：仅取最近 maxMemoryMessages 条用于上下文（不含当前这条刚加的）

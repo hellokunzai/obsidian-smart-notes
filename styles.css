@@ -527,3 +527,35 @@
   font-size: var(--font-smaller);
   padding: var(--size-4-1) 0;
 }
+
+/* 多 Key / 实例 输入框：多行、等宽 */
+.ana-settings-keys {
+  width: 100%;
+  min-height: 72px;
+  font-family: var(--font-monospace);
+  resize: vertical;
+}
+
+/* 聊天框工具栏（联网搜索开关） */
+.ana-chat-toolbar {
+  display: flex;
+  align-items: center;
+  margin-top: var(--size-4-1);
+}
+
+.ana-chat-web-toggle {
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: var(--size-4-1) var(--size-4-2);
+  font-size: var(--font-smaller);
+  cursor: pointer;
+}
+
+.ana-chat-web-toggle.is-active {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+}
+

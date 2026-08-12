@@ -50,6 +50,8 @@ export interface Session {
   attachments: AttachmentRef[];
   /** 当前会话启用的 skill（skills/ 目录下的 .md 路径），按会话独立保存。 */
   skills: string[];
+  /** 当前会话是否开启联网搜索（仅开启时发消息才会调用外部搜索 API）。 */
+  webSearch: boolean;
 }
 
 /** 多会话存储文件结构。 */
@@ -155,6 +157,7 @@ function migrateLegacy(data: unknown): SessionsFile {
       messages: msgs,
       attachments: [],
       skills: [],
+      webSearch: false,
     };
     return {
       version: SESSIONS_VERSION,
@@ -186,6 +189,7 @@ function migrateLegacy(data: unknown): SessionsFile {
       sess.skills = Array.isArray(sess.skills)
         ? sess.skills.filter((p) => typeof p === "string")
         : [];
+      sess.webSearch = sess.webSearch === true;
     }
     return {
       version: SESSIONS_VERSION,
@@ -250,6 +254,7 @@ export function createSession(title = "新对话", defaultSkills: string[] = [])
     messages: [],
     attachments: [],
     skills: [...defaultSkills],
+    webSearch: false,
   };
 }
 

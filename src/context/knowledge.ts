@@ -10,11 +10,11 @@ import type { AttachmentRef } from "../utils/aiFolder";
  *   该文件的内容才会被读取并注入上下文；
  * - 未选中的文件，AI 永远读不到其内容。
  *
- * 扩展点（后续功能，本次不实现）：
- * - 加载 skill：将 skills 目录下的 .md 视为特殊附件注入；
- * - 联网搜索：追加一个 web 结果上下文块。
- * 两者都复用本模块暴露的上下文拼接格式，使 system / 附件 / 扩展
- * 信息在发给模型时保持一致的区块风格。
+ * 扩展点（已实现的后续功能）：
+ * - 加载 skill：由 src/skills/skills.ts 处理，将 skills 目录下的 .md 视为特殊附件注入；
+ * - 联网搜索：由 src/search/{search,prompt}.ts 处理，把 web 结果作为独立上下文块
+ *   追加到当前 user message（而非 system），与附件/知识库索引保持一致的区块风格。
+ * 具体注入逻辑见各自模块。
  */
 
 /**

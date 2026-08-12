@@ -43,6 +43,22 @@ export interface AiNoteAgentSettings {
   chatContextMaxChars: number;
   // 对话：全局默认启用的 skill（skills/ 目录下的 .md 相对路径）；新会话继承此列表
   defaultSkills: string[];
+  // ===== 联网搜索 =====
+  // 全局总开关
+  webSearchEnabled: boolean;
+  // 当前选中的 provider
+  webSearchProvider: "tavily" | "serper" | "brave" | "searxng";
+  // 各 provider 的多凭据（API Key 或实例地址）
+  tavilyApiKeys: string[];
+  serperApiKeys: string[];
+  braveApiKeys: string[];
+  searxngInstances: string[];
+  // 单次最大结果数
+  webSearchMaxResults: number;
+  // 单条结果摘要字符上限
+  webSearchMaxCharsPerResult: number;
+  // 是否在 prompt 中要求 AI 用 [n] 标注来源
+  webSearchShowCitations: boolean;
 }
 
 export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
@@ -67,6 +83,15 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   includeVaultIndex: true,
   chatContextMaxChars: 8000,
   defaultSkills: [],
+  webSearchEnabled: false,
+  webSearchProvider: "tavily",
+  tavilyApiKeys: [],
+  serperApiKeys: [],
+  braveApiKeys: [],
+  searxngInstances: [],
+  webSearchMaxResults: 5,
+  webSearchMaxCharsPerResult: 1500,
+  webSearchShowCitations: true,
 };
 
 export class AiNoteAgentSettingTab extends PluginSettingTab {
@@ -410,6 +435,117 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     });
     void skillsDesc;
     this.renderDefaultSkills(containerEl);
+
+    containerEl.createEl("h3", { text: t("settings.section.web"), cls: "ana-settings-h3" });
+
+    new Setting(containerEl)
+      .setName(t("settings.webSearchEnabled.name"))
+      .setDesc(t("settings.webSearchEnabled.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.webSearchEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.webSearchEnabled = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.webSearchProvider.name"))
+      .setDesc(t("settings.webSearchProvider.desc"))
+      .addDropdown((dd) =>
+        dd
+          .addOption("tavily", "Tavily")
+          .addOption("serper", "Serper (Google)")
+          .addOption("brave", "Brave Search")
+          .addOption("searxng", "SearXNG")
+          .setValue(this.plugin.settings.webSearchProvider)
+          .onChange(async (v) => {
+            this.plugin.settings.webSearchProvider = v as
+              | "tavily"
+              | "serper"
+              | "brave"
+              | "searxng";
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    // 根据当前选中的 provider 显示对应的多凭据输入框
+    const prov = this.plugin.settings.webSearchProvider;
+    const keySetting = new Setting(containerEl)
+      .setName(t(`settings.webKeys.${prov}.name`))
+      .setDesc(t(`settings.webKeys.${prov}.desc`));
+    keySetting.addTextArea((ta) =>
+      ta
+        .setPlaceholder(t(`settings.webKeys.${prov}.placeholder`))
+        .setValue(
+          (prov === "tavily"
+            ? this.plugin.settings.tavilyApiKeys
+            : prov === "serper"
+            ? this.plugin.settings.serperApiKeys
+            : prov === "brave"
+            ? this.plugin.settings.braveApiKeys
+            : this.plugin.settings.searxngInstances
+          ).join("\n")
+        )
+        .onChange(async (v) => {
+          const arr = v
+            .split(/[\n,]/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+          if (prov === "tavily") this.plugin.settings.tavilyApiKeys = arr;
+          else if (prov === "serper") this.plugin.settings.serperApiKeys = arr;
+          else if (prov === "brave") this.plugin.settings.braveApiKeys = arr;
+          else this.plugin.settings.searxngInstances = arr;
+          await this.plugin.saveSettings();
+        })
+    );
+    (keySetting.components[0] as any)?.inputEl?.addClass("ana-settings-keys");
+
+    new Setting(containerEl)
+      .setName(t("settings.webSearchMaxResults.name"))
+      .setDesc(t("settings.webSearchMaxResults.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("5")
+          .setValue(String(this.plugin.settings.webSearchMaxResults))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.webSearchMaxResults = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.webSearchMaxChars.name"))
+      .setDesc(t("settings.webSearchMaxChars.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder("1500")
+          .setValue(String(this.plugin.settings.webSearchMaxCharsPerResult))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.webSearchMaxCharsPerResult = n;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.webSearchShowCitations.name"))
+      .setDesc(t("settings.webSearchShowCitations.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.webSearchShowCitations)
+          .onChange(async (v) => {
+            this.plugin.settings.webSearchShowCitations = v;
+            await this.plugin.saveSettings();
+          })
+      );
   }
 
   /** 渲染全局默认 skill 开关列表（异步加载 skills/ 目录）。 */
