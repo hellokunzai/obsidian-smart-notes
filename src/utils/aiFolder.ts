@@ -13,6 +13,7 @@ const MEMORY_LEGACY_FILE = "chat-history.json";
 
 const SKILLS_DIR = "skills";
 const SKILLS_README = "README.md";
+const MEMORY_DIR = "memory";
 
 const SKILLS_README_CONTENT = `# Skills 目录
 
@@ -30,12 +31,16 @@ const SKILLS_README_CONTENT = `# Skills 目录
 ├── sessions/
 │   ├── index.json            # 会话索引（仅基本信息，轻量，始终加载）
 │   └── session-<id>.json     # 单个会话的完整内容（消息 / 附件 / skill / 联网开关）
+├── memory/                   # 长期画像记忆
+│   ├── MEMORY.md             # 跨会话整理的总体画像
+│   └── yyyy-mm-dd.md         # 当日记忆
 └── skills/                   # 自定义 skill（当前为预留目录）
     └── README.md             # 本说明文件
 \`\`\`
 
 - \`index.json\` 只保存每个会话的 id、标题、时间、消息数等基本信息，不含对话内容。
 - 每个会话的完整内容独立存于 \`session-<id>.json\`，仅在打开该会话时才读取（懒加载）。
+- \`memory/MEMORY.md\` 由插件在后台根据全部会话历史自动整理，也可手动编辑。
 
 记忆文件路径：\`../sessions/index.json\`
 `;
@@ -111,6 +116,11 @@ export function getSkillsDir(plugin: AiNoteAgentPlugin): string {
   return `${getAiFolderPath(plugin)}/${SKILLS_DIR}`;
 }
 
+/** memory 目录路径（长期画像记忆与每日记忆）。 */
+export function getMemoryDir(plugin: AiNoteAgentPlugin): string {
+  return `${getAiFolderPath(plugin)}/${MEMORY_DIR}`;
+}
+
 /** 若指定路径的文件夹不存在则创建（逐级创建，已存在则跳过）。 */
 async function ensureFolder(vault: Vault, path: string): Promise<void> {
   if (vault.getAbstractFileByPath(path) instanceof TFolder) return;
@@ -132,6 +142,7 @@ export async function ensureAiFolder(plugin: AiNoteAgentPlugin): Promise<void> {
   const root = getAiFolderPath(plugin);
   await ensureFolder(vault, root);
   await ensureFolder(vault, getSessionsDir(plugin));
+  await ensureFolder(vault, getMemoryDir(plugin));
   await ensureFolder(vault, getSkillsDir(plugin));
 
   const readmePath = `${getSkillsDir(plugin)}/${SKILLS_README}`;
@@ -226,7 +237,6 @@ export async function saveSessionFile(
   plugin: AiNoteAgentPlugin,
   session: Session
 ): Promise<void> {
-  if (!plugin.settings.enableMemory) return;
   const vault = plugin.app.vault;
   await ensureFolder(vault, getAiFolderPath(plugin));
   await ensureFolder(vault, getSessionsDir(plugin));
@@ -262,7 +272,6 @@ export async function saveSessionsIndex(
   plugin: AiNoteAgentPlugin,
   index: SessionsIndex
 ): Promise<void> {
-  if (!plugin.settings.enableMemory) return;
   const vault = plugin.app.vault;
   await ensureFolder(vault, getAiFolderPath(plugin));
   await ensureFolder(vault, getSessionsDir(plugin));
@@ -286,7 +295,6 @@ export async function saveSessionsIndex(
 export async function loadSessionsIndex(
   plugin: AiNoteAgentPlugin
 ): Promise<SessionsIndex> {
-  if (!plugin.settings.enableMemory) return emptyIndex();
   const vault = plugin.app.vault;
 
   const idxFile = vault.getAbstractFileByPath(getSessionsIndexFile(plugin));
@@ -313,7 +321,6 @@ export async function loadSessionFile(
   plugin: AiNoteAgentPlugin,
   id: string
 ): Promise<Session | null> {
-  if (!plugin.settings.enableMemory) return null;
   const vault = plugin.app.vault;
   const file = vault.getAbstractFileByPath(getSessionFile(plugin, id));
   if (!(file instanceof TFile)) return null;
@@ -454,7 +461,6 @@ export function createSession(title = "新对话", defaultSkills: string[] = [])
 
 /** 清空当前所有会话（重建空索引并删除所有会话文件）。 */
 export async function clearAllSessions(plugin: AiNoteAgentPlugin): Promise<void> {
-  if (!plugin.settings.enableMemory) return;
   const vault = plugin.app.vault;
   const dir = vault.getAbstractFileByPath(getSessionsDir(plugin));
   if (dir instanceof TFolder) {

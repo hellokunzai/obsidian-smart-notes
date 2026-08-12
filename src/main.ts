@@ -16,12 +16,14 @@ import {
 import { initI18n, t } from "./i18n";
 import { CHAT_VIEW_TYPE, ChatView } from "./view/chatView";
 import { ensureAiFolder } from "./utils/aiFolder";
+import { rebuildProfileMemory } from "./memory/profileMemory";
 
 const ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg>`;
 
 export default class AiNoteAgentPlugin extends Plugin {
   settings: AiNoteAgentSettings;
   private provider!: AIProvider;
+  private memoryRebuildTimeout?: number;
 
   async onload() {
     await this.loadSettings();
@@ -32,6 +34,12 @@ export default class AiNoteAgentPlugin extends Plugin {
 
     // 自动在 vault 根目录生成 AI 数据文件夹（记忆 + skills）
     void ensureAiFolder(this);
+
+    // 后台静默整理长期画像记忆：读取全部会话历史，生成/更新 memory/MEMORY.md 与 memory/yyyy-mm-dd.md
+    this.memoryRebuildTimeout = window.setTimeout(
+      () => void rebuildProfileMemory(this),
+      3000
+    );
 
     this.addSettingTab(new AiNoteAgentSettingTab(this.app, this));
 
@@ -150,6 +158,9 @@ export default class AiNoteAgentPlugin extends Plugin {
 
   onunload() {
     // registerEditorExtension / addCommand resources are cleaned up automatically
+    if (this.memoryRebuildTimeout) {
+      window.clearTimeout(this.memoryRebuildTimeout);
+    }
   }
 
   getProvider(): AIProvider {

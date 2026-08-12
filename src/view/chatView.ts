@@ -30,6 +30,7 @@ import { buildKnowledgeIndex, buildAttachmentContext } from "../context/knowledg
 import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills";
 import { WebSearchService, type SearchProviderConfig } from "../search/search";
 import { buildWebSearchContext } from "../search/prompt";
+import { getProfileMemoryContext } from "../memory/profileMemory";
 
 export const CHAT_VIEW_TYPE = "ai-note-agent-chat";
 
@@ -151,7 +152,7 @@ export class ChatView extends ItemView {
 
     this.renderLayout();
 
-    if (this.plugin.settings.enableMemory && this.sessions.length > 0) {
+    if (this.sessions.length > 0) {
       new Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
     }
   }
@@ -789,9 +790,8 @@ export class ChatView extends ItemView {
       content: extra ? `${text}\n\n${extra}` : text,
     };
 
-    // 滑动窗口：仅取最近 maxMemoryMessages 条用于上下文（不含当前这条刚加的）
-    const limit = this.plugin.settings.maxMemoryMessages;
-    const tail = s.messages.slice(Math.max(0, s.messages.length - 1 - limit), -1);
+    // 将会话全部历史消息（不含当前这条刚加的）注入上下文
+    const tail = s.messages.slice(0, -1);
     const messages: ChatMessage[] = [
       { role: "system", content: system },
       ...tail,
@@ -844,7 +844,6 @@ export class ChatView extends ItemView {
 
   /** 持久化会话：始终写 index.json；仅写已加载会话的独立文件（未加载的不覆盖磁盘）。 */
   private async persist(): Promise<void> {
-    if (!this.plugin.settings.enableMemory) return;
     try {
       const index: SessionsIndex = {
         version: 3,
@@ -897,6 +896,10 @@ export class ChatView extends ItemView {
       this.plugin.settings.chatContextMaxChars
     );
     if (skillContext) parts.push(skillContext);
+
+    // 长期画像记忆：让 AI 了解用户背景与偏好
+    const profileContext = await getProfileMemoryContext(this.plugin);
+    if (profileContext) parts.push(profileContext);
 
     return parts.join("\n\n");
   }

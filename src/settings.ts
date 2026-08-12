@@ -9,6 +9,7 @@ import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
 import { createProvider } from "./ai/provider";
 import { ensureAiFolder } from "./utils/aiFolder";
+import { loadMemoryFile, saveMemoryFile } from "./memory/profileMemory";
 import { listSkills, type SkillEntry } from "./skills/skills";
 
 export type ProviderType = "openai" | "ollama";
@@ -31,12 +32,10 @@ export interface AiNoteAgentSettings {
   relatedPerNote: number;
   // 自定义指令：注入到所有 AI 功能的 system prompt
   customInstructions: string;
-  // 对话记忆：是否在 vault 中持久化聊天历史
-  enableMemory: boolean;
-  // 记忆保留的最大消息条数（防止 token 膨胀）
-  maxMemoryMessages: number;
   // vault 根目录中用于存放记忆与 skill 的文件夹名称
   aiFolderName: string;
+  // 长期画像记忆：AI 自动提取的维度（每行一个）
+  memoryProfileCategories: string;
   // 对话：是否把知识库路径索引（仅路径）注入 system prompt，让 AI 知道库里有哪些文件
   includeVaultIndex: boolean;
   // 对话：单文件注入到上下文的内容字符上限（防止超大文件撑爆 token）
@@ -77,9 +76,9 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   realtimeDebounceMs: 800,
   relatedPerNote: 5,
   customInstructions: "",
-  enableMemory: true,
-  maxMemoryMessages: 20,
   aiFolderName: ".vaultmind",
+  memoryProfileCategories:
+    "职业\n技术栈\n输出偏好\n项目背景\n习惯\n重要事实\n待办事项",
   includeVaultIndex: true,
   chatContextMaxChars: 8000,
   defaultSkills: [],
@@ -96,6 +95,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
 
 export class AiNoteAgentSettingTab extends PluginSettingTab {
   plugin: AiNoteAgentPlugin;
+  private memorySaveTimer: number | null = null;
 
   constructor(app: App, plugin: AiNoteAgentPlugin) {
     super(app, plugin);
@@ -392,7 +392,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    // ===== 对话记忆 =====
+    // ===== 长期画像记忆 =====
     const memoryBody = this.createSection(
       containerEl,
       "settings.section.memory",
@@ -400,30 +400,15 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     );
 
     new Setting(memoryBody)
-      .setName(t("settings.enableMemory.name"))
-      .setDesc(t("settings.enableMemory.desc"))
-      .addToggle((t2) =>
-        t2
-          .setValue(this.plugin.settings.enableMemory)
+      .setName(t("settings.memoryProfileCategories.name"))
+      .setDesc(t("settings.memoryProfileCategories.desc"))
+      .addTextArea((ta) =>
+        ta
+          .setPlaceholder(t("settings.memoryProfileCategories.placeholder"))
+          .setValue(this.plugin.settings.memoryProfileCategories)
           .onChange(async (v) => {
-            this.plugin.settings.enableMemory = v;
+            this.plugin.settings.memoryProfileCategories = v;
             await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(memoryBody)
-      .setName(t("settings.maxMemoryMessages.name"))
-      .setDesc(t("settings.maxMemoryMessages.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("20")
-          .setValue(String(this.plugin.settings.maxMemoryMessages))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n > 0) {
-              this.plugin.settings.maxMemoryMessages = n;
-              await this.plugin.saveSettings();
-            }
           })
       );
 
@@ -457,6 +442,26 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       );
+
+    new Setting(memoryBody)
+      .setName(t("settings.memoryFile.name"))
+      .setDesc(t("settings.memoryFile.desc"))
+      .addTextArea((ta) => {
+        ta.setPlaceholder(t("settings.memoryFile.placeholder"))
+          .setValue("")
+          .onChange((v) => {
+            if (this.memorySaveTimer !== null) {
+              window.clearTimeout(this.memorySaveTimer);
+            }
+            this.memorySaveTimer = window.setTimeout(() => {
+              void saveMemoryFile(this.plugin, "MEMORY.md", v);
+            }, 500);
+          });
+        ta.inputEl.rows = 12;
+        void loadMemoryFile(this.plugin, "MEMORY.md").then((content) => {
+          ta.setValue(content);
+        });
+      });
 
     // ===== AI 对话上下文 =====
     const chatBody = this.createSection(
