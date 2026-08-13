@@ -551,6 +551,20 @@ export class ChatView extends ItemView {
     }
   }
 
+  /** 打开对话面板时，自动把当前 Markdown 笔记作为附件加入当前会话。 */
+  async attachCurrentNote(file: TFile): Promise<void> {
+    const s = this.activeSession;
+    if (!s || file.extension !== "md") return;
+    const ref: AttachmentRef = { type: "file", path: file.path };
+    const key = `${ref.type}:${ref.path}`;
+    const existing = new Set(s.attachments.map((a) => `${a.type}:${a.path}`));
+    if (existing.has(key)) return;
+    s.attachments.push(ref);
+    s.updatedAt = Date.now();
+    await this.persist();
+    this.renderChips();
+  }
+
   private async addAttachments(refs: AttachmentRef[]): Promise<void> {
     const s = this.activeSession;
     if (!s) return;

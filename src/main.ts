@@ -1,10 +1,14 @@
-import { Plugin, Notice, TFile, WorkspaceLeaf, addIcon } from "obsidian";
+import { Plugin, Notice, TFile, WorkspaceLeaf, MarkdownView, addIcon } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   AiNoteAgentSettingTab,
   type AiNoteAgentSettings,
 } from "./settings";
-import { createProvider, type AIProvider } from "./ai/provider";
+import {
+  createProvider,
+  type AIProvider,
+  type ChatMessage,
+} from "./ai/provider";
 import { optimizeNote } from "./optimize/optimizer";
 import { OptimizeModal } from "./optimize/previewModal";
 import {
@@ -53,36 +57,69 @@ export default class AiNoteAgentPlugin extends Plugin {
     this.addCommand({
       id: "optimize-current",
       name: t("cmd.optimizeCurrent"),
-      editorCallback: async (editor, ctx) => {
-        const file = ctx.file;
-        if (!(file instanceof TFile)) {
-          new Notice(t("notice.openNoteFirst"));
-          return;
+      checkCallback: (checking) => {
+        if (!this.settings.optimizeCurrentEnabled) return false;
+        const active = this.app.workspace.getActiveFile();
+        if (!active || active.extension !== "md") return false;
+        if (!checking) {
+          void this.runWithNotice(t("notice.optimizing"), () =>
+            this.optimizeCommand(active)
+          );
         }
-        await this.optimizeCommand(file);
+        return true;
       },
     });
 
     this.addCommand({
       id: "autoprompt",
       name: t("cmd.autoprompt"),
-      editorCallback: async (editor, ctx) => {
-        await this.runWithNotice(t("notice.thinking"), () =>
-          autopromptAtCursor(this, editor)
-        );
+      checkCallback: (checking) => {
+        if (!this.settings.realtimeEnabled) return false;
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!view || !view.editor) return false;
+        if (!checking) {
+          const editor = view.editor;
+          void this.runWithNotice(t("notice.thinking"), () =>
+            autopromptAtCursor(this, editor)
+          );
+        }
+        return true;
       },
     });
 
     this.addCommand({
       id: "open-chat",
       name: t("cmd.openChat"),
-      callback: async () => {
-        await this.openChatView();
+      checkCallback: (checking) => {
+        if (!this.settings.chatPanelEnabled) return false;
+        if (!checking) {
+          const active = this.app.workspace.getActiveFile();
+          void this.openChatView(
+            active instanceof TFile ? active : undefined
+          );
+        }
+        return true;
+      },
+    });
+
+    this.addCommand({
+      id: "generate-frontmatter",
+      name: t("cmd.generateFrontmatter"),
+      checkCallback: (checking) => {
+        const active = this.app.workspace.getActiveFile();
+        if (!active || active.extension !== "md") return false;
+        if (!this.settings.frontmatterGenerationEnabled) return false;
+        if (!checking) {
+          void this.runWithNotice(t("notice.generatingFrontmatter"), () =>
+            this.generateFrontmatterCommand(active)
+          );
+        }
+        return true;
       },
     });
   }
 
-  private async openChatView(): Promise<void> {
+  private async openChatView(file?: TFile): Promise<void> {
     const { workspace } = this.app;
 
     // If the view already exists in the workspace, reveal it.
@@ -90,6 +127,12 @@ export default class AiNoteAgentPlugin extends Plugin {
     if (existing.length > 0) {
       const leaf = existing[0];
       await workspace.revealLeaf(leaf);
+      if (file && this.settings.addCurrentNoteToChat) {
+        const view = leaf.view;
+        if (view instanceof ChatView) {
+          await view.attachCurrentNote(file);
+        }
+      }
       return;
     }
 
@@ -104,6 +147,12 @@ export default class AiNoteAgentPlugin extends Plugin {
       active: true,
     });
     await workspace.revealLeaf(rightLeaf);
+    if (file && this.settings.addCurrentNoteToChat) {
+      const view = rightLeaf.view;
+      if (view instanceof ChatView) {
+        await view.attachCurrentNote(file);
+      }
+    }
   }
 
   onunload() {
@@ -142,7 +191,11 @@ export default class AiNoteAgentPlugin extends Plugin {
     const notice = new Notice(t("notice.optimizing"), 0);
     try {
       const content = await this.app.vault.read(file);
-      const optimized = await optimizeNote(this, content);
+      const optimized = await optimizeNote(
+        this,
+        content,
+        this.settings.linkFormat
+      );
       notice.hide();
       new OptimizeModal(this.app, content, optimized, async (text) => {
         await this.app.vault.modify(file, text);
@@ -152,5 +205,35 @@ export default class AiNoteAgentPlugin extends Plugin {
       notice.hide();
       new Notice(t("notice.error", { error: (e as Error).message }));
     }
+  }
+
+  private async generateFrontmatterCommand(file: TFile): Promise<void> {
+    const content = await this.app.vault.read(file);
+    const body = content.replace(
+      /^---\s*[\r\n]+[\s\S]*?[\r\n]+---\s*[\r\n]*/,
+      ""
+    );
+
+    const systemPrompt =
+      this.settings.frontmatterTemplate.trim() || t("frontmatter.systemPrompt");
+    const messages: ChatMessage[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: body },
+    ];
+
+    const response = await this.provider.complete(messages, {
+      maxTokens: this.settings.maxTokens,
+      temperature: this.settings.temperature,
+    });
+
+    let yaml = response.trim();
+    if (yaml.startsWith("```")) {
+      yaml = yaml.replace(/^```[^\n]*\n?/, "").replace(/\n?```\s*$/, "");
+      yaml = yaml.trim();
+    }
+    const hasDelimiters = yaml.startsWith("---") && yaml.includes("\n---");
+    const yamlBlock = hasDelimiters ? yaml : `---\n${yaml}\n---`;
+
+    await this.app.vault.modify(file, `${yamlBlock}\n${body}`);
   }
 }

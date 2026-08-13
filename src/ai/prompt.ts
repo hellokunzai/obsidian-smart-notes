@@ -24,11 +24,19 @@ export function buildSystemPrompt(
 
 export function buildOptimizePrompt(
   content: string,
-  instruction?: string
+  linkFormat?: "wikilink" | "markdown"
 ): ChatMessage[] {
+  const linkRule =
+    linkFormat === "markdown"
+      ? " Use standard Markdown links `[text](path.md)` for internal links; do NOT use Wikilinks [[...]]."
+      : linkFormat === "wikilink"
+      ? " Use Obsidian Wikilinks [[...]] for internal links."
+      : "";
   const sys =
-    "You are an expert editor. Improve the note while preserving its meaning and facts. Reply with the full improved Markdown only, no commentary, no markdown fences.";
-  const user = `${instruction ? instruction + "\n" : "Polish wording, fix structure, and improve clarity.\n"}${content}`;
+    "You are an expert editor. Improve the note while preserving its meaning and facts." +
+    linkRule +
+    " Reply with the full improved Markdown only, no commentary, no markdown fences.";
+  const user = `Polish wording, fix structure, and improve clarity.\n${content}`;
   return [
     { role: "system", content: sys },
     { role: "user", content: user },

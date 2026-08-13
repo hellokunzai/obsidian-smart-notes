@@ -27,6 +27,18 @@ export interface AiNoteAgentSettings {
   temperature: number;
   realtimeEnabled: boolean;
   realtimeDebounceMs: number;
+  // 是否启用「优化当前笔记」命令
+  optimizeCurrentEnabled: boolean;
+  // 内部链接类型：wikilink 或 markdown
+  linkFormat: "wikilink" | "markdown";
+  // 是否启用「打开 AI 对话面板」命令
+  chatPanelEnabled: boolean;
+  // 打开 AI 对话面板时是否自动把当前 Markdown 笔记作为附件加入
+  addCurrentNoteToChat: boolean;
+  // 是否启用「生成 Frontmatter」命令
+  frontmatterGenerationEnabled: boolean;
+  // Frontmatter 生成模板（留空则使用默认 system prompt）
+  frontmatterTemplate: string;
   // 自定义指令：注入到所有 AI 功能的 system prompt
   customInstructions: string;
   // vault 根目录中用于存放记忆与 skill 的文件夹名称
@@ -68,6 +80,12 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   temperature: 0.3,
   realtimeEnabled: false,
   realtimeDebounceMs: 800,
+  optimizeCurrentEnabled: true,
+  linkFormat: "wikilink",
+  chatPanelEnabled: true,
+  addCurrentNoteToChat: true,
+  frontmatterGenerationEnabled: true,
+  frontmatterTemplate: "",
   customInstructions: "",
   aiFolderName: ".vaultmind",
   memoryProfileCategories:
@@ -441,8 +459,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       });
   }
 
-  // ===== 标签页：实时自动提示 =====
+  // ===== 标签页：交互设置 =====
   private renderAutopromptTab(bodyEl: HTMLElement): void {
+    // --- 自动提示 ---
+    this.createGroupHeader(bodyEl, "settings.autopromptGroup.autoprompt");
     new Setting(bodyEl)
       .setName(t("settings.realtime.name"))
       .setDesc(t("settings.realtime.desc"))
@@ -470,6 +490,88 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       );
+
+    // --- 笔记优化 ---
+    this.createGroupHeader(bodyEl, "settings.autopromptGroup.optimize");
+    new Setting(bodyEl)
+      .setName(t("settings.optimizeCurrent.name"))
+      .setDesc(t("settings.optimizeCurrent.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.optimizeCurrentEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.optimizeCurrentEnabled = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(bodyEl)
+      .setName(t("settings.linkFormat.name"))
+      .setDesc(t("settings.linkFormat.desc"))
+      .addDropdown((dd: DropdownComponent) =>
+        dd
+          .addOption("wikilink", t("settings.linkFormat.wikilink"))
+          .addOption("markdown", t("settings.linkFormat.markdown"))
+          .setValue(this.plugin.settings.linkFormat)
+          .onChange(async (v) => {
+            this.plugin.settings.linkFormat = v as "wikilink" | "markdown";
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // --- AI 对话面板 ---
+    this.createGroupHeader(bodyEl, "settings.autopromptGroup.chat");
+    new Setting(bodyEl)
+      .setName(t("settings.chatPanel.name"))
+      .setDesc(t("settings.chatPanel.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.chatPanelEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.chatPanelEnabled = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(bodyEl)
+      .setName(t("settings.addCurrentNoteToChat.name"))
+      .setDesc(t("settings.addCurrentNoteToChat.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.addCurrentNoteToChat)
+          .onChange(async (v) => {
+            this.plugin.settings.addCurrentNoteToChat = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // --- 生成 Frontmatter ---
+    this.createGroupHeader(bodyEl, "settings.autopromptGroup.frontmatter");
+    new Setting(bodyEl)
+      .setName(t("settings.frontmatterGeneration.name"))
+      .setDesc(t("settings.frontmatterGeneration.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.frontmatterGenerationEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.frontmatterGenerationEnabled = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(bodyEl)
+      .setName(t("settings.frontmatterTemplate.name"))
+      .setDesc(t("settings.frontmatterTemplate.desc"))
+      .addTextArea((ta) => {
+        ta
+          .setPlaceholder(t("settings.frontmatterTemplate.placeholder"))
+          .setValue(this.plugin.settings.frontmatterTemplate)
+          .onChange(async (v) => {
+            this.plugin.settings.frontmatterTemplate = v;
+            await this.plugin.saveSettings();
+          });
+        ta.inputEl.rows = 5;
+      });
   }
 
   // ===== 标签页：联网搜索 =====
