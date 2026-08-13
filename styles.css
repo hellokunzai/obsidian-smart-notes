@@ -810,4 +810,169 @@ button.ana-settings-tab.is-active {
   margin-top: var(--size-4-3);
 }
 
+/* 模型链接列表（表格样式，对齐 Skill 列表） */
+.ana-model-link-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-ui-small);
+}
+
+.ana-model-link-table th,
+.ana-model-link-table td {
+  text-align: left;
+  padding: var(--size-4-1) var(--size-4-2);
+  border-bottom: 1px solid var(--background-modifier-border);
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.ana-model-link-table th {
+  color: var(--text-muted);
+  font-weight: var(--font-semibold);
+  font-size: var(--font-smaller);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ana-model-link-table tbody tr:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 表格列 */
+.ana-model-link-col-name {
+  font-weight: var(--font-medium);
+  color: var(--text-normal);
+  white-space: nowrap;
+}
+
+.ana-model-link-col-type {
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--font-smaller);
+}
+
+.ana-model-link-col-url {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--font-smaller);
+}
+
+.ana-model-link-col-models {
+  max-width: 220px;
+  vertical-align: middle;
+}
+
+.ana-model-link-models-wrap {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+}
+
+.ana-model-link-col-actions {
+  width: 180px;
+  text-align: right;
+}
+
+.ana-model-link-name {
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.ana-model-link-default-badge {
+  font-size: var(--font-smallest);
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-success);
+  color: var(--text-on-accent);
+  margin-left: var(--size-4-1);
+  display: inline-block;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+/* 模型标签（表格内 + 弹窗内共用） */
+.ana-model-link-table .ana-model-link-tag,
+.ana-model-link-tags-editor .ana-model-link-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
+  font-size: var(--font-smallest);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.ana-model-link-tag-empty {
+  font-size: var(--font-smallest);
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.ana-model-link-btn {
+  font-size: var(--font-small);
+  padding: 3px 10px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ana-model-link-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.ana-model-link-btn.is-active {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+
+.ana-model-link-btn.danger:hover {
+  border-color: var(--background-modifier-error);
+  color: var(--text-error);
+}
+
+.ana-model-link-empty {
+  padding: var(--size-4-2);
+  color: var(--text-muted);
+  font-size: var(--font-small);
+}
+
+/* 弹窗内多模型标签编辑器 */
+.ana-model-link-tags-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-1);
+  margin-bottom: var(--size-4-1);
+}
+
+.ana-model-link-tags-editor .ana-model-link-tag {
+  cursor: default;
+}
+
+.ana-model-link-tag-x {
+  cursor: pointer;
+  font-weight: var(--font-bold);
+  opacity: 0.6;
+}
+
+.ana-model-link-tag-x:hover {
+  opacity: 1;
+  color: var(--text-error);
+}
+
+.ana-model-link-tag-input {
+  width: 100%;
+  margin-top: var(--size-4-1);
+}
+
 

@@ -16,6 +16,7 @@ import {
   DEFAULT_SETTINGS,
   AiNoteAgentSettingTab,
   type AiNoteAgentSettings,
+  genId,
 } from "./settings";
 import {
   createProvider,
@@ -200,7 +201,48 @@ export default class AiNoteAgentPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loaded = (await this.loadData()) as Record<string, any>;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
+
+    // 迁移：旧的单一 provider 扁平配置 → 单条模型链接
+    if (!this.settings.modelLinks || this.settings.modelLinks.length === 0) {
+      const hasLegacy =
+        loaded.provider ||
+        loaded.openaiApiKey ||
+        loaded.openaiBaseUrl ||
+        loaded.ollamaBaseUrl ||
+        loaded.openaiModel ||
+        loaded.ollamaModel;
+      if (hasLegacy) {
+        const isOllama = loaded.provider === "ollama";
+        const modelId = isOllama ? loaded.ollamaModel : loaded.openaiModel;
+        const link = {
+          id: genId(),
+          name: t("settings.modelLinks.legacyName"),
+          type: (isOllama ? "ollama" : "openai") as "openai" | "ollama",
+          baseUrl: isOllama
+            ? loaded.ollamaBaseUrl || DEFAULT_SETTINGS.ollamaBaseUrl
+            : loaded.openaiBaseUrl || DEFAULT_SETTINGS.openaiBaseUrl,
+          apiKey: loaded.openaiApiKey || "",
+          models: modelId ? [modelId] : [],
+        };
+        this.settings.modelLinks = [link];
+        this.settings.defaultModelLinkId = link.id;
+      } else {
+        this.settings.modelLinks = [];
+        this.settings.defaultModelLinkId = "";
+      }
+    }
+
+    // 兜底：defaultModelLinkId 指向不存在的链接时，回退到列表第一个
+    if (
+      this.settings.modelLinks.length > 0 &&
+      !this.settings.modelLinks.some(
+        (l) => l.id === this.settings.defaultModelLinkId
+      )
+    ) {
+      this.settings.defaultModelLinkId = this.settings.modelLinks[0].id;
+    }
   }
 
   async saveSettings() {

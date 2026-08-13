@@ -17,3 +17,11 @@
 ## 构建
 - `npm run build` = `tsc -noEmit -skipLibCheck && node esbuild.config.mjs production`，产物 `main.js`。
 - 默认 `isDesktopOnly:false`，不能依赖 Node `fs`。
+
+## 模型配置数据模型（2026-08-13 重构）
+- 旧的单一 provider 扁平字段（`provider`/`openaiApiKey`/`openaiBaseUrl`/`openaiModel`/`ollamaBaseUrl`/`ollamaModel`）已弃用，仅作为旧配置迁移来源。
+- 新模型：`modelLinks: ModelLink[]`（`id`/`name`/`type`/`baseUrl`/`apiKey`/`models[]`）+ `defaultModelLinkId`。
+- 运行时（对话/优化/Frontmatter）通过 `getActiveModelLink()` 取默认链接、用其 `models[0]` 作为生效模型；`createProviderFromLink()` 供弹窗「测试连接」按草稿配置构造 provider。
+- 设置页「模型配置」标签页：添加按钮 + 按名称搜索 + 列表（编辑/删除/设为默认）；`ModelLinkModal` 负责新增/编辑。
+- 旧配置迁移在 `main.ts` 的 `loadSettings()` 中：无 `modelLinks` 时把旧字段合成一条名为「默认」的链接。
+- 未配置任何链接时 `createProvider()` 返回 NoopProvider，调用即提示去设置添加。

@@ -9,12 +9,29 @@ import {
 } from "obsidian";
 import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
-import { createProvider } from "./ai/provider";
+import { ModelLinkModal } from "./modelLinkModal";
 import { loadMemoryFile, saveMemoryFile, rebuildProfileMemory } from "./memory/profileMemory";
 import { listSkills, type SkillEntry } from "./skills/skills";
 import { getSkillsDir } from "./utils/aiFolder";
 
 export type ProviderType = "openai" | "ollama";
+
+/** 一条模型链接：对应一个 AI 后端（如 DeepSeek、Ollama、OpenRouter），可挂多个模型。 */
+export interface ModelLink {
+  id: string;
+  /** 链接名称，用户可见且不可重复。 */
+  name: string;
+  type: ProviderType;
+  baseUrl: string;
+  apiKey: string;
+  /** 该链接下可使用的模型 ID 列表（支持多个）。 */
+  models: string[];
+}
+
+/** 生成短随机 id，用于模型链接唯一标识。 */
+export function genId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
 
 export interface AiNoteAgentSettings {
   provider: ProviderType;
@@ -23,6 +40,10 @@ export interface AiNoteAgentSettings {
   openaiModel: string;
   ollamaBaseUrl: string;
   ollamaModel: string;
+  // ===== 模型链接（多链接）=====
+  // 取代上面的单 provider 扁平字段；运行时使用 defaultModelLinkId 指向的链接
+  modelLinks: ModelLink[];
+  defaultModelLinkId: string;
   maxTokens: number;
   temperature: number;
   realtimeEnabled: boolean;
@@ -90,6 +111,8 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   openaiModel: "gpt-4o-mini",
   ollamaBaseUrl: "http://localhost:11434",
   ollamaModel: "llama3",
+  modelLinks: [],
+  defaultModelLinkId: "",
   maxTokens: 1024,
   temperature: 0.3,
   realtimeEnabled: false,
@@ -227,115 +250,40 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
   // ===== 标签页：模型配置 =====
   private renderProviderTab(bodyEl: HTMLElement): void {
-    // --- 模型链接 ---
+    // --- 模型链接（多链接列表）---
     this.createGroupHeader(bodyEl, "settings.providerGroup.link");
 
+    // 添加模型链接按钮
     new Setting(bodyEl)
-      .setName(t("settings.provider.name"))
-      .setDesc(t("settings.provider.desc"))
-      .addDropdown((dd: DropdownComponent) =>
-        dd
-          .addOption("openai", t("settings.provider.openai"))
-          .addOption("ollama", t("settings.provider.ollama"))
-          .setValue(this.plugin.settings.provider)
-          .onChange(async (v) => {
-            this.plugin.settings.provider = v as ProviderType;
-            await this.plugin.saveSettings();
-            this.display();
-          })
-      );
-
-    if (this.plugin.settings.provider === "openai") {
-      new Setting(bodyEl)
-        .setName(t("settings.openaiBaseUrl.name"))
-        .setDesc(t("settings.openaiBaseUrl.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("https://api.openai.com/v1")
-            .setValue(this.plugin.settings.openaiBaseUrl)
-            .onChange(async (v) => {
-              this.plugin.settings.openaiBaseUrl = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-      new Setting(bodyEl)
-        .setName(t("settings.openaiKey.name"))
-        .setDesc(t("settings.openaiKey.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("sk-...")
-            .setValue(this.plugin.settings.openaiApiKey)
-            .onChange(async (v) => {
-              this.plugin.settings.openaiApiKey = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-      new Setting(bodyEl)
-        .setName(t("settings.openaiModel.name"))
-        .setDesc(t("settings.openaiModel.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("gpt-4o-mini")
-            .setValue(this.plugin.settings.openaiModel)
-            .onChange(async (v) => {
-              this.plugin.settings.openaiModel = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-    } else {
-      new Setting(bodyEl)
-        .setName(t("settings.ollamaBaseUrl.name"))
-        .setDesc(t("settings.ollamaBaseUrl.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("http://localhost:11434")
-            .setValue(this.plugin.settings.ollamaBaseUrl)
-            .onChange(async (v) => {
-              this.plugin.settings.ollamaBaseUrl = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-      new Setting(bodyEl)
-        .setName(t("settings.ollamaModel.name"))
-        .setDesc(t("settings.ollamaModel.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("llama3")
-            .setValue(this.plugin.settings.ollamaModel)
-            .onChange(async (v) => {
-              this.plugin.settings.ollamaModel = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-    }
-
-    new Setting(bodyEl)
-      .setName(t("settings.test.name"))
-      .setDesc(t("settings.test.desc"))
+      .setName(t("settings.modelLinks.add.name"))
+      .setDesc(t("settings.modelLinks.add.desc"))
       .addButton((btn) => {
-        btn.setButtonText(t("settings.test.button")).onClick(async () => {
-          btn.setDisabled(true);
-          btn.setButtonText(t("settings.test.testing"));
-          try {
-            const provider = createProvider(this.plugin.settings);
-            await provider.complete(
-              [
-                { role: "system", content: "You are a helpful assistant." },
-                { role: "user", content: "Reply only with ok." },
-              ],
-              { maxTokens: 10, temperature: 0 }
-            );
-            new Notice(t("settings.test.success"));
-          } catch (e) {
-            new Notice(
-              t("settings.test.failure", { error: (e as Error).message })
-            );
-          } finally {
-            btn.setDisabled(false);
-            btn.setButtonText(t("settings.test.button"));
-          }
+        btn.setButtonText(t("settings.modelLinks.add.button")).setCta();
+        btn.onClick(() => {
+          new ModelLinkModal(this.app, this.plugin, null, () =>
+            this.display()
+          ).open();
         });
       });
+
+    // 搜索框
+    let searchQuery = "";
+    new Setting(bodyEl)
+      .setName(t("settings.modelLinks.search.name"))
+      .setDesc(t("settings.modelLinks.search.desc"))
+      .addText((input) => {
+        input.setPlaceholder(t("settings.modelLinks.search.placeholder"));
+        input.onChange((v) => {
+          searchQuery = v;
+          this.renderModelLinkList(listContainer, searchQuery);
+        });
+      });
+
+    // 列表容器
+    const listContainer = bodyEl.createEl("div", {
+      cls: "ana-model-link-list",
+    });
+    this.renderModelLinkList(listContainer, "");
 
     // --- 模型参数 ---
     this.createGroupHeader(bodyEl, "settings.providerGroup.params");
@@ -390,6 +338,130 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       );
+  }
+
+  /**
+   * 渲染模型链接列表（表格样式，支持按名称搜索过滤）。
+   * 表头：名称 | 类型 | Base URL | 模型 | 操作
+   */
+  private renderModelLinkList(container: HTMLElement, query: string): void {
+    container.empty();
+    const links = this.plugin.settings.modelLinks;
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? links.filter((l) => l.name.toLowerCase().includes(q))
+      : links;
+
+    if (filtered.length === 0) {
+      container.createEl("div", {
+        cls: "ana-model-link-empty",
+        text: q
+          ? t("settings.modelLinks.searchNoResults")
+          : t("settings.modelLinks.empty"),
+      });
+      return;
+    }
+
+    const table = container.createEl("table", {
+      cls: "ana-model-link-table",
+    });
+    const thead = table.createEl("thead");
+    const htr = thead.createEl("tr");
+    htr.createEl("th", { text: t("settings.modelLinks.table.name") });
+    htr.createEl("th", { text: t("settings.modelLinks.table.type") });
+    htr.createEl("th", { text: t("settings.modelLinks.table.url") });
+    htr.createEl("th", { text: t("settings.modelLinks.table.models") });
+    htr.createEl("th", {
+      text: t("settings.modelLinks.table.actions"),
+      cls: "ana-model-link-col-actions",
+    });
+
+    const tbody = table.createEl("tbody");
+    for (const link of filtered) {
+      const tr = tbody.createEl("tr");
+      const isDefault = link.id === this.plugin.settings.defaultModelLinkId;
+
+      // 名称列（含默认徽标）
+      const tdName = tr.createEl("td", { cls: "ana-model-link-col-name" });
+      tdName.createEl("span", { cls: "ana-model-link-name", text: link.name });
+      if (isDefault) {
+        tdName.createEl("span", {
+          cls: "ana-model-link-default-badge",
+          text: t("settings.modelLinks.defaultBadge"),
+        });
+      }
+
+      // 类型列
+      tr.createEl("td", {
+        cls: "ana-model-link-col-type",
+        text:
+          link.type === "ollama"
+            ? t("settings.provider.ollama")
+            : t("settings.provider.openai"),
+      });
+
+      // URL 列
+      tr.createEl("td", { cls: "ana-model-link-col-url", text: link.baseUrl });
+
+      // 模型列（标签）：内部包一层 flex 容器，保持 td 为默认表格单元格
+      const tdModels = tr.createEl("td", { cls: "ana-model-link-col-models" });
+      const modelsWrap = tdModels.createEl("div", {
+        cls: "ana-model-link-models-wrap",
+      });
+      if (link.models.length === 0) {
+        modelsWrap.createEl("span", {
+          cls: "ana-model-link-tag-empty",
+          text: t("settings.modelLinks.noModel"),
+        });
+      } else {
+        for (const m of link.models) {
+          modelsWrap.createEl("span", { cls: "ana-model-link-tag", text: m });
+        }
+      }
+
+      // 操作列
+      const tdActions = tr.createEl("td", {
+        cls: "ana-model-link-col-actions",
+      });
+
+      const defaultBtn = tdActions.createEl("button", {
+        cls: "ana-model-link-btn",
+        text: isDefault
+          ? t("settings.modelLinks.defaultActive")
+          : t("settings.modelLinks.setDefault"),
+      });
+      defaultBtn.toggleClass("is-active", isDefault);
+      defaultBtn.addEventListener("click", async () => {
+        this.plugin.settings.defaultModelLinkId = link.id;
+        await this.plugin.saveSettings();
+        this.renderModelLinkList(container, query);
+      });
+
+      const editBtn = tdActions.createEl("button", {
+        cls: "ana-model-link-btn",
+        text: t("settings.modelLinks.edit"),
+      });
+      editBtn.addEventListener("click", () => {
+        new ModelLinkModal(this.app, this.plugin, link, () =>
+          this.display()
+        ).open();
+      });
+
+      const delBtn = tdActions.createEl("button", {
+        cls: "ana-model-link-btn danger",
+        text: t("settings.modelLinks.delete"),
+      });
+      delBtn.addEventListener("click", async () => {
+        this.plugin.settings.modelLinks =
+          this.plugin.settings.modelLinks.filter((l) => l.id !== link.id);
+        if (this.plugin.settings.defaultModelLinkId === link.id) {
+          this.plugin.settings.defaultModelLinkId =
+            this.plugin.settings.modelLinks[0]?.id ?? "";
+        }
+        await this.plugin.saveSettings();
+        this.display();
+      });
+    }
   }
 
   // ===== 标签页：会话与记忆 =====
