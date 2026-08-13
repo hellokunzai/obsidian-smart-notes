@@ -10,6 +10,7 @@ import { t } from "./i18n";
 import { createProvider } from "./ai/provider";
 import { loadMemoryFile, saveMemoryFile } from "./memory/profileMemory";
 import { listSkills, type SkillEntry } from "./skills/skills";
+import { getSkillsDir } from "./utils/aiFolder";
 
 export type ProviderType = "openai" | "ollama";
 
@@ -540,6 +541,12 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       skills = [];
     }
     listEl.empty();
+
+    listEl.createEl("div", {
+      text: t("settings.defaultSkills.pathHint", { path: getSkillsDir(this.plugin) }),
+      cls: "ana-settings-skills-path",
+    });
+
     if (skills.length === 0) {
       listEl.createEl("div", {
         text: t("settings.defaultSkills.empty"),

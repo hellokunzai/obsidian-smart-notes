@@ -133,6 +133,56 @@ async function ensureFolder(vault: Vault, path: string): Promise<void> {
 }
 
 /**
+ * 将旧 AI 数据目录下的 skills/memory/sessions 迁移到新目录。
+ * 若新目录已存在则合并子项（不覆盖同名文件）；迁移完成后删除空旧目录。
+ */
+export async function migrateAiFolder(
+  plugin: AiNoteAgentPlugin,
+  oldName: string,
+  newName: string
+): Promise<void> {
+  const oldRoot = (oldName || "").trim();
+  const newRoot = (newName || "").trim();
+  if (!oldRoot || !newRoot || oldRoot === newRoot) return;
+
+  const vault = plugin.app.vault;
+  const oldRootFolder = vault.getAbstractFileByPath(oldRoot);
+  if (!(oldRootFolder instanceof TFolder)) return;
+
+  await ensureFolder(vault, newRoot);
+
+  const dirs = [SKILLS_DIR, SESSIONS_DIR, MEMORY_DIR];
+  for (const dir of dirs) {
+    const oldDir = `${oldRoot}/${dir}`;
+    const newDir = `${newRoot}/${dir}`;
+    const oldFolder = vault.getAbstractFileByPath(oldDir);
+    if (!(oldFolder instanceof TFolder)) continue;
+
+    const newFolder = vault.getAbstractFileByPath(newDir);
+    if (newFolder instanceof TFolder) {
+      // 新目录已存在：逐个搬子项，避免覆盖同名文件
+      for (const child of [...oldFolder.children]) {
+        const targetPath = `${newDir}/${child.name}`;
+        if (!vault.getAbstractFileByPath(targetPath)) {
+          await vault.rename(child, targetPath);
+        }
+      }
+      if (oldFolder.children.length === 0) {
+        await vault.delete(oldFolder).catch(() => undefined);
+      }
+    } else {
+      // 新目录不存在：整体移动该子目录
+      await vault.rename(oldFolder, newDir);
+    }
+  }
+
+  // 旧根目录为空则清理
+  if (oldRootFolder.children.length === 0) {
+    await vault.delete(oldRootFolder).catch(() => undefined);
+  }
+}
+
+/**
  * 确保 AI 文件夹及其 sessions/、skills/ 子目录存在，
  * 并在 skills/ 下写入 README 说明文件（若不存在）。
  * 在插件 onload 时调用，即可在 vault 根目录自动生成 AI 数据目录。

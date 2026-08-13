@@ -1,12 +1,14 @@
-import { App, TFile, TFolder, Vault } from "obsidian";
+import { App, Stat, Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { getSkillsDir } from "../utils/aiFolder";
 
 /**
  * Skill 管理模块。
  *
- * Skill = vault 内 `<AI 文件夹>/skills/` 目录下的 .md 文件，
- * 内容是给 AI 的指令 / 模板 / 参考资料。
+ * Skill = `<AI 文件夹>/skills/` 目录下每个 skill 套件的 SKILL.md 文件。
+ * 一个 skill 套件即一个文件夹，套件内部可包含 assets/、references/、scripts/ 等；
+ * 插件只识别并加载套件根目录下的 SKILL.md 作为该 skill 的内容。
+ * 套件内可以再嵌套子套件（子文件夹里有自己的 SKILL.md），会被识别为独立的 skill。
  *
  * 设计原则（与知识库一致）：
  * - 默认不加载任何 skill 的内容；
@@ -47,28 +49,96 @@ function resolveSkillName(content: string, fallback: string): string {
 }
 
 /**
- * 递归收集 skills/ 目录下所有 .md 文件（排除 README.md 与隐藏文件/文件夹）。
+ * 收集 skills/ 目录下所有 skill 套件的 SKILL.md 路径。
+ *
+ * 一个 skill 套件 = 一个文件夹，套件根目录下有 SKILL.md。
+ * 如果某个文件夹下没有 SKILL.md，则递归进入其直接子文件夹继续寻找；
+ * 这允许「套件包」里再嵌套多个子套件（如 obsidian-skills/json-canvas）。
+ *
+ * 关键：使用 vault.adapter 直接读文件系统（而非 vault 缓存的
+ * getAbstractFileByPath），以覆盖「.」开头的隐藏文件夹（如 .workbuddy）。
+ * Obsidian 的 vault 缓存不会索引隐藏文件夹，导致 getAbstractFileByPath 对
+ * .workbuddy/skills 内部文件返回 undefined；adapter 走底层文件系统，可正常访问。
+ *
+ * 排除隐藏文件/文件夹（以 . 开头）。
  */
-function collectSkillFiles(vault: Vault, folderPath: string): TFile[] {
-  const af = vault.getAbstractFileByPath(folderPath);
-  if (!(af instanceof TFolder)) return [];
-  const out: TFile[] = [];
-  const walk = (f: TFolder) => {
-    for (const child of f.children) {
-      // 跳过隐藏文件夹（以 . 开头）
-      if (child instanceof TFolder) {
-        if (child.name.startsWith(".")) continue;
-        walk(child);
-      } else if (child instanceof TFile) {
-        if (child.extension !== "md") continue;
-        if (child.name.startsWith(".")) continue;
-        if (child.basename.toLowerCase() === "readme") continue;
-        out.push(child);
-      }
+async function collectSkillFiles(
+  vault: Vault,
+  folderPath: string
+): Promise<string[]> {
+  const out: string[] = [];
+  const root = folderPath.endsWith("/") ? folderPath : folderPath + "/";
+
+  let listed: { files: string[]; folders: string[] };
+  try {
+    listed = await vault.adapter.list(root);
+  } catch {
+    return out;
+  }
+
+  // skills/ 根目录下直接放一个 SKILL.md 也允许（虽然通常建议放文件夹里）
+  for (const file of listed.files) {
+    const fileName = file.slice(file.lastIndexOf("/") + 1);
+    if (fileName === "SKILL.md") {
+      out.push(file.endsWith("/") ? file.slice(0, -1) : file);
     }
-  };
-  walk(af);
+  }
+
+  for (const folder of listed.folders) {
+    const normalized = folder.endsWith("/") ? folder.slice(0, -1) : folder;
+    const folderName = normalized.slice(normalized.lastIndexOf("/") + 1);
+    if (folderName.startsWith(".")) continue;
+
+    const skillFile = normalized + "/SKILL.md";
+    let stat: Stat | null;
+    try {
+      stat = await vault.adapter.stat(skillFile);
+    } catch {
+      stat = null;
+    }
+    if (stat && stat.type === "file") {
+      out.push(skillFile);
+      continue;
+    }
+
+    // 本层没有 SKILL.md，继续向子文件夹递归
+    await walkSkillFolder(vault, normalized + "/", out);
+  }
+
   return out;
+}
+
+async function walkSkillFolder(
+  vault: Vault,
+  dir: string,
+  out: string[]
+): Promise<void> {
+  let listed: { files: string[]; folders: string[] };
+  try {
+    listed = await vault.adapter.list(dir);
+  } catch {
+    return;
+  }
+
+  for (const folder of listed.folders) {
+    const normalized = folder.endsWith("/") ? folder.slice(0, -1) : folder;
+    const folderName = normalized.slice(normalized.lastIndexOf("/") + 1);
+    if (folderName.startsWith(".")) continue;
+
+    const skillFile = normalized + "/SKILL.md";
+    let stat: Stat | null;
+    try {
+      stat = await vault.adapter.stat(skillFile);
+    } catch {
+      stat = null;
+    }
+    if (stat && stat.type === "file") {
+      out.push(skillFile);
+      continue;
+    }
+
+    await walkSkillFolder(vault, normalized + "/", out);
+  }
 }
 
 /**
@@ -80,18 +150,24 @@ export async function listSkills(
   app: App
 ): Promise<SkillEntry[]> {
   const base = skillsBasePath(plugin);
-  const files = collectSkillFiles(app.vault, base);
+  const paths = await collectSkillFiles(app.vault, base);
   const entries: SkillEntry[] = [];
-  for (const f of files) {
-    const rel = f.path.startsWith(base + "/")
-      ? f.path.slice(base.length + 1)
-      : f.path;
-    let name = rel;
+  for (const absPath of paths) {
+    const rel =
+      absPath.startsWith(base + "/")
+        ? absPath.slice(base.length + 1)
+        : absPath;
+    // 默认展示名：SKILL.md 用所在文件夹名，否则用文件名
+    const lastSlash = rel.lastIndexOf("/");
+    const fileName = rel.slice(lastSlash + 1);
+    const parentName = lastSlash > 0 ? rel.slice(0, lastSlash) : rel;
+    const fallback = fileName.toLowerCase() === "skill.md" ? parentName : rel;
+    let name = fallback;
     try {
-      const content = await app.vault.cachedRead(f);
-      name = resolveSkillName(content, rel);
+      const content = await app.vault.adapter.read(absPath);
+      name = resolveSkillName(content, fallback);
     } catch {
-      // 读不到就用相对路径作为名字
+      // 读不到就用 fallback 作为名字
     }
     entries.push({ path: rel, name });
   }
@@ -141,11 +217,9 @@ export async function buildSkillContext(
   const contentBlocks: string[] = [];
   for (const e of activeEntries) {
     const absPath = `${base}/${e.path}`;
-    const af = app.vault.getAbstractFileByPath(absPath);
-    if (!(af instanceof TFile)) continue;
     let content = "";
     try {
-      content = await app.vault.cachedRead(af);
+      content = await app.vault.adapter.read(absPath);
     } catch {
       continue;
     }
