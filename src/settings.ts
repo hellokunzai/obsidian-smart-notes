@@ -466,6 +466,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
   private renderAutopromptTab(bodyEl: HTMLElement): void {
     // --- 自动提示 ---
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.autoprompt");
+
+    let debounceSetting: Setting | undefined;
     new Setting(bodyEl)
       .setName(t("settings.realtime.name"))
       .setDesc(t("settings.realtime.desc"))
@@ -474,11 +476,12 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.realtimeEnabled)
           .onChange(async (v) => {
             this.plugin.settings.realtimeEnabled = v;
+            debounceSetting?.setDisabled(!v);
             await this.plugin.saveSettings();
           })
       );
 
-    new Setting(bodyEl)
+    debounceSetting = new Setting(bodyEl)
       .setName(t("settings.debounce.name"))
       .setDesc(t("settings.debounce.desc"))
       .addText((t2) =>
@@ -492,10 +495,14 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               await this.plugin.saveSettings();
             }
           })
-      );
+      )
+      .setDisabled(!this.plugin.settings.realtimeEnabled);
 
     // --- 笔记优化 ---
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.optimize");
+
+    let linkTypeSetting: Setting | undefined;
+    let linkFormatSetting: Setting | undefined;
     new Setting(bodyEl)
       .setName(t("settings.optimizeCurrent.name"))
       .setDesc(t("settings.optimizeCurrent.desc"))
@@ -504,11 +511,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.optimizeCurrentEnabled)
           .onChange(async (v) => {
             this.plugin.settings.optimizeCurrentEnabled = v;
+            linkTypeSetting?.setDisabled(!v);
+            linkFormatSetting?.setDisabled(!v);
             await this.plugin.saveSettings();
           })
       );
 
-    new Setting(bodyEl)
+    linkTypeSetting = new Setting(bodyEl)
       .setName(t("settings.linkType.name"))
       .setDesc(t("settings.linkType.desc"))
       .addDropdown((dd: DropdownComponent) =>
@@ -524,9 +533,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               | "absolute";
             await this.plugin.saveSettings();
           })
-      );
+      )
+      .setDisabled(!this.plugin.settings.optimizeCurrentEnabled);
 
-    new Setting(bodyEl)
+    linkFormatSetting = new Setting(bodyEl)
       .setName(t("settings.linkFormat.name"))
       .setDesc(t("settings.linkFormat.desc"))
       .addDropdown((dd: DropdownComponent) =>
@@ -538,10 +548,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             this.plugin.settings.linkFormat = v as "wikilink" | "markdown";
             await this.plugin.saveSettings();
           })
-      );
+      )
+      .setDisabled(!this.plugin.settings.optimizeCurrentEnabled);
 
     // --- AI 对话面板 ---
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.chat");
+
+    let addCurrentNoteSetting: Setting | undefined;
     new Setting(bodyEl)
       .setName(t("settings.chatPanel.name"))
       .setDesc(t("settings.chatPanel.desc"))
@@ -550,11 +563,12 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.chatPanelEnabled)
           .onChange(async (v) => {
             this.plugin.settings.chatPanelEnabled = v;
+            addCurrentNoteSetting?.setDisabled(!v);
             await this.plugin.saveSettings();
           })
       );
 
-    new Setting(bodyEl)
+    addCurrentNoteSetting = new Setting(bodyEl)
       .setName(t("settings.addCurrentNoteToChat.name"))
       .setDesc(t("settings.addCurrentNoteToChat.desc"))
       .addToggle((t2) =>
@@ -564,10 +578,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             this.plugin.settings.addCurrentNoteToChat = v;
             await this.plugin.saveSettings();
           })
-      );
+      )
+      .setDisabled(!this.plugin.settings.chatPanelEnabled);
 
     // --- 生成 Frontmatter ---
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.frontmatter");
+
+    let frontmatterTemplateSetting: Setting | undefined;
     new Setting(bodyEl)
       .setName(t("settings.frontmatterGeneration.name"))
       .setDesc(t("settings.frontmatterGeneration.desc"))
@@ -576,11 +593,12 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.frontmatterGenerationEnabled)
           .onChange(async (v) => {
             this.plugin.settings.frontmatterGenerationEnabled = v;
+            frontmatterTemplateSetting?.setDisabled(!v);
             await this.plugin.saveSettings();
           })
       );
 
-    new Setting(bodyEl)
+    frontmatterTemplateSetting = new Setting(bodyEl)
       .setName(t("settings.frontmatterTemplate.name"))
       .setDesc(t("settings.frontmatterTemplate.desc"))
       .addTextArea((ta) => {
@@ -592,7 +610,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
         ta.inputEl.rows = 5;
-      });
+      })
+      .setDisabled(!this.plugin.settings.frontmatterGenerationEnabled);
   }
 
   // ===== 标签页：联网搜索 =====
