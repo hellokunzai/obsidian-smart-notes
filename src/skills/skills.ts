@@ -34,14 +34,16 @@ function skillsBasePath(plugin: AiNoteAgentPlugin): string {
 
 /**
  * 从 skill 文件内容解析展示名。
- * 优先级：frontmatter 的 name > 第一个 # 标题 > 文件名（去 .md）。
+ * 优先级：frontmatter 的 displayName > name > 第一个 # 标题 > 文件名（去 .md）。
  */
 function resolveSkillName(content: string, fallback: string): string {
   // frontmatter: 形如 ---\nname: xxx\n---
   const fm = /^---\s*\n([\s\S]*?)\n---\s*\n?/.exec(content);
   if (fm) {
-    const m = /^name:\s*(.+)$/m.exec(fm[1]);
-    if (m && m[1].trim()) return m[1].trim();
+    const displayName = /^displayName:\s*(.+)$/m.exec(fm[1]);
+    if (displayName && displayName[1].trim()) return displayName[1].trim();
+    const name = /^name:\s*(.+)$/m.exec(fm[1]);
+    if (name && name[1].trim()) return name[1].trim();
   }
   const h1 = /^#\s+(.+)$/m.exec(content);
   if (h1) return h1[1].trim();
