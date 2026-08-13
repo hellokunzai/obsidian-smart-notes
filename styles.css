@@ -60,37 +60,63 @@
 .ana-settings-tabs {
   display: flex;
   gap: var(--size-4-1);
-  padding: var(--size-4-1) 0 var(--size-4-3);
-  border-bottom: 1px solid var(--background-modifier-border);
-  margin-bottom: var(--size-4-3);
+  padding: var(--size-4-1) 0 0;
+  border-bottom: 2px solid var(--background-modifier-border);
+  margin-bottom: var(--size-4-4);
   overflow-x: auto;
 }
 
-.ana-settings-tab {
+button.ana-settings-tab {
   display: inline-flex;
   align-items: center;
   gap: var(--size-4-1);
-  padding: var(--size-4-1) var(--size-4-3);
+  padding: var(--size-4-2) var(--size-4-2) var(--size-4-2);
+  margin: 0 0 -2px;
   border: none;
-  border-radius: var(--radius-s);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
+  box-shadow: none;
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   font-weight: var(--font-medium);
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.ana-settings-tab:hover {
-  background: var(--background-modifier-hover);
+button.ana-settings-tab:hover {
+  background: transparent;
   color: var(--text-normal);
 }
 
-.ana-settings-tab.is-active {
-  background: var(--background-modifier-active-hover);
+button.ana-settings-tab:active {
+  background: transparent;
+  box-shadow: none;
+}
+
+button.ana-settings-tab.is-active {
+  background: transparent;
   color: var(--text-normal);
   font-weight: var(--font-semibold);
+  border-bottom-color: var(--interactive-accent);
+}
+
+.ana-settings-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.ana-settings-tab-icon svg,
+.ana-settings-tab-icon .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.ana-settings-tab-text {
+  line-height: 1;
 }
 
 .ana-settings-panels {

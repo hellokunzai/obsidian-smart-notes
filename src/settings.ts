@@ -4,6 +4,7 @@ import {
   PluginSettingTab,
   Setting,
   DropdownComponent,
+  setIcon,
 } from "obsidian";
 import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
@@ -88,6 +89,7 @@ interface SettingsSection {
   id: string;
   titleKey: string;
   descKey?: string;
+  icon: string;
   render: (bodyEl: HTMLElement) => void;
 }
 
@@ -109,30 +111,35 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         id: "provider",
         titleKey: "settings.section.provider",
         descKey: "settings.section.provider.desc",
+        icon: "settings",
         render: (el) => this.renderProviderTab(el),
       },
       {
         id: "memoryChat",
         titleKey: "settings.section.memoryChat",
         descKey: "settings.section.memoryChat.desc",
+        icon: "messages-square",
         render: (el) => this.renderMemoryChatTab(el),
       },
       {
         id: "autoprompt",
         titleKey: "settings.section.autoprompt",
         descKey: "settings.section.autoprompt.desc",
+        icon: "pen-line",
         render: (el) => this.renderAutopromptTab(el),
       },
       {
         id: "web",
         titleKey: "settings.section.web",
         descKey: "settings.section.web.desc",
+        icon: "globe",
         render: (el) => this.renderWebTab(el),
       },
       {
         id: "skills",
         titleKey: "settings.section.skills",
         descKey: "settings.section.skills.desc",
+        icon: "puzzle",
         render: (el) => this.renderSkillsTab(el),
       },
     ];
@@ -159,6 +166,11 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     sections.forEach((sec, idx) => {
       const btn = tabsEl.createEl("button", {
         cls: "ana-settings-tab",
+      });
+      const iconEl = btn.createSpan({ cls: "ana-settings-tab-icon" });
+      setIcon(iconEl, sec.icon);
+      btn.createSpan({
+        cls: "ana-settings-tab-text",
         text: t(sec.titleKey),
       });
       btn.addEventListener("click", () => activate(idx));
