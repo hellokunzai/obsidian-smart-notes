@@ -211,6 +211,7 @@ ${digest}`;
  * 否则直接跳过，避免每次启动都消耗 token。
  */
 export async function rebuildProfileMemory(plugin: AiNoteAgentPlugin): Promise<void> {
+  if (!plugin.settings.memoryProfileEnabled) return;
   try {
     await ensureAiFolder(plugin);
     const sessions = await loadAllSessions(plugin);
@@ -257,6 +258,7 @@ export async function rebuildProfileMemory(plugin: AiNoteAgentPlugin): Promise<v
 export async function getProfileMemoryContext(
   plugin: AiNoteAgentPlugin
 ): Promise<string> {
+  if (!plugin.settings.memoryProfileEnabled) return "";
   const content = await loadMemoryFile(plugin, MEMORY_FILE);
   if (!content.trim()) return "";
   return `## 长期画像记忆

@@ -134,6 +134,8 @@
   "settings.memoryGroup.system": "系统指令",
   "settings.memoryGroup.knowledge": "知识库",
   "settings.memoryGroup.profile": "用户画像",
+  "settings.memoryProfileEnabled.name": "启用用户画像",
+  "settings.memoryProfileEnabled.desc": "开启后，AI 会从会话历史中提取关键信息整理进 memory/MEMORY.md，并在每次对话时作为背景注入。关闭后停止整理与注入。",
 
   "settings.customInstructions.name": "自定义指令",
   "settings.customInstructions.desc": "会注入到所有 AI 功能（对话、优化、自动提示）的 system prompt 中。留空则不注入。",

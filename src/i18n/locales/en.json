@@ -134,6 +134,8 @@
   "settings.memoryGroup.system": "System instructions",
   "settings.memoryGroup.knowledge": "Knowledge base",
   "settings.memoryGroup.profile": "User profile",
+  "settings.memoryProfileEnabled.name": "Enable user profile memory",
+  "settings.memoryProfileEnabled.desc": "When enabled, the AI extracts key facts from chat history into memory/MEMORY.md and injects it as background context for each chat. When disabled, extraction and injection stop.",
 
   "settings.customInstructions.name": "Custom instructions",
   "settings.customInstructions.desc": "Injected into the system prompt for every AI feature (chat, optimize, autoprompt). Leave empty for none.",

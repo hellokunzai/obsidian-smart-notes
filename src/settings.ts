@@ -10,7 +10,7 @@ import {
 import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
 import { createProvider } from "./ai/provider";
-import { loadMemoryFile, saveMemoryFile } from "./memory/profileMemory";
+import { loadMemoryFile, saveMemoryFile, rebuildProfileMemory } from "./memory/profileMemory";
 import { listSkills, type SkillEntry } from "./skills/skills";
 import { getSkillsDir } from "./utils/aiFolder";
 
@@ -53,6 +53,8 @@ export interface AiNoteAgentSettings {
   customInstructions: string;
   // vault 根目录中用于存放记忆与 skill 的文件夹名称
   aiFolderName: string;
+  // 长期画像记忆：总开关（关闭后不整理、不注入）
+  memoryProfileEnabled: boolean;
   // 长期画像记忆：AI 自动提取的维度（每行一个）
   memoryProfileCategories: string;
   // 对话：是否把知识库路径索引（仅路径）注入 system prompt，让 AI 知道库里有哪些文件
@@ -105,6 +107,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   fetchWebContentImageLinkFormat: "wikilink",
   customInstructions: "",
   aiFolderName: ".vaultmind",
+  memoryProfileEnabled: true,
   memoryProfileCategories:
     "职业\n技术栈\n输出偏好\n项目背景\n习惯\n重要事实\n待办事项",
   includeVaultIndex: true,
@@ -442,7 +445,28 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     // --- 用户画像 ---
     this.createGroupHeader(bodyEl, "settings.memoryGroup.profile");
 
+    let categoriesSetting: Setting | undefined;
+    let memoryFileSetting: Setting | undefined;
+
     new Setting(bodyEl)
+      .setName(t("settings.memoryProfileEnabled.name"))
+      .setDesc(t("settings.memoryProfileEnabled.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.memoryProfileEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.memoryProfileEnabled = v;
+            categoriesSetting?.setDisabled(!v);
+            memoryFileSetting?.setDisabled(!v);
+            await this.plugin.saveSettings();
+            if (v) {
+              // 开启时立即在后台触发一次整理，避免用户等到下次重启
+              void rebuildProfileMemory(this.plugin);
+            }
+          })
+      );
+
+    categoriesSetting = new Setting(bodyEl)
       .setName(t("settings.memoryProfileCategories.name"))
       .setDesc(t("settings.memoryProfileCategories.desc"))
       .addTextArea((ta) => {
@@ -454,9 +478,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
         ta.inputEl.rows = 5;
-      });
+      })
+      .setDisabled(!this.plugin.settings.memoryProfileEnabled);
 
-    new Setting(bodyEl)
+    memoryFileSetting = new Setting(bodyEl)
       .setName(t("settings.memoryFile.name"))
       .setDesc(t("settings.memoryFile.desc"))
       .addTextArea((ta) => {
@@ -474,7 +499,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         void loadMemoryFile(this.plugin, "MEMORY.md").then((content) => {
           ta.setValue(content);
         });
-      });
+      })
+      .setDisabled(!this.plugin.settings.memoryProfileEnabled);
   }
 
   // ===== 标签页：交互设置 =====
