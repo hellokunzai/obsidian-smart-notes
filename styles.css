@@ -947,12 +947,12 @@ button.ana-settings-tab.is-active {
   font-size: var(--font-small);
 }
 
-/* 弹窗内多模型标签编辑器 */
+/* 弹窗内多模型标签编辑器（设置行下方独立一行） */
 .ana-model-link-tags-editor {
   display: flex;
   flex-wrap: wrap;
   gap: var(--size-4-1);
-  margin-bottom: var(--size-4-1);
+  margin: var(--size-4-1) 0 var(--size-4-2);
 }
 
 .ana-model-link-tags-editor .ana-model-link-tag {
@@ -970,9 +970,16 @@ button.ana-settings-tab.is-active {
   color: var(--text-error);
 }
 
+.ana-model-link-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  flex: 1;
+  min-width: 0;
+}
+
 .ana-model-link-tag-input {
-  width: 100%;
-  margin-top: var(--size-4-1);
+  flex: 1;
 }
 
 

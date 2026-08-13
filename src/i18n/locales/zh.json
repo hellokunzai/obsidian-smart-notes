@@ -82,6 +82,9 @@
   "settings.modelLinks.modal.nameDuplicate": "Vault Mind：已存在同名链接，请换一个名称。",
   "settings.modelLinks.modal.showKey": "显示",
   "settings.modelLinks.modal.hideKey": "隐藏",
+  "settings.modelLinks.modal.maxTokensDesc": "每次请求 AI 输出长度的上限。留空则使用全局默认值。",
+  "settings.modelLinks.modal.temperatureDesc": "取值 0~2，越低越确定，越高越富创造性。留空则使用全局默认值。",
+  "settings.modelLinks.modal.useGlobalDefault": "（使用全局默认）",
 
   "settings.realtime.name": "实时自动提示",
   "settings.realtime.desc": "输入时显示内联幽灵文本建议（按 Tab 接受）。",

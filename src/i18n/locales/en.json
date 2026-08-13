@@ -82,6 +82,9 @@
   "settings.modelLinks.modal.nameDuplicate": "Vault Mind: a link with this name already exists. Pick another name.",
   "settings.modelLinks.modal.showKey": "Show",
   "settings.modelLinks.modal.hideKey": "Hide",
+  "settings.modelLinks.modal.maxTokensDesc": "Max output tokens per AI request. Leave empty to use global default.",
+  "settings.modelLinks.modal.temperatureDesc": "Value 0–2; lower = more deterministic, higher = more creative. Leave empty to use global default.",
+  "settings.modelLinks.modal.useGlobalDefault": "(use global default)",
 
   "settings.realtime.name": "Realtime autoprompt",
   "settings.realtime.desc": "Show inline ghost-text suggestions while typing (accept with Tab).",

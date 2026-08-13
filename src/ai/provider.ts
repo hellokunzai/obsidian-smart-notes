@@ -29,6 +29,20 @@ export function getActiveModelLink(
   );
 }
 
+/**
+ * 解析单条模型链接的有效参数（maxTokens / temperature）。
+ * 链接自身有值则优先使用，否则 fallback 到全局设置。
+ */
+export function resolveLinkParams(
+  link: ModelLink,
+  settings: AiNoteAgentSettings
+): { maxTokens: number; temperature: number } {
+  return {
+    maxTokens: link.maxTokens ?? settings.maxTokens,
+    temperature: link.temperature ?? settings.temperature,
+  };
+}
+
 /** 由单条模型链接构造 provider（运行时使用其第一个模型）。 */
 export function createProviderFromLink(link: ModelLink): AIProvider {
   if (link.type === "ollama") {

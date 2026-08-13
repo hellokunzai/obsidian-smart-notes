@@ -24,6 +24,8 @@ export class ModelLinkModal extends Modal {
   private baseUrl = "";
   private apiKey = "";
   private models: string[] = [];
+  private maxTokens = "";
+  private temperature = "";
   private showApiKey = false;
 
   // 动态区域（随链接类型变化）与标签编辑器
@@ -44,6 +46,8 @@ export class ModelLinkModal extends Modal {
       this.baseUrl = editing.baseUrl;
       this.apiKey = editing.apiKey;
       this.models = editing.models.slice();
+      this.maxTokens = editing.maxTokens != null ? String(editing.maxTokens) : "";
+      this.temperature = editing.temperature != null ? String(editing.temperature) : "";
     }
   }
 
@@ -58,19 +62,7 @@ export class ModelLinkModal extends Modal {
         : t("settings.modelLinks.modal.addTitle"),
     });
 
-    // 链接名称（必填、唯一）
-    new Setting(contentEl)
-      .setName(t("settings.modelLinks.modal.name"))
-      .setDesc(t("settings.modelLinks.modal.nameDesc"))
-      .addText((tc: TextComponent) => {
-        tc.setPlaceholder(t("settings.modelLinks.modal.namePlaceholder"));
-        tc.setValue(this.name);
-        tc.onChange((v) => {
-          this.name = v;
-        });
-      });
-
-    // 链接类型
+    // 链接类型（置顶）
     new Setting(contentEl)
       .setName(t("settings.provider.name"))
       .setDesc(t("settings.provider.desc"))
@@ -84,9 +76,53 @@ export class ModelLinkModal extends Modal {
           });
       });
 
+    // 链接名称（必填、唯一）
+    new Setting(contentEl)
+      .setName(t("settings.modelLinks.modal.name"))
+      .setDesc(t("settings.modelLinks.modal.nameDesc"))
+      .addText((tc: TextComponent) => {
+        tc.setPlaceholder(t("settings.modelLinks.modal.namePlaceholder"));
+        tc.setValue(this.name);
+        tc.onChange((v) => {
+          this.name = v;
+        });
+      });
+
     // 动态区域：Base URL / API Key / 模型（随类型变化）
     this.dynamicEl = contentEl.createEl("div");
     this.renderDynamic();
+
+    // 最大 Token 数（可选，不填使用全局默认值）
+    new Setting(contentEl)
+      .setName(t("settings.maxTokens.name"))
+      .setDesc(t("settings.modelLinks.modal.maxTokensDesc"))
+      .addText((tc: TextComponent) => {
+        tc.setPlaceholder(
+          String(this.plugin.settings.maxTokens) +
+            " " +
+            t("settings.modelLinks.modal.useGlobalDefault")
+        );
+        tc.setValue(this.maxTokens);
+        tc.onChange((v) => {
+          this.maxTokens = v.trim();
+        });
+      });
+
+    // Temperature（可选，不填使用全局默认值）
+    new Setting(contentEl)
+      .setName(t("settings.temperature.name"))
+      .setDesc(t("settings.modelLinks.modal.temperatureDesc"))
+      .addText((tc: TextComponent) => {
+        tc.setPlaceholder(
+          String(this.plugin.settings.temperature) +
+            " " +
+            t("settings.modelLinks.modal.useGlobalDefault")
+        );
+        tc.setValue(this.temperature);
+        tc.onChange((v) => {
+          this.temperature = v.trim();
+        });
+      });
 
     // 测试连接
     new Setting(contentEl)
@@ -203,7 +239,30 @@ export class ModelLinkModal extends Modal {
       .setName(t("settings.modelLinks.modal.models"))
       .setDesc(t("settings.modelLinks.modal.modelsDesc"));
 
-    this.tagsEl = modelSetting.controlEl.createEl("div", {
+    // 输入行（标签右侧：输入框 + 添加按钮）
+    const inputRow = modelSetting.controlEl.createEl("div", {
+      cls: "ana-model-link-input-row",
+    });
+    const input = inputRow.createEl("input", {
+      cls: "ana-model-link-tag-input",
+      type: "text",
+    });
+    input.placeholder = t("settings.modelLinks.modal.modelPlaceholder");
+    input.addEventListener("keydown", (e) => {
+      const ke = e as KeyboardEvent;
+      if (ke.key === "Enter" || ke.key === ",") {
+        e.preventDefault();
+        this.addModelsFromInput(input);
+      }
+    });
+    const addBtn = inputRow.createEl("button", {
+      cls: "ana-model-link-btn",
+      text: t("settings.modelLinks.modal.addModel"),
+    });
+    addBtn.addEventListener("click", () => this.addModelsFromInput(input));
+
+    // 标签展示行（整个设置行下方，独立一行）
+    this.tagsEl = this.dynamicEl.createEl("div", {
       cls: "ana-model-link-tags-editor",
     });
     this.renderTags = () => {
@@ -224,24 +283,6 @@ export class ModelLinkModal extends Modal {
       }
     };
     this.renderTags();
-
-    const input = modelSetting.controlEl.createEl("input", {
-      cls: "ana-model-link-tag-input",
-      type: "text",
-    });
-    input.placeholder = t("settings.modelLinks.modal.modelPlaceholder");
-    input.addEventListener("keydown", (e) => {
-      const ke = e as KeyboardEvent;
-      if (ke.key === "Enter" || ke.key === ",") {
-        e.preventDefault();
-        this.addModelsFromInput(input);
-      }
-    });
-    const addBtn = modelSetting.controlEl.createEl("button", {
-      cls: "ana-model-link-btn",
-      text: t("settings.modelLinks.modal.addModel"),
-    });
-    addBtn.addEventListener("click", () => this.addModelsFromInput(input));
   }
 
   private addModelsFromInput(input: HTMLInputElement): void {
@@ -268,6 +309,8 @@ export class ModelLinkModal extends Modal {
       baseUrl: this.baseUrl.trim() || (isOllama ? "http://localhost:11434" : "https://api.openai.com/v1"),
       apiKey: this.apiKey.trim(),
       models: this.models.map((m) => m.trim()).filter(Boolean),
+      maxTokens: this.maxTokens ? parseInt(this.maxTokens, 10) || undefined : undefined,
+      temperature: this.temperature ? parseFloat(this.temperature) || undefined : undefined,
     };
   }
 

@@ -26,6 +26,10 @@ export interface ModelLink {
   apiKey: string;
   /** 该链接下可使用的模型 ID 列表（支持多个）。 */
   models: string[];
+  /** 该链接的最大 Token 数（不填则使用全局默认值）。 */
+  maxTokens?: number;
+  /** 该链接的温度参数（不填则使用全局默认值）。 */
+  temperature?: number;
 }
 
 /** 生成短随机 id，用于模型链接唯一标识。 */
@@ -250,6 +254,25 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
   // ===== 标签页：模型配置 =====
   private renderProviderTab(bodyEl: HTMLElement): void {
+    // --- 数据存储（置顶）---
+    this.createGroupHeader(bodyEl, "settings.providerGroup.storage");
+
+    new Setting(bodyEl)
+      .setName(t("settings.aiFolderName.name"))
+      .setDesc(t("settings.aiFolderName.desc"))
+      .addText((t2) =>
+        t2
+          .setPlaceholder(".vaultmind")
+          .setValue(this.plugin.settings.aiFolderName)
+          .inputEl.addEventListener("blur", async () => {
+            const name = t2.inputEl.value.trim();
+            if (name && name !== this.plugin.settings.aiFolderName) {
+              this.plugin.settings.aiFolderName = name;
+              await this.plugin.saveSettings();
+            }
+          })
+      );
+
     // --- 模型链接（多链接列表）---
     this.createGroupHeader(bodyEl, "settings.providerGroup.link");
 
@@ -284,60 +307,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       cls: "ana-model-link-list",
     });
     this.renderModelLinkList(listContainer, "");
-
-    // --- 模型参数 ---
-    this.createGroupHeader(bodyEl, "settings.providerGroup.params");
-
-    new Setting(bodyEl)
-      .setName(t("settings.maxTokens.name"))
-      .setDesc(t("settings.maxTokens.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("1024")
-          .setValue(String(this.plugin.settings.maxTokens))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n > 0) {
-              this.plugin.settings.maxTokens = n;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
-
-    new Setting(bodyEl)
-      .setName(t("settings.temperature.name"))
-      .setDesc(t("settings.temperature.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("0.3")
-          .setValue(String(this.plugin.settings.temperature))
-          .onChange(async (v) => {
-            const n = parseFloat(v);
-            if (!isNaN(n) && n >= 0 && n <= 2) {
-              this.plugin.settings.temperature = n;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
-
-    // --- 数据存储 ---
-    this.createGroupHeader(bodyEl, "settings.providerGroup.storage");
-
-    new Setting(bodyEl)
-      .setName(t("settings.aiFolderName.name"))
-      .setDesc(t("settings.aiFolderName.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder(".vaultmind")
-          .setValue(this.plugin.settings.aiFolderName)
-          .inputEl.addEventListener("blur", async () => {
-            const name = t2.inputEl.value.trim();
-            if (name && name !== this.plugin.settings.aiFolderName) {
-              this.plugin.settings.aiFolderName = name;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
   }
 
   /**
