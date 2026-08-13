@@ -414,7 +414,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     // --- 知识库 ---
     this.createGroupHeader(bodyEl, "settings.memoryGroup.knowledge");
 
-    new Setting(bodyEl)
+    const includeVaultIndexSetting = new Setting(bodyEl)
       .setName(t("settings.includeVaultIndex.name"))
       .setDesc(t("settings.includeVaultIndex.desc"))
       .addToggle((t2) =>
@@ -423,12 +423,14 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           .onChange(async (v) => {
             this.plugin.settings.includeVaultIndex = v;
             await this.plugin.saveSettings();
+            maxCharsSetting.setDisabled(!v);
           })
       );
 
-    new Setting(bodyEl)
+    const maxCharsSetting = new Setting(bodyEl)
       .setName(t("settings.chatContextMaxChars.name"))
       .setDesc(t("settings.chatContextMaxChars.desc"))
+      .setDisabled(!this.plugin.settings.includeVaultIndex)
       .addText((t2) =>
         t2
           .setPlaceholder("8000")
