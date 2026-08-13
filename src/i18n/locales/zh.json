@@ -96,10 +96,12 @@
   "settings.modelLinks.modal.secretPicker.confirm": "保存",
   "settings.modelLinks.modal.secretPicker.addNew": "添加密钥...",
   "settings.modelLinks.modal.secretPicker.addName": "密钥名称",
-  "settings.modelLinks.modal.secretPicker.addValue": "密钥值",
+  "settings.modelLinks.modal.secretPicker.addNamePlaceholder": "密钥 ID（小写字母、数字、横线）",
+  "settings.modelLinks.modal.secretPicker.addValue": "令牌值",
   "settings.modelLinks.modal.secretPicker.view": "查看",
   "settings.modelLinks.modal.secretPicker.delete": "删除",
   "settings.modelLinks.modal.secretPicker.deleted": "已删除",
+  "settings.modelLinks.modal.secretPicker.added": "已添加密钥",
   "settings.modelLinks.modal.secretPicker.noValue": "该密钥无有效值",
 
   "settings.realtime.name": "实时自动提示",

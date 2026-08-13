@@ -96,10 +96,12 @@
   "settings.modelLinks.modal.secretPicker.confirm": "Save",
   "settings.modelLinks.modal.secretPicker.addNew": "Add secret...",
   "settings.modelLinks.modal.secretPicker.addName": "Secret name",
-  "settings.modelLinks.modal.secretPicker.addValue": "Secret value",
+  "settings.modelLinks.modal.secretPicker.addNamePlaceholder": "Secret ID (lowercase, digits, hyphens)",
+  "settings.modelLinks.modal.secretPicker.addValue": "Token value",
   "settings.modelLinks.modal.secretPicker.view": "View",
   "settings.modelLinks.modal.secretPicker.delete": "Delete",
   "settings.modelLinks.modal.secretPicker.deleted": "Deleted",
+  "settings.modelLinks.modal.secretPicker.added": "Secret added",
   "settings.modelLinks.modal.secretPicker.noValue": "No valid value for this secret",
 
   "settings.realtime.name": "Realtime autoprompt",

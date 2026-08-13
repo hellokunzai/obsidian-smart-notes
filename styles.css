@@ -1166,3 +1166,73 @@ button.ana-settings-tab.is-active {
   display: flex;
   gap: var(--size-4-2);
 }
+
+/* ============================================================
+ * 内联添加表单（搜索框下方、列表上方）
+ * ============================================================ */
+.ana-secret-picker-add-form {
+  display: none;
+  flex-direction: column;
+  gap: var(--size-4-1);
+  padding: var(--size-4-2) var(--size-4-3);
+  border: 1px solid var(--interactive-accent);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  margin-bottom: var(--size-4-1);
+}
+
+.ana-secret-picker-add-input {
+  width: 100%;
+  padding: var(--size-4-2) var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-normal);
+  outline: none;
+  box-sizing: border-box;
+}
+.ana-secret-picker-add-input:focus {
+  border-color: var(--interactive-accent);
+}
+.ana-secret-picker-add-input::placeholder {
+  color: var(--text-faint);
+}
+
+.ana-secret-picker-add-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--size-4-2);
+}
+
+.ana-secret-picker-add-confirm,
+.ana-secret-picker-add-cancel {
+  padding: var(--size-4-1) var(--size-4-3);
+  border-radius: var(--radius-s);
+  font-size: var(--font-small);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.ana-secret-picker-add-confirm {
+  border: 1px solid var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.ana-secret-picker-add-confirm:hover:not(:disabled) {
+  background: var(--interactive-accent-hover);
+}
+.ana-secret-picker-add-confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ana-secret-picker-add-cancel {
+  border: 1px solid var(--background-modifier-border);
+  background: transparent;
+  color: var(--text-muted);
+}
+.ana-secret-picker-add-cancel:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}

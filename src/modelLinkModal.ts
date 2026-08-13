@@ -364,6 +364,8 @@ export class SecretPickerModal extends Modal {
   private searchQuery = "";
   private searchInput!: HTMLInputElement;
   private listContainer!: HTMLElement;
+  /** 内联添加表单容器（搜索框下方、列表上方） */
+  private addFormEl!: HTMLElement;
 
   constructor(
     app: App,
@@ -397,6 +399,11 @@ export class SecretPickerModal extends Modal {
     this.searchInput.addEventListener("input", () => {
       this.searchQuery = this.searchInput.value.trim();
       this.renderList();
+    });
+
+    // 内联添加表单容器（默认隐藏）
+    this.addFormEl = contentEl.createEl("div", {
+      cls: "ana-secret-picker-add-form",
     });
 
     // 密钥列表容器
@@ -509,7 +516,7 @@ export class SecretPickerModal extends Modal {
       // 查看（用 Notice 显示前几位）
       const viewBtn = actions.createEl("button", {
         cls: "ana-secret-picker-action-btn",
-        attr: { "aria-label": t("settings.modelLists.modal.secretPicker.view") },
+        attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.view") },
       });
       viewBtn.innerHTML = SVG_EYE;
       viewBtn.addEventListener("click", () => {
@@ -543,59 +550,86 @@ export class SecretPickerModal extends Modal {
     }
   }
 
-  /** 弹出简单输入框以添加新密钥到钥匙串。 */
+  /** 在搜索框与列表之间展开/收起内联添加表单。 */
   private showAddSecret(): void {
-    const d = new Modal(this.app);
-    d.onOpen = () => {
-      const { contentEl: c } = d;
-      c.addClass("ana-model-link-modal");
-      c.createEl("h3", {
-        text: t("settings.modelLinks.modal.secretPicker.addNew"),
-      });
-      let nameVal = "";
-      let secretVal = "";
-      new Setting(c)
-        .setName(t("settings.modelLinks.modal.secretPicker.addName"))
-        .addText((tc) => {
-          tc.setPlaceholder("my-api-key");
-          tc.onChange((v) => {
-            nameVal = v.trim().toLowerCase();
-          });
-        });
-      new Setting(c)
-        .setName(t("settings.modelLinks.modal.secretPicker.addValue"))
-        .addText((tc) => {
-          tc.inputEl.type = "password";
-          tc.setPlaceholder("sk-...");
-          tc.onChange((v) => {
-            secretVal = v.trim();
-          });
-        });
-      const f = c.createEl("div", { cls: "ana-modal-button-row" });
-      new ButtonComponent(f)
-        .setButtonText(t("modal.cancel"))
-        .onClick(() => d.close());
-      new ButtonComponent(f)
-        .setButtonText(t("modal.save"))
-        .setCta()
-        .onClick(async () => {
-          if (!nameVal || !secretVal) return;
-          try {
-            this.app.secretStorage.setSecret(nameVal, secretVal);
-            this.selectedId = nameVal;
-            this.renderList();
-            d.close();
-            // 启用保存按钮
-            const saveBtn = this.contentEl.querySelector(
-              ".ana-secret-picker-btn-group button:last-child"
-            ) as HTMLButtonElement | null;
-            if (saveBtn) saveBtn.disabled = false;
-          } catch (e) {
-            new Notice(String(e));
-          }
-        });
+    // 已展开则忽略（或可改为切换）
+    if (this.addFormEl.children.length > 0) return;
+
+    this.addFormEl.empty();
+    this.addFormEl.style.display = "flex";
+
+    let nameVal = "";
+    let secretVal = "";
+    const nameInput = this.addFormEl.createEl("input", {
+      type: "text",
+      cls: "ana-secret-picker-add-input",
+    });
+    nameInput.placeholder = t(
+      "settings.modelLinks.modal.secretPicker.addNamePlaceholder"
+    );
+    nameInput.addEventListener("input", () => {
+      nameVal = nameInput.value.trim().toLowerCase();
+    });
+
+    const valueInput = this.addFormEl.createEl("input", {
+      type: "password",
+      cls: "ana-secret-picker-add-input",
+    });
+    valueInput.placeholder =
+      t("settings.modelLinks.modal.secretPicker.addValue");
+    valueInput.addEventListener("input", () => {
+      secretVal = valueInput.value.trim();
+    });
+
+    // 右侧按钮：添加 + 取消
+    const btnRow = this.addFormEl.createEl("div", {
+      cls: "ana-secret-picker-add-btn-row",
+    });
+
+    const confirmBtn = btnRow.createEl("button", {
+      cls: "ana-secret-picker-add-confirm",
+      text: t("settings.modelLinks.modal.secretPicker.confirm"),
+    });
+    confirmBtn.disabled = true;
+    // 实时启用/禁用
+    const checkValid = () => {
+      confirmBtn.disabled = !nameVal || !secretVal;
     };
-    d.open();
+    nameInput.addEventListener("input", checkValid);
+    valueInput.addEventListener("input", checkValid);
+
+    confirmBtn.addEventListener("click", async () => {
+      if (!nameVal || !secretVal) return;
+      try {
+        this.app.secretStorage.setSecret(nameVal, secretVal);
+        this.selectedId = nameVal;
+        this.hideAddForm();
+        this.renderList();
+        // 启用保存按钮
+        const saveBtn = this.contentEl.querySelector(
+          ".ana-secret-picker-btn-group button:last-child"
+        ) as HTMLButtonElement | null;
+        if (saveBtn) saveBtn.disabled = false;
+        new Notice(t("settings.modelLinks.modal.secretPicker.added"));
+      } catch (e) {
+        new Notice(String(e));
+      }
+    });
+
+    const cancelBtn = btnRow.createEl("button", {
+      cls: "ana-secret-picker-add-cancel",
+      text: t("modal.cancel"),
+    });
+    cancelBtn.addEventListener("click", () => this.hideAddForm());
+
+    // 聚焦名称输入框
+    setTimeout(() => nameInput.focus(), 50);
+  }
+
+  /** 收起内联添加表单。 */
+  private hideAddForm(): void {
+    this.addFormEl.empty();
+    this.addFormEl.style.display = "none";
   }
 
   onClose(): void {
