@@ -796,4 +796,12 @@ button.ana-settings-tab.is-active {
   resize: vertical;
 }
 
+/* 拉取网页内容弹窗按钮行 */
+.ana-modal-button-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-3);
+}
+
 
