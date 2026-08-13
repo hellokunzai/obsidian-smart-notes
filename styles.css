@@ -123,31 +123,22 @@ button.ana-settings-tab.is-active {
   position: relative;
 }
 
-.ana-settings-panel-header {
-  margin-bottom: var(--size-4-3);
+/* 面板内第一个设置项不再重复顶部分隔线 */
+.ana-settings-panel-body > .setting-item:first-child {
+  border-top: none;
 }
 
-.ana-settings-h2 {
-  margin: 0;
-  padding-left: var(--size-4-2);
-  border-left: 3px solid var(--interactive-accent);
+/* 面板内部分组小标题 */
+.ana-settings-group-title {
+  margin: var(--size-4-4) 0 var(--size-4-2);
   color: var(--text-normal);
-  font-size: var(--font-ui-medium);
+  font-size: var(--font-ui-small);
   font-weight: var(--font-semibold);
   line-height: var(--line-height-tight);
 }
 
-.ana-settings-panel-desc {
-  margin: var(--size-4-1) 0 0 var(--size-4-2);
-  padding-left: 3px;
-  color: var(--text-muted);
-  font-size: var(--font-smaller);
-  line-height: var(--line-height-normal);
-}
-
-/* 面板内第一个设置项不再重复顶部分隔线 */
-.ana-settings-panel-body > .setting-item:first-child {
-  border-top: none;
+.ana-settings-group-title:first-child {
+  margin-top: 0;
 }
 
 /* AI 聊天面板（右侧 leaf） */

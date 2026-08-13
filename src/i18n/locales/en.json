@@ -79,10 +79,16 @@
 
   "settings.section.provider": "Model configuration",
   "settings.section.provider.desc": "Select the AI backend, connection credentials, model parameters, and data folder.",
+  "settings.providerGroup.link": "Model connection",
+  "settings.providerGroup.params": "Model parameters",
+  "settings.providerGroup.storage": "Data storage",
   "settings.section.autoprompt": "Interaction settings",
   "settings.section.autoprompt.desc": "Configure real-time AI suggestions and editor interaction behavior.",
   "settings.section.memoryChat": "Conversation & memory",
   "settings.section.memoryChat.desc": "Controls AI system instructions, knowledge base context injection, and long-term profile memory.",
+  "settings.memoryGroup.system": "System instructions",
+  "settings.memoryGroup.knowledge": "Knowledge base",
+  "settings.memoryGroup.profile": "User profile",
 
   "settings.customInstructions.name": "Custom instructions",
   "settings.customInstructions.desc": "Injected into the system prompt for every AI feature (chat, optimize, autoprompt). Leave empty for none.",

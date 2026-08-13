@@ -177,16 +177,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       tabButtons.push(btn);
 
       const panel = panelsEl.createEl("div", { cls: "ana-settings-panel" });
-      const header = panel.createEl("div", {
-        cls: "ana-settings-panel-header",
-      });
-      header.createEl("h2", { text: t(sec.titleKey), cls: "ana-settings-h2" });
-      if (sec.descKey) {
-        header.createEl("p", {
-          text: t(sec.descKey),
-          cls: "ana-settings-panel-desc",
-        });
-      }
       const body = panel.createEl("div", { cls: "ana-settings-panel-body" });
       sec.render(body);
       panels.push(panel);
@@ -195,8 +185,11 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     activate(0);
   }
 
-  // ===== 标签页：AI 后端 =====
+  // ===== 标签页：模型配置 =====
   private renderProviderTab(bodyEl: HTMLElement): void {
+    // --- 模型链接 ---
+    this.createGroupHeader(bodyEl, "settings.providerGroup.link");
+
     new Setting(bodyEl)
       .setName(t("settings.provider.name"))
       .setDesc(t("settings.provider.desc"))
@@ -214,18 +207,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
     if (this.plugin.settings.provider === "openai") {
       new Setting(bodyEl)
-        .setName(t("settings.openaiKey.name"))
-        .setDesc(t("settings.openaiKey.desc"))
-        .addText((t2) =>
-          t2
-            .setPlaceholder("sk-...")
-            .setValue(this.plugin.settings.openaiApiKey)
-            .onChange(async (v) => {
-              this.plugin.settings.openaiApiKey = v.trim();
-              await this.plugin.saveSettings();
-            })
-        );
-      new Setting(bodyEl)
         .setName(t("settings.openaiBaseUrl.name"))
         .setDesc(t("settings.openaiBaseUrl.desc"))
         .addText((t2) =>
@@ -234,6 +215,18 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             .setValue(this.plugin.settings.openaiBaseUrl)
             .onChange(async (v) => {
               this.plugin.settings.openaiBaseUrl = v.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+      new Setting(bodyEl)
+        .setName(t("settings.openaiKey.name"))
+        .setDesc(t("settings.openaiKey.desc"))
+        .addText((t2) =>
+          t2
+            .setPlaceholder("sk-...")
+            .setValue(this.plugin.settings.openaiApiKey)
+            .onChange(async (v) => {
+              this.plugin.settings.openaiApiKey = v.trim();
               await this.plugin.saveSettings();
             })
         );
@@ -277,6 +270,37 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     }
 
     new Setting(bodyEl)
+      .setName(t("settings.test.name"))
+      .setDesc(t("settings.test.desc"))
+      .addButton((btn) => {
+        btn.setButtonText(t("settings.test.button")).onClick(async () => {
+          btn.setDisabled(true);
+          btn.setButtonText(t("settings.test.testing"));
+          try {
+            const provider = createProvider(this.plugin.settings);
+            await provider.complete(
+              [
+                { role: "system", content: "You are a helpful assistant." },
+                { role: "user", content: "Reply only with ok." },
+              ],
+              { maxTokens: 10, temperature: 0 }
+            );
+            new Notice(t("settings.test.success"));
+          } catch (e) {
+            new Notice(
+              t("settings.test.failure", { error: (e as Error).message })
+            );
+          } finally {
+            btn.setDisabled(false);
+            btn.setButtonText(t("settings.test.button"));
+          }
+        });
+      });
+
+    // --- 模型参数 ---
+    this.createGroupHeader(bodyEl, "settings.providerGroup.params");
+
+    new Setting(bodyEl)
       .setName(t("settings.maxTokens.name"))
       .setDesc(t("settings.maxTokens.desc"))
       .addText((t2) =>
@@ -308,6 +332,9 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
+    // --- 数据存储 ---
+    this.createGroupHeader(bodyEl, "settings.providerGroup.storage");
+
     new Setting(bodyEl)
       .setName(t("settings.aiFolderName.name"))
       .setDesc(t("settings.aiFolderName.desc"))
@@ -323,60 +350,29 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       );
-
-    new Setting(bodyEl)
-      .setName(t("settings.test.name"))
-      .setDesc(t("settings.test.desc"))
-      .addButton((btn) => {
-        btn.setButtonText(t("settings.test.button")).onClick(async () => {
-          btn.setDisabled(true);
-          btn.setButtonText(t("settings.test.testing"));
-          try {
-            const provider = createProvider(this.plugin.settings);
-            await provider.complete(
-              [
-                { role: "system", content: "You are a helpful assistant." },
-                { role: "user", content: "Reply only with ok." },
-              ],
-              { maxTokens: 10, temperature: 0 }
-            );
-            new Notice(t("settings.test.success"));
-          } catch (e) {
-            new Notice(
-              t("settings.test.failure", { error: (e as Error).message })
-            );
-          } finally {
-            btn.setDisabled(false);
-            btn.setButtonText(t("settings.test.button"));
-          }
-        });
-      });
   }
 
   // ===== 标签页：会话与记忆 =====
   private renderMemoryChatTab(bodyEl: HTMLElement): void {
+    // --- 系统指令 ---
+    this.createGroupHeader(bodyEl, "settings.memoryGroup.system");
+
     new Setting(bodyEl)
       .setName(t("settings.customInstructions.name"))
       .setDesc(t("settings.customInstructions.desc"))
-      .addTextArea((ta) =>
+      .addTextArea((ta) => {
         ta
           .setPlaceholder(t("settings.customInstructions.placeholder"))
           .setValue(this.plugin.settings.customInstructions)
           .onChange(async (v) => {
             this.plugin.settings.customInstructions = v;
             await this.plugin.saveSettings();
-          })
-      )
-      .addButton((btn) =>
-        btn
-          .setButtonText(t("settings.customInstructions.reset"))
-          .setWarning()
-          .onClick(async () => {
-            this.plugin.settings.customInstructions = "";
-            await this.plugin.saveSettings();
-            this.display();
-          })
-      );
+          });
+        ta.inputEl.rows = 3;
+      });
+
+    // --- 知识库 ---
+    this.createGroupHeader(bodyEl, "settings.memoryGroup.knowledge");
 
     new Setting(bodyEl)
       .setName(t("settings.includeVaultIndex.name"))
@@ -406,18 +402,22 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
+    // --- 用户画像 ---
+    this.createGroupHeader(bodyEl, "settings.memoryGroup.profile");
+
     new Setting(bodyEl)
       .setName(t("settings.memoryProfileCategories.name"))
       .setDesc(t("settings.memoryProfileCategories.desc"))
-      .addTextArea((ta) =>
+      .addTextArea((ta) => {
         ta
           .setPlaceholder(t("settings.memoryProfileCategories.placeholder"))
           .setValue(this.plugin.settings.memoryProfileCategories)
           .onChange(async (v) => {
             this.plugin.settings.memoryProfileCategories = v;
             await this.plugin.saveSettings();
-          })
-      );
+          });
+        ta.inputEl.rows = 5;
+      });
 
     new Setting(bodyEl)
       .setName(t("settings.memoryFile.name"))
@@ -433,7 +433,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               void saveMemoryFile(this.plugin, "MEMORY.md", v);
             }, 500);
           });
-        ta.inputEl.rows = 12;
+        ta.inputEl.rows = 8;
         void loadMemoryFile(this.plugin, "MEMORY.md").then((content) => {
           ta.setValue(content);
         });
@@ -586,6 +586,14 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
   // ===== 标签页：Skill 技能 =====
   private renderSkillsTab(bodyEl: HTMLElement): void {
     this.renderDefaultSkills(bodyEl);
+  }
+
+  /** 在面板内创建一个小型分组标题。 */
+  private createGroupHeader(containerEl: HTMLElement, titleKey: string): void {
+    containerEl.createEl("div", {
+      cls: "ana-settings-group-title",
+      text: t(titleKey),
+    });
   }
 
   /** 渲染全局默认 skill 开关列表（异步加载 skills/ 目录）。 */

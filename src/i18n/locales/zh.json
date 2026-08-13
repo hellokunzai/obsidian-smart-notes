@@ -79,10 +79,16 @@
 
   "settings.section.provider": "模型配置",
   "settings.section.provider.desc": "选择 AI 后端、配置连接凭据，并设置模型参数与数据文件夹。",
+  "settings.providerGroup.link": "模型链接",
+  "settings.providerGroup.params": "模型参数",
+  "settings.providerGroup.storage": "数据存储",
   "settings.section.autoprompt": "交互设置",
   "settings.section.autoprompt.desc": "配置编辑器内的 AI 实时建议与交互行为。",
   "settings.section.memoryChat": "会话与记忆",
   "settings.section.memoryChat.desc": "控制 AI 系统指令、知识库上下文注入与长期画像记忆。",
+  "settings.memoryGroup.system": "系统指令",
+  "settings.memoryGroup.knowledge": "知识库",
+  "settings.memoryGroup.profile": "用户画像",
 
   "settings.customInstructions.name": "自定义指令",
   "settings.customInstructions.desc": "会注入到所有 AI 功能（对话、优化、自动提示）的 system prompt 中。留空则不注入。",
