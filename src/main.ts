@@ -194,7 +194,8 @@ export default class AiNoteAgentPlugin extends Plugin {
       const optimized = await optimizeNote(
         this,
         content,
-        this.settings.linkFormat
+        this.settings.linkFormat,
+        this.settings.linkType
       );
       notice.hide();
       new OptimizeModal(this.app, content, optimized, async (text) => {

@@ -29,8 +29,10 @@ export interface AiNoteAgentSettings {
   realtimeDebounceMs: number;
   // 是否启用「优化当前笔记」命令
   optimizeCurrentEnabled: boolean;
-  // 内部链接类型：wikilink 或 markdown
+  // 内部链接格式：wikilink 或 markdown
   linkFormat: "wikilink" | "markdown";
+  // 内部链接路径类型：尽可能短 / 相对当前笔记 / 绝对 vault 根路径
+  linkType: "shortest" | "relative" | "absolute";
   // 是否启用「打开 AI 对话面板」命令
   chatPanelEnabled: boolean;
   // 打开 AI 对话面板时是否自动把当前 Markdown 笔记作为附件加入
@@ -82,6 +84,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   realtimeDebounceMs: 800,
   optimizeCurrentEnabled: true,
   linkFormat: "wikilink",
+  linkType: "shortest",
   chatPanelEnabled: true,
   addCurrentNoteToChat: true,
   frontmatterGenerationEnabled: true,
@@ -501,6 +504,24 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.optimizeCurrentEnabled)
           .onChange(async (v) => {
             this.plugin.settings.optimizeCurrentEnabled = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(bodyEl)
+      .setName(t("settings.linkType.name"))
+      .setDesc(t("settings.linkType.desc"))
+      .addDropdown((dd: DropdownComponent) =>
+        dd
+          .addOption("shortest", t("settings.linkType.shortest"))
+          .addOption("relative", t("settings.linkType.relative"))
+          .addOption("absolute", t("settings.linkType.absolute"))
+          .setValue(this.plugin.settings.linkType)
+          .onChange(async (v) => {
+            this.plugin.settings.linkType = v as
+              | "shortest"
+              | "relative"
+              | "absolute";
             await this.plugin.saveSettings();
           })
       );

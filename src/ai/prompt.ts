@@ -24,17 +24,25 @@ export function buildSystemPrompt(
 
 export function buildOptimizePrompt(
   content: string,
-  linkFormat?: "wikilink" | "markdown"
+  linkFormat?: "wikilink" | "markdown",
+  linkType?: "shortest" | "relative" | "absolute"
 ): ChatMessage[] {
-  const linkRule =
+  const formatRule =
     linkFormat === "markdown"
       ? " Use standard Markdown links `[text](path.md)` for internal links; do NOT use Wikilinks [[...]]."
       : linkFormat === "wikilink"
       ? " Use Obsidian Wikilinks [[...]] for internal links."
       : "";
+  const typeRule =
+    linkType === "relative"
+      ? " Use paths relative to the current note when referencing other notes."
+      : linkType === "absolute"
+      ? " Use absolute paths from the vault root (starting with /) when referencing other notes."
+      : " Use the shortest possible form (just the note title, omitting folder paths) when referencing other notes.";
   const sys =
     "You are an expert editor. Improve the note while preserving its meaning and facts." +
-    linkRule +
+    formatRule +
+    typeRule +
     " Reply with the full improved Markdown only, no commentary, no markdown fences.";
   const user = `Polish wording, fix structure, and improve clarity.\n${content}`;
   return [
