@@ -115,6 +115,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         render: (el) => this.renderProviderTab(el),
       },
       {
+        id: "autoprompt",
+        titleKey: "settings.section.autoprompt",
+        descKey: "settings.section.autoprompt.desc",
+        icon: "mouse-pointer-click",
+        render: (el) => this.renderAutopromptTab(el),
+      },
+      {
         id: "memoryChat",
         titleKey: "settings.section.memoryChat",
         descKey: "settings.section.memoryChat.desc",
@@ -122,11 +129,11 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         render: (el) => this.renderMemoryChatTab(el),
       },
       {
-        id: "autoprompt",
-        titleKey: "settings.section.autoprompt",
-        descKey: "settings.section.autoprompt.desc",
-        icon: "pen-line",
-        render: (el) => this.renderAutopromptTab(el),
+        id: "skills",
+        titleKey: "settings.section.skills",
+        descKey: "settings.section.skills.desc",
+        icon: "puzzle",
+        render: (el) => this.renderSkillsTab(el),
       },
       {
         id: "web",
@@ -134,13 +141,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         descKey: "settings.section.web.desc",
         icon: "globe",
         render: (el) => this.renderWebTab(el),
-      },
-      {
-        id: "skills",
-        titleKey: "settings.section.skills",
-        descKey: "settings.section.skills.desc",
-        icon: "puzzle",
-        render: (el) => this.renderSkillsTab(el),
       },
     ];
 

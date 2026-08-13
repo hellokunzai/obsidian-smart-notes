@@ -77,10 +77,10 @@
   "view.openFailed": "无法打开 AI 对话面板。",
   "view.sessionsLoaded": "已从记忆中加载 {count} 个会话。",
 
-  "settings.section.provider": "基础配置",
+  "settings.section.provider": "模型配置",
   "settings.section.provider.desc": "选择 AI 后端、配置连接凭据，并设置模型参数与数据文件夹。",
-  "settings.section.autoprompt": "实时自动提示",
-  "settings.section.autoprompt.desc": "输入时自动提供 AI 内联建议。",
+  "settings.section.autoprompt": "交互设置",
+  "settings.section.autoprompt.desc": "配置编辑器内的 AI 实时建议与交互行为。",
   "settings.section.memoryChat": "会话与记忆",
   "settings.section.memoryChat.desc": "控制 AI 系统指令、知识库上下文注入与长期画像记忆。",
 

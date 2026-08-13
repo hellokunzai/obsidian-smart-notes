@@ -77,10 +77,10 @@
   "view.openFailed": "Could not open AI chat panel.",
   "view.sessionsLoaded": "Loaded {count} sessions from memory.",
 
-  "settings.section.provider": "Basic configuration",
+  "settings.section.provider": "Model configuration",
   "settings.section.provider.desc": "Select the AI backend, connection credentials, model parameters, and data folder.",
-  "settings.section.autoprompt": "Realtime autoprompt",
-  "settings.section.autoprompt.desc": "AI-powered inline suggestions while typing.",
+  "settings.section.autoprompt": "Interaction settings",
+  "settings.section.autoprompt.desc": "Configure real-time AI suggestions and editor interaction behavior.",
   "settings.section.memoryChat": "Conversation & memory",
   "settings.section.memoryChat.desc": "Controls AI system instructions, knowledge base context injection, and long-term profile memory.",
 
