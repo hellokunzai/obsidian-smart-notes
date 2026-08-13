@@ -743,6 +743,51 @@ button.ana-settings-tab.is-active {
   padding: var(--size-4-1) 0;
 }
 
+/* skill 列表表格 */
+.ana-skills-list {
+  margin-top: var(--size-4-3);
+}
+
+.ana-skills-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-ui-small);
+}
+
+.ana-skills-table th,
+.ana-skills-table td {
+  text-align: left;
+  padding: var(--size-4-1) var(--size-4-2);
+  border-bottom: 1px solid var(--background-modifier-border);
+  vertical-align: middle;
+}
+
+.ana-skills-table th {
+  color: var(--text-muted);
+  font-weight: var(--font-semibold);
+  font-size: var(--font-smaller);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ana-skills-table tbody tr:hover {
+  background: var(--background-modifier-hover);
+}
+
+.ana-skills-col-name {
+  font-weight: var(--font-medium);
+  color: var(--text-normal);
+}
+
+.ana-skills-col-path {
+  color: var(--text-muted);
+  font-size: var(--font-smaller);
+}
+
+.ana-skills-col-toggle {
+  width: 56px;
+  text-align: center;
+}
+
 /* 多 Key / 实例 输入框：多行、等宽 */
 .ana-settings-keys {
   width: 100%;

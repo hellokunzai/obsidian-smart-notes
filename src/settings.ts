@@ -4,6 +4,7 @@ import {
   PluginSettingTab,
   Setting,
   DropdownComponent,
+  ToggleComponent,
   setIcon,
 } from "obsidian";
 import type AiNoteAgentPlugin from "./main";
@@ -585,7 +586,110 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
   // ===== 标签页：Skill 技能 =====
   private renderSkillsTab(bodyEl: HTMLElement): void {
-    this.renderDefaultSkills(bodyEl);
+    const plugin = this.plugin;
+    let query = "";
+
+    // 顶层：刷新
+    new Setting(bodyEl)
+      .setName(t("settings.defaultSkills.refresh.name"))
+      .setDesc(
+        t("settings.defaultSkills.pathHint", { path: getSkillsDir(plugin) })
+      )
+      .addButton((btn) => {
+        btn.setIcon("refresh-cw");
+        btn.setTooltip(t("settings.defaultSkills.refresh.tooltip"));
+        btn.onClick(() => {
+          void renderSkillsList();
+        });
+      });
+
+    // 顶层：搜索
+    new Setting(bodyEl)
+      .setName(t("settings.defaultSkills.search.name"))
+      .setDesc(t("settings.defaultSkills.search.desc"))
+      .addText((input) => {
+        input.setPlaceholder(t("settings.defaultSkills.search.placeholder"));
+        input.onChange((v) => {
+          query = v.trim().toLowerCase();
+          void renderSkillsList();
+        });
+      });
+
+    // 列表容器
+    const listContainer = bodyEl.createEl("div", { cls: "ana-skills-list" });
+
+    const renderSkillsList = async (): Promise<void> => {
+      listContainer.empty();
+      listContainer.createEl("div", {
+        text: t("settings.defaultSkills.loading"),
+        cls: "ana-settings-skills-loading",
+      });
+      let skills: SkillEntry[] = [];
+      try {
+        skills = await listSkills(plugin, this.app);
+      } catch {
+        skills = [];
+      }
+      listContainer.empty();
+
+      if (skills.length === 0) {
+        listContainer.createEl("div", {
+          text: t("settings.defaultSkills.empty"),
+          cls: "ana-settings-skills-empty",
+        });
+        return;
+      }
+
+      const q = query;
+      const filtered = q
+        ? skills.filter(
+            (s) =>
+              s.name.toLowerCase().includes(q) ||
+              s.path.toLowerCase().includes(q)
+          )
+        : skills;
+
+      if (filtered.length === 0) {
+        listContainer.createEl("div", {
+          text: t("settings.defaultSkills.search.noResults"),
+          cls: "ana-settings-skills-empty",
+        });
+        return;
+      }
+
+      const table = listContainer.createEl("table", {
+        cls: "ana-skills-table",
+      });
+      const thead = table.createEl("thead");
+      const htr = thead.createEl("tr");
+      htr.createEl("th", { text: t("settings.defaultSkills.table.name") });
+      htr.createEl("th", { text: t("settings.defaultSkills.table.path") });
+      htr.createEl("th", {
+        text: t("settings.defaultSkills.table.enabled"),
+        cls: "ana-skills-col-toggle",
+      });
+
+      const tbody = table.createEl("tbody");
+      for (const sk of filtered) {
+        const tr = tbody.createEl("tr");
+        tr.createEl("td", { cls: "ana-skills-col-name", text: sk.name });
+        tr.createEl("td", { cls: "ana-skills-col-path", text: sk.path });
+        const tdToggle = tr.createEl("td", { cls: "ana-skills-col-toggle" });
+        const toggle = new ToggleComponent(tdToggle);
+        toggle.setValue(plugin.settings.defaultSkills.includes(sk.path));
+        toggle.onChange(async (v) => {
+          const arr = plugin.settings.defaultSkills.slice();
+          const has = arr.includes(sk.path);
+          if (v && !has) arr.push(sk.path);
+          else if (!v && has)
+            plugin.settings.defaultSkills = arr.filter((p) => p !== sk.path);
+          else plugin.settings.defaultSkills = arr;
+          await plugin.saveSettings();
+        });
+      }
+    };
+
+    void renderSkillsList();
   }
 
   /** 在面板内创建一个小型分组标题。 */
@@ -594,58 +698,5 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       cls: "ana-settings-group-title",
       text: t(titleKey),
     });
-  }
-
-  /** 渲染全局默认 skill 开关列表（异步加载 skills/ 目录）。 */
-  private async renderDefaultSkills(containerEl: HTMLElement): Promise<void> {
-    const listEl = containerEl.createEl("div", { cls: "ana-settings-skills" });
-    listEl.createEl("div", {
-      text: t("settings.defaultSkills.loading"),
-      cls: "ana-settings-skills-loading",
-    });
-    let skills: SkillEntry[] = [];
-    try {
-      skills = await listSkills(this.plugin, this.app);
-    } catch {
-      skills = [];
-    }
-    listEl.empty();
-
-    listEl.createEl("div", {
-      text: t("settings.defaultSkills.pathHint", { path: getSkillsDir(this.plugin) }),
-      cls: "ana-settings-skills-path",
-    });
-
-    if (skills.length === 0) {
-      listEl.createEl("div", {
-        text: t("settings.defaultSkills.empty"),
-        cls: "ana-settings-skills-empty",
-      });
-      return;
-    }
-    for (const sk of skills) {
-      new Setting(listEl)
-        .setName(sk.name)
-        .setDesc(sk.path)
-        .addToggle((t2) =>
-          t2
-            .setValue(this.plugin.settings.defaultSkills.includes(sk.path))
-            .onChange(async (v) => {
-              const arr = this.plugin.settings.defaultSkills.filter(
-                (p) => typeof p === "string"
-              );
-              const has = arr.includes(sk.path);
-              if (v && !has) arr.push(sk.path);
-              if (!v && has) {
-                this.plugin.settings.defaultSkills = arr.filter(
-                  (p) => p !== sk.path
-                );
-              } else {
-                this.plugin.settings.defaultSkills = arr;
-              }
-              await this.plugin.saveSettings();
-            })
-        );
-    }
   }
 }
