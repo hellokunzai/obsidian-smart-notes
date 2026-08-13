@@ -56,24 +56,52 @@
   display: none;
 }
 
-/* 设置面板分组 */
-.ana-settings-section {
-  margin-top: var(--size-4-5);
-  padding-top: var(--size-4-4);
-  border-top: 1px solid var(--background-modifier-border);
+/* 设置面板：顶部标签页 */
+.ana-settings-tabs {
+  display: flex;
+  gap: var(--size-4-1);
+  padding: var(--size-4-1) 0 var(--size-4-3);
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: var(--size-4-3);
+  overflow-x: auto;
 }
 
-.ana-settings-section:first-of-type {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
+.ana-settings-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding: var(--size-4-1) var(--size-4-3);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.ana-settings-section-header {
-  margin-bottom: var(--size-4-2);
+.ana-settings-tab:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
-.ana-settings-h3 {
+.ana-settings-tab.is-active {
+  background: var(--background-modifier-active-hover);
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+}
+
+.ana-settings-panels {
+  position: relative;
+}
+
+.ana-settings-panel-header {
+  margin-bottom: var(--size-4-3);
+}
+
+.ana-settings-h2 {
   margin: 0;
   padding-left: var(--size-4-2);
   border-left: 3px solid var(--interactive-accent);
@@ -83,7 +111,7 @@
   line-height: var(--line-height-tight);
 }
 
-.ana-settings-section-desc {
+.ana-settings-panel-desc {
   margin: var(--size-4-1) 0 0 var(--size-4-2);
   padding-left: 3px;
   color: var(--text-muted);
@@ -91,8 +119,8 @@
   line-height: var(--line-height-normal);
 }
 
-/* 分组内第一个设置项不再重复顶部分隔线 */
-.ana-settings-section-body > .setting-item:first-child {
+/* 面板内第一个设置项不再重复顶部分隔线 */
+.ana-settings-panel-body > .setting-item:first-child {
   border-top: none;
 }
 

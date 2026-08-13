@@ -14,9 +14,6 @@
   "notice.noteUpdated": "Vault Mind：笔记已更新。",
   "notice.noSuggestion": "Vault Mind：未返回任何建议。",
   "notice.error": "Vault Mind：{error}",
-  "notice.aiFolderMigrated": "Vault Mind：已将旧数据存储路径迁移至「{path}」。",
-  "notice.aiFolderMigrateFailed": "Vault Mind：数据存储路径迁移失败 —— {error}",
-
   "modal.title": "优化笔记（AI）",
   "modal.original": "原文（只读）",
   "modal.optimized": "优化后（可编辑）",
@@ -99,7 +96,7 @@
   "settings.memoryFile.desc": "可直接查看和编辑 AI 整理的长期画像记忆。修改会在停止输入 0.5 秒后自动保存到 AI 文件夹的 memory/MEMORY.md。",
   "settings.memoryFile.placeholder": "记忆内容将在此处加载。若尚未生成，可稍后在后台自动整理完成。",
   "settings.aiFolderName.name": "数据存储路径",
-  "settings.aiFolderName.desc": "在 vault 根目录创建、用于存放记忆与 skill 的数据存储路径。修改后会自动把旧目录下的 skills/memory/sessions 迁移到新目录。",
+  "settings.aiFolderName.desc": "Vault 根目录下用于存放记忆与 skill 的数据文件夹名称。修改路径不会自动迁移旧目录的数据。",
 
   "settings.includeVaultIndex.name": "知识库索引",
   "settings.includeVaultIndex.desc": "将所有 Markdown 文件路径清单注入 system prompt，让 AI 知道库里有哪些文件。文件内容不会自动加载，只有在被附加或被消息点名时才会发送。",

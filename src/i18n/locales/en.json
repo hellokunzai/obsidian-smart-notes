@@ -14,9 +14,6 @@
   "notice.noteUpdated": "Vault Mind: note updated.",
   "notice.noSuggestion": "Vault Mind: no suggestion returned.",
   "notice.error": "Vault Mind: {error}",
-  "notice.aiFolderMigrated": "Vault Mind: migrated old data folder to \"{path}\".",
-  "notice.aiFolderMigrateFailed": "Vault Mind: data folder migration failed — {error}",
-
   "modal.title": "Optimize note (AI)",
   "modal.original": "Original (read-only)",
   "modal.optimized": "Optimized (editable)",
@@ -111,7 +108,7 @@
   "settings.defaultSkills.empty": "No skills found. Add .md files under the AI folder's skills/ directory (README.md is ignored).",
   "settings.defaultSkills.pathHint": "Current skill scan directory: {path}",
   "settings.aiFolderName.name": "Data storage path",
-  "settings.aiFolderName.desc": "Data storage path created at the vault root to store memory and skills. Changing it auto-migrates skills/memory/sessions from the old folder.",
+  "settings.aiFolderName.desc": "Name of the data folder (at the vault root) that stores memory and skills. Changing it does not auto-migrate old data.",
 
   "settings.section.web": "Web search",
   "settings.section.web.desc": "Configure web search backends available in chat.",

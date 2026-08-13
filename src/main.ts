@@ -13,7 +13,7 @@ import {
 } from "./editor/autoprompt";
 import { initI18n, t } from "./i18n";
 import { CHAT_VIEW_TYPE, ChatView } from "./view/chatView";
-import { ensureAiFolder, migrateAiFolder } from "./utils/aiFolder";
+import { ensureAiFolder } from "./utils/aiFolder";
 import { rebuildProfileMemory } from "./memory/profileMemory";
 
 const ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg>`;
@@ -22,8 +22,6 @@ export default class AiNoteAgentPlugin extends Plugin {
   settings: AiNoteAgentSettings;
   private provider!: AIProvider;
   private memoryRebuildTimeout?: number;
-  /** 上一次保存的 AI 数据目录名，用于检测用户是否修改了数据存储路径。 */
-  private lastAiFolderName: string = DEFAULT_SETTINGS.aiFolderName;
 
   async onload() {
     await this.loadSettings();
@@ -121,29 +119,10 @@ export default class AiNoteAgentPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    this.lastAiFolderName = this.settings.aiFolderName;
   }
 
   async saveSettings() {
-    const oldFolder = this.lastAiFolderName;
     await this.saveData(this.settings);
-
-    // 若用户修改了数据存储路径，自动迁移旧目录下的 skills/memory/sessions
-    if (this.settings.aiFolderName !== oldFolder) {
-      try {
-        await migrateAiFolder(this, oldFolder, this.settings.aiFolderName);
-        this.lastAiFolderName = this.settings.aiFolderName;
-        new Notice(t("notice.aiFolderMigrated", { path: this.settings.aiFolderName }));
-      } catch (e) {
-        console.error("Failed to migrate AI folder:", e);
-        new Notice(
-          t("notice.aiFolderMigrateFailed", {
-            error: (e as Error).message,
-          })
-        );
-      }
-    }
-
     this.provider = createProvider(this.settings);
   }
 
