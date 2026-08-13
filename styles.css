@@ -748,6 +748,12 @@ button.ana-settings-tab.is-active {
   margin-top: var(--size-4-3);
 }
 
+/* 全局「启用技能」关闭时，列表整体只读 */
+.ana-skills-list.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .ana-skills-table {
   width: 100%;
   border-collapse: collapse;

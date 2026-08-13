@@ -152,6 +152,11 @@ export class ChatView extends ItemView {
 
     this.renderLayout();
 
+    // 设置变更时刷新底部工具栏（如 🌐 按钮的启用/禁用态）
+    this.registerEvent(
+      this.plugin.settingsEvents.on("settings-changed", () => this.renderActions())
+    );
+
     if (this.sessions.length > 0) {
       new Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
     }
@@ -677,9 +682,19 @@ export class ChatView extends ItemView {
     this.attachBtn.classList.toggle("is-active", s.attachments.length > 0);
     this.skillBtn.classList.toggle("is-active", s.skills.length > 0);
 
+    // 全局关闭「启用技能」时隐藏 Skill 按钮，开启时才显示
+    this.skillBtn.style.display = this.plugin.settings.skillsEnabled ? "" : "none";
+
+    const globallyEnabled = this.plugin.settings.webSearchEnabled;
+    // 全局关闭时隐藏 🌐 按钮，开启时才显示
+    this.webToggleBtn.style.display = globallyEnabled ? "" : "none";
+
     const on = s.webSearch;
     this.webToggleBtn.classList.toggle("is-active", on);
-    this.webToggleBtn.setAttribute("title", on ? t("view.webOn") : t("view.webOff"));
+    this.webToggleBtn.setAttribute(
+      "title",
+      on ? t("view.webOn") : t("view.webOff")
+    );
   }
 
   private async toggleWebSearch(): Promise<void> {

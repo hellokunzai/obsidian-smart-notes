@@ -59,6 +59,8 @@ export interface AiNoteAgentSettings {
   includeVaultIndex: boolean;
   // 对话：单文件注入到上下文的内容字符上限（防止超大文件撑爆 token）
   chatContextMaxChars: number;
+  // 对话：是否启用 skill 功能（对话框「Skill 技能」按钮 + skill 内容注入）
+  skillsEnabled: boolean;
   // 对话：全局默认启用的 skill（skills/ 目录下的 .md 相对路径）；新会话继承此列表
   defaultSkills: string[];
   // ===== 联网搜索 =====
@@ -107,6 +109,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
     "职业\n技术栈\n输出偏好\n项目背景\n习惯\n重要事实\n待办事项",
   includeVaultIndex: true,
   chatContextMaxChars: 8000,
+  skillsEnabled: true,
   defaultSkills: [],
   webSearchEnabled: false,
   webSearchProvider: "tavily",
@@ -696,19 +699,31 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
   // ===== 标签页：联网搜索 =====
   private renderWebTab(bodyEl: HTMLElement): void {
+    let providerSetting: Setting | undefined;
+    let keysSetting: Setting | undefined;
+    let maxResultsSetting: Setting | undefined;
+    let maxCharsSetting: Setting | undefined;
+    let citationsSetting: Setting | undefined;
+    const webEnabled = this.plugin.settings.webSearchEnabled;
+
     new Setting(bodyEl)
       .setName(t("settings.webSearchEnabled.name"))
       .setDesc(t("settings.webSearchEnabled.desc"))
       .addToggle((t2) =>
         t2
-          .setValue(this.plugin.settings.webSearchEnabled)
+          .setValue(webEnabled)
           .onChange(async (v) => {
             this.plugin.settings.webSearchEnabled = v;
+            providerSetting?.setDisabled(!v);
+            keysSetting?.setDisabled(!v);
+            maxResultsSetting?.setDisabled(!v);
+            maxCharsSetting?.setDisabled(!v);
+            citationsSetting?.setDisabled(!v);
             await this.plugin.saveSettings();
           })
       );
 
-    new Setting(bodyEl)
+    providerSetting = new Setting(bodyEl)
       .setName(t("settings.webSearchProvider.name"))
       .setDesc(t("settings.webSearchProvider.desc"))
       .addDropdown((dd) =>
@@ -727,14 +742,15 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
             this.display();
           })
-      );
+      )
+      .setDisabled(!webEnabled);
 
     // 根据当前选中的 provider 显示对应的多凭据输入框
     const prov = this.plugin.settings.webSearchProvider;
-    const keySetting = new Setting(bodyEl)
+    keysSetting = new Setting(bodyEl)
       .setName(t(`settings.webKeys.${prov}.name`))
       .setDesc(t(`settings.webKeys.${prov}.desc`));
-    keySetting.addTextArea((ta) =>
+    keysSetting.addTextArea((ta) =>
       ta
         .setPlaceholder(t(`settings.webKeys.${prov}.placeholder`))
         .setValue(
@@ -759,9 +775,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         })
     );
-    (keySetting.components[0] as any)?.inputEl?.addClass("ana-settings-keys");
+    (keysSetting.components[0] as any)?.inputEl?.addClass("ana-settings-keys");
+    keysSetting.setDisabled(!webEnabled);
 
-    new Setting(bodyEl)
+    maxResultsSetting = new Setting(bodyEl)
       .setName(t("settings.webSearchMaxResults.name"))
       .setDesc(t("settings.webSearchMaxResults.desc"))
       .addText((t2) =>
@@ -775,9 +792,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               await this.plugin.saveSettings();
             }
           })
-      );
+      )
+      .setDisabled(!webEnabled);
 
-    new Setting(bodyEl)
+    maxCharsSetting = new Setting(bodyEl)
       .setName(t("settings.webSearchMaxChars.name"))
       .setDesc(t("settings.webSearchMaxChars.desc"))
       .addText((t2) =>
@@ -791,9 +809,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               await this.plugin.saveSettings();
             }
           })
-      );
+      )
+      .setDisabled(!webEnabled);
 
-    new Setting(bodyEl)
+    citationsSetting = new Setting(bodyEl)
       .setName(t("settings.webSearchShowCitations.name"))
       .setDesc(t("settings.webSearchShowCitations.desc"))
       .addToggle((t2) =>
@@ -803,13 +822,28 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             this.plugin.settings.webSearchShowCitations = v;
             await this.plugin.saveSettings();
           })
-      );
+      )
+      .setDisabled(!webEnabled);
   }
 
   // ===== 标签页：Skill 技能 =====
   private renderSkillsTab(bodyEl: HTMLElement): void {
     const plugin = this.plugin;
     let query = "";
+
+    // 顶层：启用技能 总开关
+    new Setting(bodyEl)
+      .setName(t("settings.skillsEnabled.name"))
+      .setDesc(t("settings.skillsEnabled.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(plugin.settings.skillsEnabled)
+          .onChange(async (v) => {
+            plugin.settings.skillsEnabled = v;
+            await plugin.saveSettings();
+            void renderSkillsList();
+          })
+      );
 
     // 顶层：刷新
     new Setting(bodyEl)
@@ -841,6 +875,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     const listContainer = bodyEl.createEl("div", { cls: "ana-skills-list" });
 
     const renderSkillsList = async (): Promise<void> => {
+      // 全局关闭「启用技能」时，列表整体变只读（半透明 + 禁止交互）
+      listContainer.toggleClass("is-disabled", !plugin.settings.skillsEnabled);
       listContainer.empty();
       listContainer.createEl("div", {
         text: t("settings.defaultSkills.loading"),
@@ -899,6 +935,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         const tdToggle = tr.createEl("td", { cls: "ana-skills-col-toggle" });
         const toggle = new ToggleComponent(tdToggle);
         toggle.setValue(plugin.settings.defaultSkills.includes(sk.path));
+        toggle.setDisabled(!plugin.settings.skillsEnabled);
         toggle.onChange(async (v) => {
           const arr = plugin.settings.defaultSkills.slice();
           const has = arr.includes(sk.path);

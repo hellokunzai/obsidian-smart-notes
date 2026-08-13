@@ -9,6 +9,7 @@ import {
   TextComponent,
   ButtonComponent,
   requestUrl,
+  Events,
   type RequestUrlResponse,
 } from "obsidian";
 import {
@@ -36,6 +37,8 @@ const ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 
 export default class AiNoteAgentPlugin extends Plugin {
   settings: AiNoteAgentSettings;
+  /** 设置变更事件总线（用于通知已打开的视图刷新 UI）。 */
+  settingsEvents = new Events();
   private provider!: AIProvider;
   private memoryRebuildTimeout?: number;
 
@@ -203,6 +206,8 @@ export default class AiNoteAgentPlugin extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
     this.provider = createProvider(this.settings);
+    // 通知已打开的视图（如对话面板）刷新依赖设置的 UI
+    this.settingsEvents.trigger("settings-changed");
   }
 
   private async runWithNotice(msg: string, fn: () => Promise<void>) {

@@ -156,6 +156,8 @@
 
   "settings.section.skills": "Skill 技能",
   "settings.section.skills.desc": "管理新对话默认启用的 AI skill。",
+  "settings.skillsEnabled.name": "启用技能",
+  "settings.skillsEnabled.desc": "在 AI 对话框显示「Skill 技能」按钮并允许注入 skill 内容。关闭后按钮隐藏，且下方列表仅可查看、不可勾选。",
   "settings.defaultSkills.desc": "Skill 是 AI 文件夹 skills/ 目录下的 .md 文件（指令、模板或参考资料）。在此勾选新对话默认启用的 skill。只有启用的 skill 内容才会发给 AI；未启用的仅以名字索引形式列出。",
   "settings.defaultSkills.loading": "正在加载 skill……",
   "settings.defaultSkills.empty": "未找到任何 skill。请在 AI 文件夹的 skills/ 目录下添加 .md 文件（README.md 会被忽略）。",

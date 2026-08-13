@@ -154,6 +154,8 @@
 
   "settings.section.skills": "Skills",
   "settings.section.skills.desc": "Manage AI skills enabled by default for new chats.",
+  "settings.skillsEnabled.name": "Enable skills",
+  "settings.skillsEnabled.desc": "Show the \"Skill\" button in the chat panel and allow skill content injection. When off, the button is hidden and the list below becomes view-only.",
   "settings.defaultSkills.desc": "Skills are .md files under the AI folder's skills/ directory (instructions, templates, or reference material). Toggle which skills are enabled by default for new chats. Only enabled skills' content is sent to the AI; inactive ones appear as a name-only index.",
   "settings.defaultSkills.loading": "Loading skills…",
   "settings.defaultSkills.empty": "No skills found. Add .md files under the AI folder's skills/ directory (README.md is ignored).",
