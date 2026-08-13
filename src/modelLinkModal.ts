@@ -26,7 +26,6 @@ export class ModelLinkModal extends Modal {
   private models: string[] = [];
   private maxTokens = "";
   private temperature = "";
-  private showApiKey = false;
 
   // 动态区域（随链接类型变化）与标签编辑器
   private dynamicEl!: HTMLElement;
@@ -124,37 +123,6 @@ export class ModelLinkModal extends Modal {
         });
       });
 
-    // 测试连接
-    new Setting(contentEl)
-      .setName(t("settings.test.name"))
-      .setDesc(t("settings.test.desc"))
-      .addButton((btn) => {
-        btn.setButtonText(t("settings.test.button"));
-        btn.onClick(async () => {
-          btn.setDisabled(true);
-          btn.setButtonText(t("settings.test.testing"));
-          try {
-            const link = this.buildLink("");
-            const provider = createProviderFromLink(link);
-            await provider.complete(
-              [
-                { role: "system", content: "You are a helpful assistant." },
-                { role: "user", content: "Reply only with ok." },
-              ],
-              { maxTokens: 10, temperature: 0 }
-            );
-            new Notice(t("settings.test.success"));
-          } catch (e) {
-            new Notice(
-              t("settings.test.failure", { error: (e as Error).message })
-            );
-          } finally {
-            btn.setDisabled(false);
-            btn.setButtonText(t("settings.test.button"));
-          }
-        });
-      });
-
     // 底部按钮
     const footer = contentEl.createEl("div", {
       cls: "ana-modal-button-row",
@@ -194,32 +162,66 @@ export class ModelLinkModal extends Modal {
 
       const keySetting = new Setting(this.dynamicEl)
         .setName(t("settings.openaiKey.name"))
-        .setDesc(t("settings.openaiKey.desc"))
-        .addText((tc: TextComponent) => {
-          tc.setPlaceholder("sk-...");
-          tc.setValue(this.apiKey);
-          tc.inputEl.type = this.showApiKey ? "text" : "password";
-          tc.onChange((v) => {
-            this.apiKey = v.trim();
-          });
-        });
+        .setDesc(t("settings.openaiKey.desc"));
 
-      // 显示 / 隐藏 API Key 的小按钮
-      const toggle = keySetting.controlEl.createEl("button", {
-        cls: "ana-model-link-btn",
-        text: this.showApiKey
-          ? t("settings.modelLinks.modal.hideKey")
-          : t("settings.modelLinks.modal.showKey"),
+      // 当前密钥状态提示
+      const keyHint = keySetting.controlEl.createEl("span", {
+        cls: "ana-model-link-key-hint",
       });
-      toggle.addEventListener("click", () => {
-        this.showApiKey = !this.showApiKey;
-        const input = keySetting.controlEl.querySelector(
-          "input"
-        ) as HTMLInputElement | null;
-        if (input) input.type = this.showApiKey ? "text" : "password";
-        toggle.textContent = this.showApiKey
-          ? t("settings.modelLinks.modal.hideKey")
-          : t("settings.modelLinks.modal.showKey");
+      keyHint.textContent = this.apiKey
+        ? t("settings.modelLinks.modal.keySet")
+        : t("settings.modelLinks.modal.keyNotSet");
+
+      // 按钮行：选择秘钥 + 测试连接
+      const btnRow = keySetting.controlEl.createEl("div", {
+        cls: "ana-model-link-key-btn-row",
+      });
+
+      // 选择秘钥按钮
+      const selectBtn = btnRow.createEl("button", {
+        cls: "ana-model-link-btn",
+        text: t("settings.modelLinks.modal.selectKey"),
+      });
+      selectBtn.addEventListener("click", () => {
+        new SecretPickerModal(
+          this.app,
+          this.apiKey,
+          (secret) => {
+            this.apiKey = secret;
+            keyHint.textContent = secret
+              ? t("settings.modelLinks.modal.keySet")
+              : t("settings.modelLinks.modal.keyNotSet");
+          }
+        ).open();
+      });
+
+      // 测试连接按钮
+      const testBtn = btnRow.createEl("button", {
+        cls: "ana-model-link-btn",
+        text: t("settings.test.button"),
+      });
+      testBtn.addEventListener("click", async () => {
+        testBtn.disabled = true;
+        testBtn.textContent = t("settings.test.testing");
+        try {
+          const link = this.buildLink("");
+          const provider = createProviderFromLink(link);
+          await provider.complete(
+            [
+              { role: "system", content: "You are a helpful assistant." },
+              { role: "user", content: "Reply only with ok." },
+            ],
+            { maxTokens: 10, temperature: 0 }
+          );
+          new Notice(t("settings.test.success"));
+        } catch (e) {
+          new Notice(
+            t("settings.test.failure", { error: (e as Error).message })
+          );
+        } finally {
+          testBtn.disabled = false;
+          testBtn.textContent = t("settings.test.button");
+        }
       });
     } else {
       new Setting(this.dynamicEl)
@@ -349,3 +351,262 @@ export class ModelLinkModal extends Modal {
     this.close();
   }
 }
+
+/**
+ * 秘钥选择弹窗：从 Obsidian 钥匙串（SecretStorage）中选择已有密钥。
+ * 样式对齐 Obsidian 设置页「钥匙串」列表：
+ *   - 顶部搜索框过滤
+ *   - 单选列表（名称 + 已选徽标 + 查看/删除按钮）
+ *   - 底部「添加密钥」+ 保存/取消
+ */
+export class SecretPickerModal extends Modal {
+  private selectedId: string | null = null;
+  private searchQuery = "";
+  private searchInput!: HTMLInputElement;
+  private listContainer!: HTMLElement;
+
+  constructor(
+    app: App,
+    private currentKey: string,
+    private onConfirm: (secret: string) => void
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("ana-model-link-modal");
+    contentEl.addClass("ana-secret-picker-modal");
+
+    // 标题
+    contentEl.createEl("h2", {
+      text: t("settings.modelLinks.modal.secretPicker.title"),
+    });
+
+    // 搜索框
+    const searchWrap = contentEl.createEl("div", {
+      cls: "ana-secret-picker-search",
+    });
+    this.searchInput = searchWrap.createEl("input", {
+      type: "text",
+      cls: "ana-secret-picker-search-input",
+    });
+    this.searchInput.placeholder =
+      t("settings.modelLinks.modal.secretPicker.search");
+    this.searchInput.addEventListener("input", () => {
+      this.searchQuery = this.searchInput.value.trim();
+      this.renderList();
+    });
+
+    // 密钥列表容器
+    this.listContainer = contentEl.createEl("div", {
+      cls: "ana-secret-picker-list",
+    });
+
+    // 如果当前已有关联密钥，尝试预选中（通过值匹配）
+    if (this.currentKey) {
+      const allIds = this.app.secretStorage.listSecrets();
+      for (const id of allIds) {
+        const val = this.app.secretStorage.getSecret(id);
+        if (val === this.currentKey) {
+          this.selectedId = id;
+          break;
+        }
+      }
+    }
+
+    this.renderList();
+
+    // 底部按钮行
+    const footer = contentEl.createEl("div", {
+      cls: "ana-secret-picker-footer",
+    });
+    // 左侧：添加密钥
+    const addBtn = footer.createEl("button", {
+      cls: "ana-secret-picker-add-btn",
+      text: t("settings.modelLinks.modal.secretPicker.addNew"),
+    });
+    addBtn.addEventListener("click", () => this.showAddSecret());
+    // 右侧：保存 + 取消
+    const btnGroup = footer.createEl("div", {
+      cls: "ana-secret-picker-btn-group",
+    });
+    new ButtonComponent(btnGroup)
+      .setButtonText(t("modal.cancel"))
+      .onClick(() => this.close());
+    const saveBtn = new ButtonComponent(btnGroup)
+      .setButtonText(t("settings.modelLinks.modal.secretPicker.confirm"))
+      .setCta()
+      .onClick(() => {
+        if (this.selectedId) {
+          const val = this.app.secretStorage.getSecret(this.selectedId);
+          this.onConfirm(val ?? "");
+        }
+        this.close();
+      });
+    saveBtn.disabled = !this.selectedId;
+
+    // 聚焦搜索框
+    setTimeout(() => this.searchInput.focus(), 50);
+  }
+
+  /** 渲染密钥列表（带搜索过滤）。 */
+  private renderList(): void {
+    this.listContainer.empty();
+    let ids = this.app.secretStorage.listSecrets();
+    const q = this.searchQuery.toLowerCase();
+    if (q) {
+      ids = ids.filter((id) => id.toLowerCase().includes(q));
+    }
+    if (ids.length === 0) {
+      this.listContainer.createEl("div", {
+        cls: "ana-secret-picker-empty",
+        text: q
+          ? t("settings.modelLinks.modal.secretPicker.noMatch")
+          : t("settings.modelLinks.modal.secretPicker.empty"),
+      });
+      return;
+    }
+    for (const id of ids) {
+      const row = this.listContainer.createEl("div", {
+        cls: "ana-secret-picker-row",
+      });
+      const isSelected = id === this.selectedId;
+
+      // 单选按钮
+      const radio = row.createEl("input", {
+        type: "radio",
+        cls: "ana-secret-picker-radio",
+      });
+      radio.name = "secret-picker";
+      radio.value = id;
+      radio.checked = isSelected;
+      radio.addEventListener("change", () => {
+        this.selectedId = id;
+        this.renderList();
+        // 启用保存按钮
+        const saveBtn = this.contentEl.querySelector(
+          ".ana-secret-picker-btn-group button:last-child"
+        ) as HTMLButtonElement | null;
+        if (saveBtn) saveBtn.disabled = false;
+      });
+
+      // 名称 + 徽标区
+      const info = row.createEl("div", { cls: "ana-secret-picker-info" });
+      info.createEl("span", { cls: "ana-secret-picker-name", text: id });
+      if (isSelected) {
+        info.createEl("span", {
+          cls: "ana-secret-picker-selected-badge",
+          text: t("settings.modelLinks.modal.secretPicker.selected"),
+        });
+      }
+
+      // 操作按钮：查看 + 删除
+      const actions = row.createEl("div", {
+        cls: "ana-secret-picker-actions",
+      });
+      // 查看（用 Notice 显示前几位）
+      const viewBtn = actions.createEl("button", {
+        cls: "ana-secret-picker-action-btn",
+        attr: { "aria-label": t("settings.modelLists.modal.secretPicker.view") },
+      });
+      viewBtn.innerHTML = SVG_EYE;
+      viewBtn.addEventListener("click", () => {
+        const val = this.app.secretStorage.getSecret(id);
+        if (val) {
+          const masked =
+            val.length > 8
+              ? val.slice(0, 6) + "..." + val.slice(-3)
+              : val;
+          new Notice(`${id}: ${masked}`, 8000);
+        } else {
+          new Notice(t("settings.modelLinks.modal.secretPicker.noValue"));
+        }
+      });
+      // 删除（设为空字符串来清除）
+      const delBtn = actions.createEl("button", {
+        cls: "ana-secret-picker-action-btn danger",
+        attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.delete") },
+      });
+      delBtn.innerHTML = SVG_TRASH;
+      delBtn.addEventListener("click", async () => {
+        try {
+          this.app.secretStorage.setSecret(id, "");
+          if (this.selectedId === id) this.selectedId = null;
+          this.renderList();
+          new Notice(t("settings.modelLinks.modal.secretPicker.deleted"));
+        } catch (e) {
+          new Notice(String(e));
+        }
+      });
+    }
+  }
+
+  /** 弹出简单输入框以添加新密钥到钥匙串。 */
+  private showAddSecret(): void {
+    const d = new Modal(this.app);
+    d.onOpen = () => {
+      const { contentEl: c } = d;
+      c.addClass("ana-model-link-modal");
+      c.createEl("h3", {
+        text: t("settings.modelLinks.modal.secretPicker.addNew"),
+      });
+      let nameVal = "";
+      let secretVal = "";
+      new Setting(c)
+        .setName(t("settings.modelLinks.modal.secretPicker.addName"))
+        .addText((tc) => {
+          tc.setPlaceholder("my-api-key");
+          tc.onChange((v) => {
+            nameVal = v.trim().toLowerCase();
+          });
+        });
+      new Setting(c)
+        .setName(t("settings.modelLinks.modal.secretPicker.addValue"))
+        .addText((tc) => {
+          tc.inputEl.type = "password";
+          tc.setPlaceholder("sk-...");
+          tc.onChange((v) => {
+            secretVal = v.trim();
+          });
+        });
+      const f = c.createEl("div", { cls: "ana-modal-button-row" });
+      new ButtonComponent(f)
+        .setButtonText(t("modal.cancel"))
+        .onClick(() => d.close());
+      new ButtonComponent(f)
+        .setButtonText(t("modal.save"))
+        .setCta()
+        .onClick(async () => {
+          if (!nameVal || !secretVal) return;
+          try {
+            this.app.secretStorage.setSecret(nameVal, secretVal);
+            this.selectedId = nameVal;
+            this.renderList();
+            d.close();
+            // 启用保存按钮
+            const saveBtn = this.contentEl.querySelector(
+              ".ana-secret-picker-btn-group button:last-child"
+            ) as HTMLButtonElement | null;
+            if (saveBtn) saveBtn.disabled = false;
+          } catch (e) {
+            new Notice(String(e));
+          }
+        });
+    };
+    d.open();
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+/** SVG 图标：眼睛（查看） */
+const SVG_EYE =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+/** SVG 图标：垃圾桶（删除） */
+const SVG_TRASH =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';

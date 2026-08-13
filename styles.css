@@ -982,4 +982,187 @@ button.ana-settings-tab.is-active {
   flex: 1;
 }
 
+/* API Key 区域：状态提示 + 按钮行 */
+.ana-model-link-key-hint {
+  font-size: var(--font-smallest);
+  color: var(--text-muted);
+  margin-right: var(--size-4-2);
+  white-space: nowrap;
+}
 
+.ana-model-link-key-btn-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+ * 秘钥选择弹窗（Obsidian 钥匙串列表样式）
+ * 对齐 Obsidian 设置 → 钥匙串 页面
+ * ============================================================ */
+
+.ana-secret-picker-modal {
+  --ana-sp-radius: var(--radius-s);
+  min-width: 480px;
+}
+
+/* 搜索框 */
+.ana-secret-picker-search {
+  margin-bottom: var(--size-4-2);
+}
+
+.ana-secret-picker-search-input {
+  width: 100%;
+  padding: var(--size-4-2) var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-normal);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+.ana-secret-picker-search-input:focus {
+  border-color: var(--interactive-accent);
+}
+.ana-secret-picker-search-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* 列表容器 */
+.ana-secret-picker-list {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+}
+
+/* 列表行（单选） */
+.ana-secret-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-3);
+  border-bottom: 1px solid var(--background-modifier-border-hover);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.ana-secret-picker-row:last-child {
+  border-bottom: none;
+}
+.ana-secret-picker-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 单选按钮 */
+.ana-secret-picker-radio {
+  flex-shrink: 0;
+  accent-color: var(--interactive-accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* 名称 + 徽标区 */
+.ana-secret-picker-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.ana-secret-picker-name {
+  font-size: var(--font-normal);
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「已选择」徽标 */
+.ana-secret-picker-selected-badge {
+  font-size: var(--font-xs);
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 操作按钮区（查看 / 删除） */
+.ana-secret-picker-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.ana-secret-picker-row:hover .ana-secret-picker-actions {
+  opacity: 1;
+}
+
+.ana-secret-picker-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.ana-secret-picker-action-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.ana-secret-picker-action-btn.danger:hover {
+  background: var(--background-modifier-error);
+  color: var(--text-error);
+}
+
+/* 空状态 */
+.ana-secret-picker-empty {
+  padding: var(--size-4-5) var(--size-4-3);
+  text-align: center;
+  color: var(--text-faint);
+  font-size: var(--font-small);
+}
+
+/* 底部栏：左侧添加 + 右侧保存/取消 */
+.ana-secret-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--size-4-3);
+  gap: var(--size-4-2);
+}
+
+.ana-secret-picker-add-btn {
+  padding: var(--size-4-1) var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-small);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.ana-secret-picker-add-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border-hover);
+}
+
+.ana-secret-picker-btn-group {
+  display: flex;
+  gap: var(--size-4-2);
+}
