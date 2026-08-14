@@ -1350,17 +1350,24 @@ class ModelPickerModal extends Modal {
     const filtered = q ? all.filter((i) => i.label.toLowerCase().includes(q)) : all;
 
     for (const item of filtered) {
-      const row = this.listEl.createEl("button", {
-        cls:
-          "ana-model-picker-row" +
-          (item.value === this.currentValue ? " is-selected" : ""),
-        attr: { type: "button" },
+      const isSelected = item.value === this.currentValue;
+      const row = this.listEl.createEl("div", {
+        cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
       });
 
-      // 模型名称
-      row.createSpan({ text: item.modelName, cls: "ana-model-picker-name" });
-      // 链接名
-      row.createSpan({ text: item.linkName, cls: "ana-model-picker-link" });
+      // 左侧：图标 + 链接名/模型名
+      const nameEl = row.createSpan({
+        text: `✨ ${item.label}`,
+        cls: "ana-picker-name",
+      });
+      void nameEl;
+
+      // 右侧：链接名（灰色路径风格）
+      const pathEl = row.createEl("span", {
+        text: item.linkName,
+        cls: "ana-picker-path",
+      });
+      void pathEl;
 
       row.addEventListener("click", () => {
         this.onSelect(item.value);

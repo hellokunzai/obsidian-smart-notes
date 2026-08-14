@@ -667,42 +667,10 @@ button.ana-settings-tab.is-active {
 }
 
 /* 模型选择器弹窗：单选列表行 */
-.ana-model-picker-row {
-  display: flex;
-  align-items: center;
-  gap: var(--size-4-2);
-  width: 100%;
-  padding: var(--size-4-2) var(--size-4-3);
-  border: none;
-  border-radius: var(--radius-s);
-  background: transparent;
-  color: var(--text-normal);
-  cursor: pointer;
-  text-align: left;
-  transition: background-color 0.12s ease;
-}
-
-.ana-model-picker-row:hover {
+/* 模型/Skill 选择弹窗行（复用 ana-picker-row 基础样式） */
+.ana-picker-row.is-selected {
   background: var(--background-modifier-hover);
-}
-
-.ana-model-picker-row.is-selected {
-  background: var(--interactive-accent-hover);
-  color: var(--interactive-accent);
   font-weight: var(--font-semibold);
-}
-
-.ana-model-picker-name {
-  font-size: var(--font-ui-small);
-  font-weight: var(--font-medium);
-  color: inherit;
-}
-
-.ana-model-picker-link {
-  margin-left: auto;
-  font-size: var(--font-smallest);
-  color: var(--text-faint);
-  flex-shrink: 0;
 }
 
 .ana-chat-send svg,
