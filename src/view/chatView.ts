@@ -229,7 +229,7 @@ export class ChatView extends ItemView {
 
     const footer = main.createEl("div", { cls: "ana-chat-footer" });
 
-    // 文件入口：位于输入框上方
+    // 文件入口：位于输入框上方（附件 / Skill / 联网搜索）
     const attachRow = footer.createEl("div", { cls: "ana-chat-attach-row" });
     this.attachBtn = attachRow.createEl("button", {
       cls: "ana-chat-action ana-chat-attach-action",
@@ -237,6 +237,22 @@ export class ChatView extends ItemView {
     });
     setIcon(this.attachBtn, "paperclip");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
+
+    // Skill 按钮（附件右侧）
+    this.skillBtn = attachRow.createEl("button", {
+      cls: "ana-chat-action",
+      attr: { "aria-label": t("view.manageSkills") },
+    });
+    setIcon(this.skillBtn, "puzzle");
+    this.skillBtn.addEventListener("click", () => this.openSkillPicker());
+
+    // 联网搜索开关（Skill 右侧）
+    this.webToggleBtn = attachRow.createEl("button", {
+      cls: "ana-chat-action",
+      attr: { "aria-label": t("view.webToggle") },
+    });
+    setIcon(this.webToggleBtn, "globe");
+    this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
 
     // 输入区：包裹层 + 底部操作栏
     const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
@@ -259,23 +275,8 @@ export class ChatView extends ItemView {
       }
     });
 
-    // 输入框内底部工具栏：左下角 Skill / 联网搜索，右下角发送
+    // 输入框内底部工具栏：右侧（模型选择 + 发送）
     const inputBar = this.inputWrapEl.createEl("div", { cls: "ana-chat-input-bar" });
-
-    const leftActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-left" });
-    this.skillBtn = leftActions.createEl("button", {
-      cls: "ana-chat-action",
-      attr: { "aria-label": t("view.manageSkills") },
-    });
-    setIcon(this.skillBtn, "puzzle");
-    this.skillBtn.addEventListener("click", () => this.openSkillPicker());
-
-    this.webToggleBtn = leftActions.createEl("button", {
-      cls: "ana-chat-action",
-      attr: { "aria-label": t("view.webToggle") },
-    });
-    setIcon(this.webToggleBtn, "globe");
-    this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
 
     // 右侧：模型选择 + 发送按钮
     const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
@@ -687,18 +688,22 @@ export class ChatView extends ItemView {
 
   // ================= 模型选择 =================
 
-  /** 渲染模型下拉框：从默认链接的 models 列表填充，默认选中第一个。 */
+  /** 渲染模型下拉框：展示所有链接的全部模型，格式「链接名称/模型名称」。 */
   private renderModelSelect(): void {
     const sel = this.modelSelectEl;
     sel.empty();
-    const link = getActiveModelLink(this.plugin.settings);
-    const models = link?.models ?? [];
-    if (models.length === 0) {
+    const links = this.plugin.settings.modelLinks;
+    if (links.length === 0) {
       sel.createEl("option", { text: t("view.noModel"), value: "" });
       return;
     }
-    for (const m of models) {
-      sel.createEl("option", { text: m, value: m });
+    for (const link of links) {
+      for (const m of link.models) {
+        sel.createEl("option", {
+          text: `${link.name}/${m}`,
+          value: `${link.id}|${m}`,
+        });
+      }
     }
     // 默认选中第一个
     if (sel.options.length > 0) sel.selectedIndex = 0;
@@ -864,14 +869,20 @@ export class ChatView extends ItemView {
     this.setInputDisabled(true);
 
     try {
-      // 用下拉框选中的模型创建 provider（默认链接 + 指定模型）
-      const link = getActiveModelLink(this.plugin.settings);
+      // 用下拉框选中的模型创建 provider（value 格式：linkId|modelName）
+      const raw = this.modelSelectEl.value || "";
+      const pipeIdx = raw.indexOf("|");
       let provider: import("../ai/provider").AIProvider;
-      if (link) {
-        const selectedModel = this.modelSelectEl.value || link.models[0] || "";
-        // 临时覆盖模型的链接副本
-        const linkWithModel = { ...link, models: [selectedModel] };
-        provider = createProviderFromLink(linkWithModel);
+      if (pipeIdx >= 0) {
+        const linkId = raw.slice(0, pipeIdx);
+        const modelName = raw.slice(pipeIdx + 1);
+        const link = this.plugin.settings.modelLinks.find((l) => l.id === linkId);
+        if (link) {
+          const linkWithModel = { ...link, models: [modelName] };
+          provider = createProviderFromLink(linkWithModel);
+        } else {
+          provider = this.plugin.getProvider();
+        }
       } else {
         provider = this.plugin.getProvider();
       }

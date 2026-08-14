@@ -422,6 +422,7 @@ button.ana-settings-tab.is-active {
 .ana-chat-attach-row {
   display: flex;
   align-items: center;
+  gap: var(--size-4-2);
   padding: 0 var(--size-4-1);
 }
 
@@ -508,18 +509,12 @@ button.ana-settings-tab.is-active {
   cursor: not-allowed;
 }
 
-/* 输入框内底部工具栏：左下角 Skill/联网搜索，右下角发送 */
+/* 输入框内底部工具栏：右侧模型选择 + 发送 */
 .ana-chat-input-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 4px var(--size-4-1);
-}
-
-.ana-chat-input-actions-left {
-  display: flex;
-  align-items: center;
-  gap: 2px;
 }
 
 /* 右侧操作区：模型选择 + 发送按钮 */
@@ -579,8 +574,7 @@ button.ana-settings-tab.is-active {
 /* 模型选择下拉框（输入栏右侧，发送按钮左侧） */
 .ana-chat-model-select {
   flex-shrink: 0;
-  max-width: 180px;
-  min-width: 80px;
+  width: 120px;
   height: 28px;
   padding: 0 var(--size-4-2);
   border: 1px solid var(--background-modifier-border);
