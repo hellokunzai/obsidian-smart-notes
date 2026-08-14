@@ -997,6 +997,29 @@ button.ana-settings-tab.is-active {
   flex-shrink: 0;
 }
 
+/* 模型链接弹窗：去除设置项之间的分隔线，仅保留两处 */
+.modal .ana-model-link-modal .setting-item,
+.ana-model-link-modal .setting-item,
+.ana-model-link-modal .setting-item:first-child {
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  padding-top: var(--size-4-2) !important;
+  padding-bottom: var(--size-4-2) !important;
+}
+
+/* 保留 ① 链接类型下方的分隔线 */
+.ana-model-link-modal > .setting-item:first-of-type {
+  border-bottom: 1px solid var(--background-modifier-border) !important;
+}
+
+/* 保留 ② 模型标签区域下方的分隔线（标签编辑器之后） */
+.ana-model-link-modal .ana-model-link-tags-editor {
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: var(--size-4-3);
+  padding-bottom: var(--size-4-2);
+}
+
 /* ============================================================
  * 秘钥选择弹窗（Obsidian 钥匙串列表样式）
  * 对齐 Obsidian 设置 → 钥匙串 页面
@@ -1055,6 +1078,26 @@ button.ana-settings-tab.is-active {
 }
 .ana-secret-picker-row:hover {
   background: var(--background-modifier-hover);
+}
+
+/* 展开查看密钥值时的行样式（保持横向布局，展开区域换行到下方） */
+.ana-secret-picker-row.is-expanded {
+  flex-wrap: wrap;
+  background: var(--background-secondary);
+}
+
+/* 行内展开的密钥值（占满整行宽度，自动换行到下一行） */
+.ana-secret-picker-expanded {
+  width: 100%;
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+  color: var(--text-normal);
+  background: var(--background-primary-alt);
+  padding: var(--size-4-2) var(--size-4-3);
+  border-radius: var(--radius-s);
+  word-break: break-all;
+  line-height: 1.5;
+  margin-top: var(--size-4-1);
 }
 
 /* 单选按钮 */

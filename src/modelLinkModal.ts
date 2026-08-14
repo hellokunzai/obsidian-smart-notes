@@ -366,6 +366,10 @@ export class SecretPickerModal extends Modal {
   private listContainer!: HTMLElement;
   /** 内联添加表单容器（搜索框下方、列表上方） */
   private addFormEl!: HTMLElement;
+  /** 保存按钮引用（原生按钮，确保点击事件可靠） */
+  private saveBtnEl!: HTMLButtonElement;
+  /** 当前展开查看的密钥 ID（null = 无展开） */
+  private expandedId: string | null = null;
 
   constructor(
     app: App,
@@ -435,24 +439,30 @@ export class SecretPickerModal extends Modal {
       text: t("settings.modelLinks.modal.secretPicker.addNew"),
     });
     addBtn.addEventListener("click", () => this.showAddSecret());
-    // 右侧：保存 + 取消
+    // 右侧：取消 + 保存（原生按钮确保点击可靠）
     const btnGroup = footer.createEl("div", {
       cls: "ana-secret-picker-btn-group",
     });
-    new ButtonComponent(btnGroup)
-      .setButtonText(t("modal.cancel"))
-      .onClick(() => this.close());
-    const saveBtn = new ButtonComponent(btnGroup)
-      .setButtonText(t("settings.modelLinks.modal.secretPicker.confirm"))
-      .setCta()
-      .onClick(() => {
-        if (this.selectedId) {
-          const val = this.app.secretStorage.getSecret(this.selectedId);
-          this.onConfirm(val ?? "");
-        }
-        this.close();
-      });
-    saveBtn.disabled = !this.selectedId;
+    const cancelBtn = btnGroup.createEl("button", {
+      cls: "ana-secret-picker-add-cancel",
+      text: t("modal.cancel"),
+    });
+    cancelBtn.addEventListener("click", () => this.close());
+
+    /** 保存按钮引用，供后续启用/禁用 */
+    this.saveBtnEl = btnGroup.createEl("button", {
+      cls: "ana-secret-picker-add-confirm",
+      text: t("settings.modelLinks.modal.secretPicker.confirm"),
+      attr: { type: "button" },
+    });
+    this.saveBtnEl.disabled = !this.selectedId;
+    this.saveBtnEl.addEventListener("click", () => {
+      if (this.selectedId) {
+        const val = this.app.secretStorage.getSecret(this.selectedId);
+        this.onConfirm(val ?? "");
+      }
+      this.close();
+    });
 
     // 聚焦搜索框
     setTimeout(() => this.searchInput.focus(), 50);
@@ -493,10 +503,7 @@ export class SecretPickerModal extends Modal {
         this.selectedId = id;
         this.renderList();
         // 启用保存按钮
-        const saveBtn = this.contentEl.querySelector(
-          ".ana-secret-picker-btn-group button:last-child"
-        ) as HTMLButtonElement | null;
-        if (saveBtn) saveBtn.disabled = false;
+        if (this.saveBtnEl) this.saveBtnEl.disabled = false;
       });
 
       // 名称 + 徽标区
@@ -513,24 +520,26 @@ export class SecretPickerModal extends Modal {
       const actions = row.createEl("div", {
         cls: "ana-secret-picker-actions",
       });
-      // 查看（用 Notice 显示前几位）
+      // 查看（行内展开密钥值）
       const viewBtn = actions.createEl("button", {
         cls: "ana-secret-picker-action-btn",
         attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.view") },
       });
       viewBtn.innerHTML = SVG_EYE;
       viewBtn.addEventListener("click", () => {
-        const val = this.app.secretStorage.getSecret(id);
-        if (val) {
-          const masked =
-            val.length > 8
-              ? val.slice(0, 6) + "..." + val.slice(-3)
-              : val;
-          new Notice(`${id}: ${masked}`, 8000);
-        } else {
-          new Notice(t("settings.modelLinks.modal.secretPicker.noValue"));
-        }
+        this.expandedId = this.expandedId === id ? null : id;
+        this.renderList();
       });
+
+      // 行内展开区域（显示完整密钥值）
+      if (this.expandedId === id) {
+        const val = this.app.secretStorage.getSecret(id);
+        const expandEl = row.createEl("div", {
+          cls: "ana-secret-picker-expanded",
+          text: val || t("settings.modelLinks.modal.secretPicker.noValue"),
+        });
+        row.addClass("is-expanded");
+      }
       // 删除（设为空字符串来清除）
       const delBtn = actions.createEl("button", {
         cls: "ana-secret-picker-action-btn danger",
@@ -606,10 +615,7 @@ export class SecretPickerModal extends Modal {
         this.hideAddForm();
         this.renderList();
         // 启用保存按钮
-        const saveBtn = this.contentEl.querySelector(
-          ".ana-secret-picker-btn-group button:last-child"
-        ) as HTMLButtonElement | null;
-        if (saveBtn) saveBtn.disabled = false;
+        if (this.saveBtnEl) this.saveBtnEl.disabled = false;
         new Notice(t("settings.modelLinks.modal.secretPicker.added"));
       } catch (e) {
         new Notice(String(e));
