@@ -1029,6 +1029,10 @@ button.ana-settings-tab.is-active {
   background: var(--background-modifier-hover);
   border-color: var(--interactive-accent);
 }
+/* 选中状态：星号图标填充实心 */
+.ana-model-link-action-btn.is-active svg {
+  fill: var(--interactive-accent);
+}
 
 .ana-model-link-action-btn.danger:hover {
   background: var(--background-modifier-error);
