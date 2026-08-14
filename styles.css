@@ -992,9 +992,61 @@ button.ana-settings-tab.is-active {
   -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
 }
 
+/* 模型链接/角色表格：操作列图标按钮（替代旧文字按钮） */
+.ana-model-link-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0 1px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  vertical-align: middle;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.ana-model-link-action-btn svg,
+.ana-model-link-action-btn .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.ana-model-link-action-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border);
+}
+
+.ana-model-link-action-btn.is-active {
+  color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+.ana-model-link-action-btn.danger:hover {
+  background: var(--background-modifier-error);
+  color: var(--text-error);
+  border-color: var(--background-modifier-error);
+}
+
+/* 操作列：固定宽度，右对齐 */
 .ana-model-link-col-actions {
-  width: 180px;
+  width: 100px;
   text-align: right;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* 表格列表容器：约束宽度，防止溢出 */
+.ana-model-link-list {
+  width: 100%;
 }
 
 .ana-model-link-name {
@@ -1396,4 +1448,100 @@ button.ana-settings-tab.is-active {
 .ana-secret-picker-add-cancel:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
+}
+
+/* ============================================================
+ * 移动端响应式：表格优化（≤600px 视口）
+ * ============================================================ */
+@media screen and (max-width: 600px) {
+  /* 表格容器：允许水平滚动 */
+  .ana-model-link-list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 模型链接/角色表格：紧凑化 */
+  .ana-model-link-table {
+    font-size: var(--font-smaller);
+    min-width: 100%;
+    table-layout: fixed;
+  }
+
+  .ana-model-link-table th,
+  .ana-model-link-table td {
+    padding: 8px 6px;
+  }
+
+  /* 名称列：自适应宽度，截断 */
+  .ana-model-link-table .ana-model-link-col-name {
+    width: 30%;
+  }
+  .ana-model-link-table .ana-model-link-col-name span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    max-width: 100%;
+  }
+
+  /* 类型列：移动端隐藏（含表头） */
+  .ana-model-link-table .ana-model-link-col-type {
+    display: none;
+  }
+
+  /* 模型列：限制宽度，截断 */
+  .ana-model-link-table .ana-model-link-col-models {
+    width: 45%;
+  }
+  .ana-model-link-table .ana-model-link-col-models span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    max-width: 100%;
+  }
+
+  /* 操作列：固定宽度，右对齐 */
+  .ana-model-link-table .ana-model-link-col-actions {
+    width: 25%;
+    min-width: 0;
+    text-align: right;
+  }
+
+  /* 图标按钮：移动端更小 */
+  .ana-model-link-action-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+  }
+
+  /* 默认徽章：缩小 */
+  .ana-model-link-default-badge {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+
+  /* Skill 表格同样处理 */
+  .ana-skills-table {
+    font-size: var(--font-smaller);
+    min-width: 100%;
+  }
+
+  .ana-skills-table th,
+  .ana-skills-table td {
+    padding: 8px 6px;
+  }
+
+  /* 路径列：移动端截断 */
+  .ana-skills-table .ana-skills-col-path {
+    max-width: 120px;
+  }
+
+  /* 名称列：截断 */
+  .ana-skills-table .ana-skills-col-name {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }

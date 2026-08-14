@@ -370,9 +370,9 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     });
     const thead = table.createEl("thead");
     const htr = thead.createEl("tr");
-    htr.createEl("th", { text: t("settings.modelLinks.table.name") });
-    htr.createEl("th", { text: t("settings.modelLinks.table.type") });
-    htr.createEl("th", { text: t("settings.modelLinks.table.models") });
+    htr.createEl("th", { cls: "ana-model-link-col-name", text: t("settings.modelLinks.table.name") });
+    htr.createEl("th", { cls: "ana-model-link-col-type", text: t("settings.modelLinks.table.type") });
+    htr.createEl("th", { cls: "ana-model-link-col-models", text: t("settings.modelLinks.table.models") });
     htr.createEl("th", {
       text: t("settings.modelLinks.table.actions"),
       cls: "ana-model-link-col-actions",
@@ -418,38 +418,43 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         }
       }
 
-      // 操作列
+      // 操作列（图标按钮）
       const tdActions = tr.createEl("td", {
         cls: "ana-model-link-col-actions",
       });
 
+      // 设为默认按钮
       const defaultBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-btn",
-        text: isDefault
-          ? t("settings.modelLinks.defaultActive")
-          : t("settings.modelLinks.setDefault"),
+        cls: "ana-model-link-action-btn" + (isDefault ? " is-active" : ""),
       });
-      defaultBtn.toggleClass("is-active", isDefault);
+      defaultBtn.setAttribute("aria-label", isDefault
+          ? t("settings.modelLinks.defaultActive")
+          : t("settings.modelLinks.setDefault"));
+      setIcon(defaultBtn, "star");
       defaultBtn.addEventListener("click", async () => {
         this.plugin.settings.defaultModelLinkId = link.id;
         await this.plugin.saveSettings();
         this.renderModelLinkList(container, query);
       });
 
+      // 编辑按钮
       const editBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-btn",
-        text: t("settings.modelLinks.edit"),
+        cls: "ana-model-link-action-btn",
       });
+      editBtn.setAttribute("aria-label", t("settings.modelLinks.edit"));
+      setIcon(editBtn, "pencil");
       editBtn.addEventListener("click", () => {
         new ModelLinkModal(this.app, this.plugin, link, () =>
           this.display()
         ).open();
       });
 
+      // 删除按钮
       const delBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-btn danger",
-        text: t("settings.modelLinks.delete"),
+        cls: "ana-model-link-action-btn danger",
       });
+      delBtn.setAttribute("aria-label", t("settings.modelLinks.delete"));
+      setIcon(delBtn, "trash");
       delBtn.addEventListener("click", async () => {
         this.plugin.settings.modelLinks =
           this.plugin.settings.modelLinks.filter((l) => l.id !== link.id);
@@ -511,38 +516,43 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         });
       }
 
-      // 操作列
+      // 操作列（图标按钮）
       const tdActions = tr.createEl("td", {
         cls: "ana-model-link-col-actions",
       });
 
+      // 设为默认按钮
       const defaultBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-btn",
-        text: isDefault
-          ? t("settings.roles.defaultActive")
-          : t("settings.roles.setDefault"),
+        cls: "ana-model-link-action-btn" + (isDefault ? " is-active" : ""),
       });
-      defaultBtn.toggleClass("is-active", isDefault);
+      defaultBtn.setAttribute("aria-label", isDefault
+          ? t("settings.roles.defaultActive")
+          : t("settings.roles.setDefault"));
+      setIcon(defaultBtn, "star");
       defaultBtn.addEventListener("click", async () => {
         this.plugin.settings.defaultRoleId = role.id;
         await this.plugin.saveSettings();
         this.renderRoleList(container, query);
       });
 
+      // 编辑按钮
       const editBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-btn",
-        text: t("settings.roles.edit"),
+        cls: "ana-model-link-action-btn",
       });
+      editBtn.setAttribute("aria-label", t("settings.roles.edit"));
+      setIcon(editBtn, "pencil");
       editBtn.addEventListener("click", () => {
         new RoleInfoModal(this.app, this.plugin, role, () =>
           this.display()
         ).open();
       });
 
+      // 删除按钮
       const delBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-btn danger",
-        text: t("settings.roles.delete"),
+        cls: "ana-model-link-action-btn danger",
       });
+      delBtn.setAttribute("aria-label", t("settings.roles.delete"));
+      setIcon(delBtn, "trash");
       delBtn.addEventListener("click", async () => {
         this.plugin.settings.roles = this.plugin.settings.roles.filter(
           (r) => r.id !== role.id
