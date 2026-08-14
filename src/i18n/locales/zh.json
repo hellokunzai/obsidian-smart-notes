@@ -86,6 +86,7 @@
   "settings.modelLinks.modal.temperatureDesc": "取值 0~2，越低越确定，越高越富创造性。留空则使用全局默认值。",
   "settings.modelLinks.modal.useGlobalDefault": "（使用全局默认）",
   "settings.modelLinks.modal.selectKey": "选择秘钥",
+  "settings.modelLinks.modal.modifyKey": "修改秘钥",
   "settings.modelLinks.modal.keySet": "已设置密钥",
   "settings.modelLinks.modal.keyNotSet": "未设置",
   "settings.modelLinks.modal.secretPicker.title": "选择密钥",

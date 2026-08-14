@@ -86,6 +86,7 @@
   "settings.modelLinks.modal.temperatureDesc": "Value 0–2; lower = more deterministic, higher = more creative. Leave empty to use global default.",
   "settings.modelLinks.modal.useGlobalDefault": "(use global default)",
   "settings.modelLinks.modal.selectKey": "Select secret",
+  "settings.modelLinks.modal.modifyKey": "Modify secret",
   "settings.modelLinks.modal.keySet": "Key set",
   "settings.modelLinks.modal.keyNotSet": "Not set",
   "settings.modelLinks.modal.secretPicker.title": "Select secret",

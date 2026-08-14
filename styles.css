@@ -1566,4 +1566,45 @@ button.ana-settings-tab.is-active {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  /* 模型链接弹窗：移动端优化 */
+  /* API Key 设置行：移动端堆叠（文字在上、按钮在下） */
+  .ana-model-link-modal .ana-setting-key-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .ana-model-link-modal .ana-setting-key-row .setting-item-control {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+  /* API Key 按钮行：移动端允许换行 */
+  .ana-model-link-key-btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .ana-model-link-key-btn-row button {
+    font-size: var(--font-smaller);
+  }
+
+  /* 模型名称输入行：垂直堆叠 */
+  .ana-model-link-input-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .ana-model-link-input-row input {
+    width: 100%;
+  }
+  .ana-model-link-input-row button {
+    width: 100%;
+  }
+
+  /* 标签编辑器：换行 */
+  .ana-model-link-tags-editor {
+    flex-wrap: wrap;
+  }
 }

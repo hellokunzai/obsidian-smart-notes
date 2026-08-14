@@ -162,35 +162,33 @@ export class ModelLinkModal extends Modal {
 
       const keySetting = new Setting(this.dynamicEl)
         .setName(t("settings.openaiKey.name"))
-        .setDesc(t("settings.openaiKey.desc"));
+        .setDesc(t("settings.openaiKey.desc"))
+        .setClass("ana-setting-key-row");
 
-      // 当前密钥状态提示
-      const keyHint = keySetting.controlEl.createEl("span", {
-        cls: "ana-model-link-key-hint",
-      });
-      keyHint.textContent = this.apiKey
-        ? t("settings.modelLinks.modal.keySet")
-        : t("settings.modelLinks.modal.keyNotSet");
-
-      // 按钮行：选择秘钥 + 测试连接
+      // 按钮行：选择/修改秘钥 + 测试连接（并排显示）
       const btnRow = keySetting.controlEl.createEl("div", {
         cls: "ana-model-link-key-btn-row",
       });
 
-      // 选择秘钥按钮
+      /** 根据当前密钥状态更新选择按钮文字 */
+      const updateSelectBtnText = () => {
+        selectBtn.textContent = this.apiKey
+          ? t("settings.modelLinks.modal.modifyKey")
+          : t("settings.modelLinks.modal.selectKey");
+      };
+
+      // 选择/修改秘钥按钮（动态文字）
       const selectBtn = btnRow.createEl("button", {
         cls: "ana-model-link-btn",
-        text: t("settings.modelLinks.modal.selectKey"),
       });
+      updateSelectBtnText();
       selectBtn.addEventListener("click", () => {
         new SecretPickerModal(
           this.app,
           this.apiKey,
           (secret) => {
             this.apiKey = secret;
-            keyHint.textContent = secret
-              ? t("settings.modelLinks.modal.keySet")
-              : t("settings.modelLinks.modal.keyNotSet");
+            updateSelectBtnText();
           }
         ).open();
       });
@@ -239,7 +237,8 @@ export class ModelLinkModal extends Modal {
     // 模型名称（多模型标签输入）
     const modelSetting = new Setting(this.dynamicEl)
       .setName(t("settings.modelLinks.modal.models"))
-      .setDesc(t("settings.modelLinks.modal.modelsDesc"));
+      .setDesc(t("settings.modelLinks.modal.modelsDesc"))
+      .setClass("ana-setting-textarea-full");
 
     // 输入行（标签右侧：输入框 + 添加按钮）
     const inputRow = modelSetting.controlEl.createEl("div", {
