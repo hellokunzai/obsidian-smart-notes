@@ -33,6 +33,8 @@
   "settings.test.testing": "Testing...",
   "settings.test.success": "Vault Mind: connection OK.",
   "settings.test.failure": "Vault Mind: connection failed — {error}",
+  "settings.test.noKey": "Select a secret first",
+  "settings.test.httpError": "HTTP status {status}",
 
   "settings.openaiKey.name": "API key",
   "settings.openaiKey.desc": "Stored locally in plugin data. Sent only to the Base URL you configure.",

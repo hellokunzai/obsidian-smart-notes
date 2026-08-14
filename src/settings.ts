@@ -9,9 +9,10 @@ import {
 } from "obsidian";
 import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
-import { ModelLinkModal } from "./modelLinkModal";
+import { ModelLinkModal, SecretPickerModal } from "./modelLinkModal";
 import { RoleInfoModal } from "./roleInfoModal";
 import { loadMemoryFile, saveMemoryFile, rebuildProfileMemory } from "./memory/profileMemory";
+import { WebSearchService } from "./search/search";
 import { listSkills, type SkillEntry } from "./skills/skills";
 import { getSkillsDir } from "./utils/aiFolder";
 
@@ -922,6 +923,34 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
   }
 
   // ===== 标签页：联网搜索 =====
+
+  /** 获取当前 provider 的第一个秘钥（兼容数组数据模型） */
+  private getCurrentWebKey(
+    prov: "tavily" | "serper" | "brave" | "searxng"
+  ): string {
+    const arr =
+      prov === "tavily"
+        ? this.plugin.settings.tavilyApiKeys
+        : prov === "serper"
+        ? this.plugin.settings.serperApiKeys
+        : prov === "brave"
+        ? this.plugin.settings.braveApiKeys
+        : this.plugin.settings.searxngInstances;
+    return arr.length > 0 ? arr[0] : "";
+  }
+
+  /** 设置当前 provider 的秘钥（替换整个数组为单元素） */
+  private setWebKey(
+    prov: "tavily" | "serper" | "brave" | "searxng",
+    secret: string
+  ): void {
+    const arr = secret ? [secret] : [];
+    if (prov === "tavily") this.plugin.settings.tavilyApiKeys = arr;
+    else if (prov === "serper") this.plugin.settings.serperApiKeys = arr;
+    else if (prov === "brave") this.plugin.settings.braveApiKeys = arr;
+    else this.plugin.settings.searxngInstances = arr;
+  }
+
   private renderWebTab(bodyEl: HTMLElement): void {
     let providerSetting: Setting | undefined;
     let keysSetting: Setting | undefined;
@@ -969,37 +998,77 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       )
       .setDisabled(!webEnabled);
 
-    // 根据当前选中的 provider 显示对应的多凭据输入框
+    // 根据当前选中的 provider 显示对应的秘钥选择按钮
     const prov = this.plugin.settings.webSearchProvider;
+    const currentWebKey = this.getCurrentWebKey(prov);
+
     keysSetting = new Setting(bodyEl)
       .setName(t(`settings.webKeys.${prov}.name`))
-      .setDesc(t(`settings.webKeys.${prov}.desc`));
-    keysSetting.addTextArea((ta) =>
-      ta
-        .setPlaceholder(t(`settings.webKeys.${prov}.placeholder`))
-        .setValue(
-          (prov === "tavily"
-            ? this.plugin.settings.tavilyApiKeys
-            : prov === "serper"
-            ? this.plugin.settings.serperApiKeys
-            : prov === "brave"
-            ? this.plugin.settings.braveApiKeys
-            : this.plugin.settings.searxngInstances
-          ).join("\n")
-        )
-        .onChange(async (v) => {
-          const arr = v
-            .split(/[\n,]/)
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0);
-          if (prov === "tavily") this.plugin.settings.tavilyApiKeys = arr;
-          else if (prov === "serper") this.plugin.settings.serperApiKeys = arr;
-          else if (prov === "brave") this.plugin.settings.braveApiKeys = arr;
-          else this.plugin.settings.searxngInstances = arr;
+      .setDesc(t(`settings.webKeys.${prov}.desc`))
+      .setClass("ana-setting-key-row");
+
+    // 按钮行：选择/修改秘钥
+    const webKeyBtnRow = keysSetting.controlEl.createEl("div", {
+      cls: "ana-model-link-key-btn-row",
+    });
+
+    const selectKeyBtn = webKeyBtnRow.createEl("button", {
+      cls: "ana-model-link-btn",
+      text: currentWebKey
+        ? t("settings.modelLinks.modal.modifyKey")
+        : t("settings.modelLinks.modal.selectKey"),
+    });
+    selectKeyBtn.addEventListener("click", () => {
+      // 每次点击都重新读取当前已保存的值，避免闭包引用初始渲染时的旧值
+      new SecretPickerModal(
+        this.app,
+        this.getCurrentWebKey(prov),
+        async (secret) => {
+          this.setWebKey(prov, secret);
+          selectKeyBtn.textContent = secret
+            ? t("settings.modelLinks.modal.modifyKey")
+            : t("settings.modelLinks.modal.selectKey");
           await this.plugin.saveSettings();
-        })
-    );
-    (keysSetting.components[0] as any)?.inputEl?.addClass("ana-settings-keys");
+        }
+      ).open();
+    });
+
+    // 测试连接按钮
+    const webTestBtn = webKeyBtnRow.createEl("button", {
+      cls: "ana-model-link-btn",
+      text: t("settings.test.button"),
+    });
+    webTestBtn.addEventListener("click", async () => {
+      const key = this.getCurrentWebKey(prov);
+      if (!key) {
+        new Notice(t("settings.test.noKey"));
+        return;
+      }
+      webTestBtn.disabled = true;
+      webTestBtn.textContent = t("settings.test.testing");
+      try {
+        const svc = new WebSearchService({
+          enabled: true,
+          provider: prov,
+          tavilyApiKeys: this.plugin.settings.tavilyApiKeys,
+          serperApiKeys: this.plugin.settings.serperApiKeys,
+          braveApiKeys: this.plugin.settings.braveApiKeys,
+          searxngInstances: this.plugin.settings.searxngInstances,
+          maxResults: this.plugin.settings.webSearchMaxResults,
+          maxCharsPerResult: this.plugin.settings.webSearchMaxCharsPerResult,
+        });
+        await svc.testConnection(prov, key);
+        new Notice(t("settings.test.success"));
+      } catch (e) {
+        new Notice(
+          t("settings.test.failure", { error: (e as Error).message })
+        );
+      } finally {
+        webTestBtn.disabled = false;
+        webTestBtn.textContent = t("settings.test.button");
+      }
+    });
+
     keysSetting.setDisabled(!webEnabled);
 
     maxResultsSetting = new Setting(bodyEl)

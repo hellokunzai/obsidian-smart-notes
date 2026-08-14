@@ -33,6 +33,8 @@
   "settings.test.testing": "测试中……",
   "settings.test.success": "Vault Mind：连接正常。",
   "settings.test.failure": "Vault Mind：连接失败 —— {error}",
+  "settings.test.noKey": "请先选择秘钥",
+  "settings.test.httpError": "HTTP 状态 {status}",
 
   "settings.openaiKey.name": "API Key",
   "settings.openaiKey.desc": "仅保存在本地插件数据中，只发送给你所配置的 Base URL。",

@@ -1,4 +1,5 @@
 import { requestUrl } from "obsidian";
+import { t } from "../i18n";
 
 /**
  * 联网搜索模块。
@@ -60,6 +61,7 @@ interface WebSearchProvider {
 /** Tavily：POST https://api.tavily.com/search */
 class TavilyProvider implements WebSearchProvider {
   async search(query: string, keys: string[], max: number): Promise<SearchResult[]> {
+    let lastErr: unknown = null;
     for (const key of keys) {
       try {
         const resp = await requestUrl({
@@ -74,8 +76,15 @@ class TavilyProvider implements WebSearchProvider {
             include_answer: false,
           }),
         });
-        if (resp.status !== 200) continue;
+        if (resp.status !== 200) {
+          lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
+          continue;
+        }
         const data = resp.json;
+        if (data?.error) {
+          lastErr = new Error(String(data.error));
+          continue;
+        }
         const results: any[] = data?.results ?? [];
         return results
           .map((r) => ({
@@ -84,10 +93,11 @@ class TavilyProvider implements WebSearchProvider {
             content: String(r.content ?? ""),
           }))
           .filter((r) => r.url);
-      } catch {
-        // 尝试下一个 key
+      } catch (e) {
+        lastErr = e;
       }
     }
+    if (lastErr) throw lastErr;
     return [];
   }
 }
@@ -95,6 +105,7 @@ class TavilyProvider implements WebSearchProvider {
 /** Serper：POST https://google.serper.dev/search + X-API-KEY */
 class SerperProvider implements WebSearchProvider {
   async search(query: string, keys: string[], max: number): Promise<SearchResult[]> {
+    let lastErr: unknown = null;
     for (const key of keys) {
       try {
         const resp = await requestUrl({
@@ -106,8 +117,15 @@ class SerperProvider implements WebSearchProvider {
           },
           body: JSON.stringify({ q: query, num: max }),
         });
-        if (resp.status !== 200) continue;
+        if (resp.status !== 200) {
+          lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
+          continue;
+        }
         const data = resp.json;
+        if (data?.error) {
+          lastErr = new Error(String(data.error));
+          continue;
+        }
         const organic: any[] = data?.organic ?? [];
         return organic
           .slice(0, max)
@@ -117,10 +135,11 @@ class SerperProvider implements WebSearchProvider {
             content: String(r.snippet ?? ""),
           }))
           .filter((r) => r.url);
-      } catch {
-        // 尝试下一个 key
+      } catch (e) {
+        lastErr = e;
       }
     }
+    if (lastErr) throw lastErr;
     return [];
   }
 }
@@ -128,6 +147,7 @@ class SerperProvider implements WebSearchProvider {
 /** Brave：GET https://api.search.brave.com/res/v1/web/search + X-Subscription-Token */
 class BraveProvider implements WebSearchProvider {
   async search(query: string, keys: string[], max: number): Promise<SearchResult[]> {
+    let lastErr: unknown = null;
     for (const key of keys) {
       try {
         const resp = await requestUrl({
@@ -140,8 +160,15 @@ class BraveProvider implements WebSearchProvider {
             "X-Subscription-Token": key,
           },
         });
-        if (resp.status !== 200) continue;
+        if (resp.status !== 200) {
+          lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
+          continue;
+        }
         const data = resp.json;
+        if (data?.error) {
+          lastErr = new Error(String(data.error));
+          continue;
+        }
         const web: any = data?.web ?? {};
         const items: any[] = web?.results ?? [];
         return items
@@ -152,10 +179,11 @@ class BraveProvider implements WebSearchProvider {
             content: String(r.description ?? ""),
           }))
           .filter((r) => r.url);
-      } catch {
-        // 尝试下一个 key
+      } catch (e) {
+        lastErr = e;
       }
     }
+    if (lastErr) throw lastErr;
     return [];
   }
 }
@@ -163,6 +191,7 @@ class BraveProvider implements WebSearchProvider {
 /** SearXNG：GET {instance}/search?format=json */
 class SearXNGProvider implements WebSearchProvider {
   async search(query: string, keys: string[], max: number): Promise<SearchResult[]> {
+    let lastErr: unknown = null;
     for (const base of keys) {
       const baseUrl = base.replace(/\/+$/, "");
       try {
@@ -171,8 +200,15 @@ class SearXNGProvider implements WebSearchProvider {
           method: "GET",
           headers: { Accept: "application/json" },
         });
-        if (resp.status !== 200) continue;
+        if (resp.status !== 200) {
+          lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
+          continue;
+        }
         const data = resp.json;
+        if (data?.error) {
+          lastErr = new Error(String(data.error));
+          continue;
+        }
         const items: any[] = data?.results ?? [];
         return items
           .slice(0, max)
@@ -182,10 +218,11 @@ class SearXNGProvider implements WebSearchProvider {
             content: String(r.content ?? r.snippet ?? ""),
           }))
           .filter((r) => r.url);
-      } catch {
-        // 尝试下一个实例
+      } catch (e) {
+        lastErr = e;
       }
     }
+    if (lastErr) throw lastErr;
     return [];
   }
 }
@@ -229,11 +266,33 @@ export class WebSearchService {
     const keys = this.keysForProvider(this.config.provider);
     if (keys.length === 0) return [];
     const provider = PROVIDERS[this.config.provider];
-    const results = await provider.search(query, keys, this.config.maxResults);
+    let results: SearchResult[];
+    try {
+      results = await provider.search(query, keys, this.config.maxResults);
+    } catch {
+      // 多凭据轮询：全部失败视为无结果
+      return [];
+    }
     const cap = this.config.maxCharsPerResult;
     return results.map((r) => ({
       ...r,
       content: r.content.length > cap ? r.content.slice(0, cap) + "…" : r.content,
     }));
+  }
+
+  /**
+   * 测试指定 provider 的单个凭据是否可用。
+   * 凭据无效（HTTP 非 200 / 响应含 error 字段 / 网络错误）时抛出带原因的错误；
+   * 凭据有效时返回 true。
+   */
+  async testConnection(
+    providerId: SearchProviderId,
+    key: string
+  ): Promise<boolean> {
+    if (!key) throw new Error(t("settings.test.noKey"));
+    const provider = PROVIDERS[providerId];
+    // provider.search 在凭据无效时会抛错，这里不吞掉，让其向上传播
+    await provider.search("test", [key], 1);
+    return true;
   }
 }
