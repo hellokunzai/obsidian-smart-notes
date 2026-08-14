@@ -408,6 +408,60 @@ button.ana-settings-tab.is-active {
   opacity: 0.5;
 }
 
+/* 当气泡内正在显示打字指示器时，隐藏默认的 "…" 占位 */
+.ana-chat-text.ana-chat-typing:empty::before {
+  content: none;
+}
+
+/* ==================== 打字指示器（思考中动画） ==================== */
+.ana-chat-typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-smaller);
+}
+
+.ana-chat-typing-text {
+  /* 「思考中」或 "Thinking…" 文字 */
+}
+
+.ana-chat-typing-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.ana-chat-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: ana-bounce 1.4s infinite ease-in-out both;
+}
+
+.ana-chat-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.ana-chat-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.ana-chat-typing-dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes ana-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ==================== 错误消息气泡样式 ==================== */
+.ana-chat-bubble-error {
+  background: var(--background-secondary) !important;
+  border-color: var(--background-modifier-error) !important;
+  color: var(--text-error) !important;
+}
+
 .ana-chat-footer {
   display: flex;
   flex-direction: column;

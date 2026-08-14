@@ -867,6 +867,8 @@ export class ChatView extends ItemView {
     const assistantContentEl = this.addAssistantMessage("");
     this.isStreaming = true;
     this.setInputDisabled(true);
+    // 显示加载动画（打字指示器）
+    this.showTypingIndicator(assistantContentEl);
 
     try {
       // 用下拉框选中的模型创建 provider（value 格式：linkId|modelName）
@@ -886,10 +888,16 @@ export class ChatView extends ItemView {
       } else {
         provider = this.plugin.getProvider();
       }
-      const reply = await provider.complete(messages, {
-        maxTokens: this.plugin.settings.maxTokens,
-        temperature: this.plugin.settings.temperature,
-      });
+      // 带超时的请求（默认 60 秒），避免不可达模型导致无限挂起
+      const reply = await this.withTimeout(
+        provider.complete(messages, {
+          maxTokens: this.plugin.settings.maxTokens,
+          temperature: this.plugin.settings.temperature,
+        }),
+        60_000
+      );
+      // 移除加载动画，设置实际回复内容
+      this.hideTypingIndicator(assistantContentEl);
       assistantContentEl.setText(reply);
 
       // 首条助手回复后，用首句 user 消息命名会话（仅当仍为默认标题）
@@ -907,7 +915,10 @@ export class ChatView extends ItemView {
       await this.persist();
       this.renderSessionList();
     } catch (e) {
+      this.hideTypingIndicator(assistantContentEl);
       assistantContentEl.setText(t("view.error", { error: (e as Error).message }));
+      // 给错误消息添加特殊样式，使其与正常回复区分
+      assistantContentEl.closest(".ana-chat-bubble")?.addClass("ana-chat-bubble-error");
       // 出错时回滚刚加入的用户消息，避免污染历史
       s!.messages.pop();
       s!.updatedAt = Date.now();
@@ -923,6 +934,33 @@ export class ChatView extends ItemView {
     this.sendBtn.disabled = disabled;
     this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
     setIcon(this.sendBtn, disabled ? "loader" : "send");
+  }
+
+  /** 给 Promise 添加超时限制，超时后 reject 以避免不可达模型导致 UI 无限挂起。 */
+  private withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(t("view.timeout")));
+      }, ms);
+      promise.then(
+        (value) => { clearTimeout(timer); resolve(value); },
+        (err) => { clearTimeout(timer); reject(err); }
+      );
+    });
+  }
+
+  /** 在助手消息气泡中显示「思考中」跳点动画。 */
+  private showTypingIndicator(contentEl: HTMLElement): void {
+    contentEl.addClass("ana-chat-typing");
+    contentEl.createEl("span", { cls: "ana-chat-typing-text", text: t("view.thinking") });
+    const dots = contentEl.createEl("span", { cls: "ana-chat-typing-dots" });
+    for (let i = 0; i < 3; i++) dots.createEl("span", { cls: "ana-chat-typing-dot" });
+  }
+
+  /** 移除助手消息气泡中的「思考中」跳点动画。 */
+  private hideTypingIndicator(contentEl: HTMLElement): void {
+    contentEl.removeClass("ana-chat-typing");
+    contentEl.empty();
   }
 
   /** 持久化会话：始终写 index.json；仅写已加载会话的独立文件（未加载的不覆盖磁盘）。 */
