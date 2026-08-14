@@ -4,22 +4,22 @@ const SYSTEM_JSON =
   "You are a knowledge-base assistant for Obsidian. You reply with valid JSON only, no prose, no markdown fences.";
 
 /**
- * 构造统一的 system prompt，并把用户在设置中填写的「自定义指令」注入其中。
- * 若 customInstructions 为空，则原样返回 base（无注入）。
- * @param customInstructions 用户自定义指令（可为空）
+ * 构造统一的 system prompt，并把用户在设置中选中的「默认角色」提示词注入其中。
+ * 若 rolePrompt 为空，则原样返回 base（无注入）。
+ * @param rolePrompt 默认角色提示词（可为空）
  * @param base 基础系统提示词；不传则使用通用助手提示
  */
 export function buildSystemPrompt(
-  customInstructions?: string,
+  rolePrompt?: string,
   base?: string
 ): string {
   const basePrompt =
     base && base.trim()
       ? base.trim()
       : "You are a helpful AI assistant embedded in Obsidian.";
-  const ci = (customInstructions || "").trim();
+  const ci = (rolePrompt || "").trim();
   if (!ci) return basePrompt;
-  return `${basePrompt}\n\n--- User custom instructions ---\n${ci}`;
+  return `${basePrompt}\n\n--- Role instructions ---\n${ci}`;
 }
 
 export function buildOptimizePrompt(

@@ -563,13 +563,20 @@ button.ana-settings-tab.is-active {
   cursor: not-allowed;
 }
 
-/* 输入框内底部工具栏：模型选择按钮(左) + 模型名标签(flex) + 发送按钮(右) */
+/* 输入框内底部工具栏：左侧模型/角色按钮 + 右侧模型名标签/发送按钮 */
 .ana-chat-input-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 4px;
   padding: 4px var(--size-4-1);
+}
+
+/* 左侧按钮组：模型选择 + 角色选择 */
+.ana-chat-input-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 /* 模型选择按钮（左） */
@@ -612,11 +619,13 @@ button.ana-settings-tab.is-active {
   -webkit-user-select: text;
 }
 
-/* 右侧操作区：模型选择 + 发送按钮 */
+/* 右侧操作区：模型名标签 + 发送按钮 */
 .ana-chat-input-actions-right {
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 /* 图标按钮：按钮尺寸还原，仅放大内部图标 */

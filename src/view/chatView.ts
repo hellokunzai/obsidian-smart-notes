@@ -13,6 +13,7 @@ import type AiNoteAgentPlugin from "../main";
 import { t } from "../i18n";
 import { ChatMessage } from "../ai/provider";
 import { buildSystemPrompt } from "../ai/prompt";
+import { getActiveRolePrompt } from "../settings";
 import {
   loadSessionsIndex,
   loadSessionFile,
@@ -61,12 +62,16 @@ export class ChatView extends ItemView {
   private webToggleBtn!: HTMLButtonElement;
   private attachBtn!: HTMLButtonElement;
   private skillBtn!: HTMLButtonElement;
+  /** 角色选择按钮（点击弹出选择弹窗） */
+  private roleBtn!: HTMLButtonElement;
   /** 模型选择按钮（点击弹出选择弹窗） */
   private modelBtn!: HTMLButtonElement;
   /** 当前选中的模型显示标签（位于模型按钮与发送按钮之间） */
   private modelLabelEl!: HTMLElement;
   /** 当前选中的模型值（格式 linkId|modelName，与旧 select.value 一致） */
   private selectedModelValue = "";
+  /** 当前选中的角色 id（仅影响当前对话视图，不保存为全局默认） */
+  private selectedRoleId = "";
 
   private isStreaming = false;
   private sidebarCollapsed = true;
@@ -156,6 +161,9 @@ export class ChatView extends ItemView {
         }
       }
     }
+
+    // 初始化当前选中的模型与角色为全局默认值
+    this.initDefaultModelAndRole();
 
     this.renderLayout();
 
@@ -279,16 +287,27 @@ export class ChatView extends ItemView {
       }
     });
 
-    // 输入框内底部工具栏：模型选择（左）+ 模型名标签 + 发送（右）
+    // 输入框内底部工具栏：模型/角色选择（左）+ 模型名标签 + 发送（右）
     const inputBar = this.inputWrapEl.createEl("div", { cls: "ana-chat-input-bar" });
 
-    // 左侧：模型选择按钮
-    this.modelBtn = inputBar.createEl("button", {
+    // 左侧按钮组：模型选择 + 角色选择
+    const leftActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-left" });
+
+    // 模型选择按钮
+    this.modelBtn = leftActions.createEl("button", {
       cls: "ana-chat-model-btn",
       attr: { "aria-label": t("view.modelSelect") },
     });
     setIcon(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
+
+    // 角色选择按钮
+    this.roleBtn = leftActions.createEl("button", {
+      cls: "ana-chat-model-btn",
+      attr: { "aria-label": t("view.roleSelect") },
+    });
+    setIcon(this.roleBtn, "user");
+    this.roleBtn.addEventListener("click", () => void this.openRolePicker());
 
     // 右侧：模型名称标签 + 发送按钮
     const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
@@ -699,7 +718,37 @@ export class ChatView extends ItemView {
 
   // ================= 模型选择 =================
 
-  /** 渲染模型选择状态：更新标签文本显示当前选中模型。 */
+  /** 打开对话框时，将当前模型与角色初始化为全局默认值。 */
+  private initDefaultModelAndRole(): void {
+    const { settings } = this.plugin;
+
+    // 默认模型
+    const link = settings.modelLinks.find(
+      (l) => l.id === settings.defaultModelLinkId
+    );
+    if (link && link.models.length > 0) {
+      this.selectedModelValue = `${link.id}|${link.models[0]}`;
+    } else if (settings.modelLinks.length > 0) {
+      const first = settings.modelLinks[0];
+      this.selectedModelValue = `${first.id}|${first.models[0]}`;
+    } else {
+      this.selectedModelValue = "";
+    }
+
+    // 默认角色：以全局默认角色为初始选中，无效则兜底到第一个（仅当前视图，不写全局）
+    if (
+      settings.roles.length > 0 &&
+      settings.roles.some((r) => r.id === settings.defaultRoleId)
+    ) {
+      this.selectedRoleId = settings.defaultRoleId;
+    } else if (settings.roles.length > 0) {
+      this.selectedRoleId = settings.roles[0].id;
+    } else {
+      this.selectedRoleId = "";
+    }
+  }
+
+  /** 渲染模型选择状态：更新标签文本显示当前选中模型与角色。 */
   private renderModelSelect(): void {
     const links = this.plugin.settings.modelLinks;
     if (links.length === 0 || !this.selectedModelValue) {
@@ -714,11 +763,16 @@ export class ChatView extends ItemView {
     const linkId = this.selectedModelValue.slice(0, pipeIdx);
     const modelName = this.selectedModelValue.slice(pipeIdx + 1);
     const link = links.find((l) => l.id === linkId);
-    if (link) {
-      this.modelLabelEl.setText(modelName);
-    } else {
-      this.modelLabelEl.setText(modelName);
+    if (!link || !link.models.includes(modelName)) {
+      this.modelLabelEl.setText(t("view.noModel"));
+      return;
     }
+
+    const role = this.plugin.settings.roles.find(
+      (r) => r.id === this.selectedRoleId
+    );
+    const roleName = role ? role.name : t("view.noRole");
+    this.modelLabelEl.setText(`${modelName}/${roleName}`);
   }
 
   /** 打开模型选择弹窗。 */
@@ -729,6 +783,21 @@ export class ChatView extends ItemView {
       this.selectedModelValue,
       (value) => {
         this.selectedModelValue = value;
+        this.renderModelSelect();
+      }
+    ).open();
+  }
+
+  // ================= 角色选择 =================
+
+  /** 打开角色选择弹窗。 */
+  private openRolePicker(): void {
+    new RolePickerModal(
+      this.plugin.app,
+      this.plugin,
+      this.selectedRoleId,
+      (roleId) => {
+        this.selectedRoleId = roleId;
         this.renderModelSelect();
       }
     ).open();
@@ -1022,7 +1091,10 @@ export class ChatView extends ItemView {
   private async buildSystem(): Promise<string> {
     const base =
       "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise. Note: you can see the vault's file paths and available skill names via the knowledge base index / skill index, but file/skill contents are only provided when the user explicitly attaches them, references them, or activates them.";
-    const sys = buildSystemPrompt(this.plugin.settings.customInstructions, base);
+    const sys = buildSystemPrompt(
+      getActiveRolePrompt(this.plugin.settings, this.selectedRoleId),
+      base
+    );
     const parts: string[] = [sys];
 
     if (this.plugin.settings.includeVaultIndex) {
@@ -1371,6 +1443,106 @@ class ModelPickerModal extends Modal {
 
       row.addEventListener("click", () => {
         this.onSelect(item.value);
+        this.close();
+      });
+    }
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+/**
+ * 角色选择器：列出所有角色，支持搜索与单选。
+ * 选中后仅更新当前对话的角色（selectedRoleId），不写全局默认。
+ */
+class RolePickerModal extends Modal {
+  private plugin: AiNoteAgentPlugin;
+  private currentId: string;
+  private onSelect: (roleId: string) => void;
+  private listEl!: HTMLElement;
+  private searchEl!: HTMLInputElement;
+
+  constructor(
+    app: import("obsidian").App,
+    plugin: AiNoteAgentPlugin,
+    currentId: string,
+    onSelect: (roleId: string) => void
+  ) {
+    super(app);
+    this.plugin = plugin;
+    this.currentId = currentId;
+    this.onSelect = onSelect;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("ana-picker");
+    this.titleEl.setText(t("view.rolePicker.title"));
+
+    contentEl.createEl("p", {
+      text: t("view.rolePicker.desc"),
+      cls: "ana-picker-desc",
+    });
+
+    this.searchEl = contentEl.createEl("input", {
+      cls: "ana-picker-search",
+      attr: { type: "text", placeholder: t("view.rolePicker.searchPlaceholder") },
+    });
+    this.searchEl.addEventListener("input", () => this.renderList());
+
+    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+    this.renderList();
+
+    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new ButtonComponent(btns)
+      .setButtonText(t("modal.cancel"))
+      .onClick(() => this.close());
+
+    this.scope.register([], "Escape", () => this.close());
+  }
+
+  private renderList(): void {
+    this.listEl.empty();
+    const roles = this.plugin.settings.roles;
+    const currentId = this.currentId;
+
+    if (roles.length === 0) {
+      this.listEl.createEl("div", {
+        text: t("view.rolePicker.empty"),
+        cls: "ana-picker-empty",
+      });
+      return;
+    }
+
+    const q = this.searchEl.value.trim().toLowerCase();
+    const filtered = q
+      ? roles.filter((r) => r.name.toLowerCase().includes(q))
+      : roles;
+
+    if (filtered.length === 0) {
+      this.listEl.createEl("div", {
+        text: t("view.rolePicker.noResults"),
+        cls: "ana-picker-empty",
+      });
+      return;
+    }
+
+    for (const role of filtered) {
+      const isSelected = role.id === currentId;
+      const row = this.listEl.createEl("div", {
+        cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
+      });
+
+      row.createSpan({
+        text: role.name,
+        cls: "ana-picker-name",
+      });
+
+      row.addEventListener("click", () => {
+        this.onSelect(role.id);
         this.close();
       });
     }

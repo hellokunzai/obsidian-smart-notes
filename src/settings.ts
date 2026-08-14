@@ -10,6 +10,7 @@ import {
 import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
 import { ModelLinkModal } from "./modelLinkModal";
+import { RoleInfoModal } from "./roleInfoModal";
 import { loadMemoryFile, saveMemoryFile, rebuildProfileMemory } from "./memory/profileMemory";
 import { listSkills, type SkillEntry } from "./skills/skills";
 import { getSkillsDir } from "./utils/aiFolder";
@@ -32,9 +33,34 @@ export interface ModelLink {
   temperature?: number;
 }
 
-/** 生成短随机 id，用于模型链接唯一标识。 */
+/** 生成短随机 id，用于模型链接 / 角色信息唯一标识。 */
 export function genId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+/** 一条角色信息：名称 + 提示词，可设为默认并注入所有 AI 功能的 system prompt。 */
+export interface RoleInfo {
+  id: string;
+  /** 角色名称，用户可见且不可重复。 */
+  name: string;
+  /** 角色提示词（立场 / 语气 / 职责描述），注入 system prompt。 */
+  prompt: string;
+}
+
+/**
+ * 取角色提示词；未传入 roleId 时取全局默认角色，传入时取指定角色。
+ * 未配置对应角色时返回空串。用于把角色设定注入 system prompt。
+ * @param settings 设置对象
+ * @param roleId 可选，指定角色 id；不传则使用全局默认角色（settings.defaultRoleId）
+ */
+export function getActiveRolePrompt(
+  settings: AiNoteAgentSettings,
+  roleId?: string
+): string {
+  const id = roleId ?? settings.defaultRoleId;
+  if (!id) return "";
+  const role = settings.roles.find((r) => r.id === id);
+  return role ? role.prompt : "";
 }
 
 export interface AiNoteAgentSettings {
@@ -74,8 +100,6 @@ export interface AiNoteAgentSettings {
   fetchWebContentImageLinkType: "shortest" | "relative" | "absolute";
   // 拉取网页时图片引用的内部链接格式
   fetchWebContentImageLinkFormat: "wikilink" | "markdown";
-  // 自定义指令：注入到所有 AI 功能的 system prompt
-  customInstructions: string;
   // vault 根目录中用于存放记忆与 skill 的文件夹名称
   aiFolderName: string;
   // 长期画像记忆：总开关（关闭后不整理、不注入）
@@ -106,6 +130,11 @@ export interface AiNoteAgentSettings {
   webSearchMaxCharsPerResult: number;
   // 是否在 prompt 中要求 AI 用 [n] 标注来源
   webSearchShowCitations: boolean;
+  // ===== 角色信息 =====
+  // 取代旧的单一 customInstructions（系统指令）；支持多条角色，任选其一作为默认
+  roles: RoleInfo[];
+  // 当前默认角色 id（其提示词注入所有 AI 功能）；为空表示不注入任何角色
+  defaultRoleId: string;
 }
 
 export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
@@ -132,7 +161,6 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   fetchWebContentSaveImages: false,
   fetchWebContentImageLinkType: "shortest",
   fetchWebContentImageLinkFormat: "wikilink",
-  customInstructions: "",
   aiFolderName: ".vaultmind",
   memoryProfileEnabled: true,
   memoryProfileCategories:
@@ -150,6 +178,8 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   webSearchMaxResults: 5,
   webSearchMaxCharsPerResult: 1500,
   webSearchShowCitations: true,
+  roles: [],
+  defaultRoleId: "",
 };
 
 interface SettingsSection {
@@ -163,6 +193,8 @@ interface SettingsSection {
 export class AiNoteAgentSettingTab extends PluginSettingTab {
   plugin: AiNoteAgentPlugin;
   private memorySaveTimer: number | null = null;
+  /** 当前设置页选中的 tab 索引，display() 重绘后恢复，避免弹窗操作后跳回第一页。 */
+  private activeTabIndex = 0;
 
   constructor(app: App, plugin: AiNoteAgentPlugin) {
     super(app, plugin);
@@ -172,6 +204,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    const previousActiveIndex = this.activeTabIndex;
 
     const sections: SettingsSection[] = [
       {
@@ -222,6 +255,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
     const activate = (idx: number) => {
       activeIndex = idx;
+      this.activeTabIndex = idx;
       tabButtons.forEach((btn, i) => {
         btn.toggleClass("is-active", i === idx);
       });
@@ -249,7 +283,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       panels.push(panel);
     });
 
-    activate(0);
+    activate(previousActiveIndex);
   }
 
   // ===== 标签页：模型配置 =====
@@ -429,25 +463,102 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     }
   }
 
-  // ===== 标签页：会话与记忆 =====
-  private renderMemoryChatTab(bodyEl: HTMLElement): void {
-    // --- 系统指令 ---
-    this.createGroupHeader(bodyEl, "settings.memoryGroup.system");
+  /**
+   * 渲染角色信息列表（表格样式，支持按名称搜索过滤）。
+   * 表头：名称 | 提示词摘要 | 操作（设为默认 / 编辑 / 删除）
+   */
+  private renderRoleList(container: HTMLElement, query: string): void {
+    container.empty();
+    const roles = this.plugin.settings.roles;
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? roles.filter((r) => r.name.toLowerCase().includes(q))
+      : roles;
 
-    new Setting(bodyEl)
-      .setName(t("settings.customInstructions.name"))
-      .setDesc(t("settings.customInstructions.desc"))
-      .addTextArea((ta) => {
-        ta
-          .setPlaceholder(t("settings.customInstructions.placeholder"))
-          .setValue(this.plugin.settings.customInstructions)
-          .onChange(async (v) => {
-            this.plugin.settings.customInstructions = v;
-            await this.plugin.saveSettings();
-          });
-        ta.inputEl.rows = 3;
+    if (filtered.length === 0) {
+      container.createEl("div", {
+        cls: "ana-model-link-empty",
+        text: q
+          ? t("settings.roles.searchNoResults")
+          : t("settings.roles.empty"),
+      });
+      return;
+    }
+
+    const table = container.createEl("table", {
+      cls: "ana-model-link-table",
+    });
+    const thead = table.createEl("thead");
+    const htr = thead.createEl("tr");
+    htr.createEl("th", { text: t("settings.roles.table.name") });
+    htr.createEl("th", {
+      text: t("settings.roles.table.actions"),
+      cls: "ana-model-link-col-actions",
+    });
+
+    const tbody = table.createEl("tbody");
+    for (const role of filtered) {
+      const tr = tbody.createEl("tr");
+      const isDefault = role.id === this.plugin.settings.defaultRoleId;
+
+      // 名称列（含默认徽标）
+      const tdName = tr.createEl("td", { cls: "ana-model-link-col-name" });
+      tdName.createEl("span", { cls: "ana-model-link-name", text: role.name });
+      if (isDefault) {
+        tdName.createEl("span", {
+          cls: "ana-model-link-default-badge",
+          text: t("settings.roles.defaultBadge"),
+        });
+      }
+
+      // 操作列
+      const tdActions = tr.createEl("td", {
+        cls: "ana-model-link-col-actions",
       });
 
+      const defaultBtn = tdActions.createEl("button", {
+        cls: "ana-model-link-btn",
+        text: isDefault
+          ? t("settings.roles.defaultActive")
+          : t("settings.roles.setDefault"),
+      });
+      defaultBtn.toggleClass("is-active", isDefault);
+      defaultBtn.addEventListener("click", async () => {
+        this.plugin.settings.defaultRoleId = role.id;
+        await this.plugin.saveSettings();
+        this.renderRoleList(container, query);
+      });
+
+      const editBtn = tdActions.createEl("button", {
+        cls: "ana-model-link-btn",
+        text: t("settings.roles.edit"),
+      });
+      editBtn.addEventListener("click", () => {
+        new RoleInfoModal(this.app, this.plugin, role, () =>
+          this.display()
+        ).open();
+      });
+
+      const delBtn = tdActions.createEl("button", {
+        cls: "ana-model-link-btn danger",
+        text: t("settings.roles.delete"),
+      });
+      delBtn.addEventListener("click", async () => {
+        this.plugin.settings.roles = this.plugin.settings.roles.filter(
+          (r) => r.id !== role.id
+        );
+        if (this.plugin.settings.defaultRoleId === role.id) {
+          this.plugin.settings.defaultRoleId =
+            this.plugin.settings.roles[0]?.id ?? "";
+        }
+        await this.plugin.saveSettings();
+        this.display();
+      });
+    }
+  }
+
+  // ===== 标签页：会话与记忆 =====
+  private renderMemoryChatTab(bodyEl: HTMLElement): void {
     // --- 知识库 ---
     this.createGroupHeader(bodyEl, "settings.memoryGroup.knowledge");
 
@@ -540,6 +651,41 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         });
       })
       .setDisabled(!this.plugin.settings.memoryProfileEnabled);
+
+    // --- 角色信息 ---
+    this.createGroupHeader(bodyEl, "settings.roles.title");
+
+    // 添加角色按钮
+    new Setting(bodyEl)
+      .setName(t("settings.roles.add.name"))
+      .setDesc(t("settings.roles.add.desc"))
+      .addButton((btn) => {
+        btn.setButtonText(t("settings.roles.add.button")).setCta();
+        btn.onClick(() => {
+          new RoleInfoModal(this.app, this.plugin, null, () =>
+            this.display()
+          ).open();
+        });
+      });
+
+    // 搜索框
+    let roleSearchQuery = "";
+    new Setting(bodyEl)
+      .setName(t("settings.roles.search.name"))
+      .setDesc(t("settings.roles.search.desc"))
+      .addText((input) => {
+        input.setPlaceholder(t("settings.roles.search.placeholder"));
+        input.onChange((v) => {
+          roleSearchQuery = v;
+          this.renderRoleList(roleListContainer, roleSearchQuery);
+        });
+      });
+
+    // 列表容器
+    const roleListContainer = bodyEl.createEl("div", {
+      cls: "ana-model-link-list",
+    });
+    this.renderRoleList(roleListContainer, "");
   }
 
   // ===== 标签页：交互设置 =====

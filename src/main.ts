@@ -243,6 +243,31 @@ export default class AiNoteAgentPlugin extends Plugin {
     ) {
       this.settings.defaultModelLinkId = this.settings.modelLinks[0].id;
     }
+
+    // 迁移：旧的单一 customInstructions（系统指令）→ 单条「默认角色」
+    if (!this.settings.roles || this.settings.roles.length === 0) {
+      const legacy = loaded.customInstructions;
+      if (legacy && legacy.trim()) {
+        const role = {
+          id: genId(),
+          name: t("settings.roles.legacyName"),
+          prompt: legacy.trim(),
+        };
+        this.settings.roles = [role];
+        this.settings.defaultRoleId = role.id;
+      } else {
+        this.settings.roles = [];
+        this.settings.defaultRoleId = "";
+      }
+    }
+
+    // 兜底：defaultRoleId 指向不存在的角色时，回退到列表第一个
+    if (
+      this.settings.roles.length > 0 &&
+      !this.settings.roles.some((r) => r.id === this.settings.defaultRoleId)
+    ) {
+      this.settings.defaultRoleId = this.settings.roles[0].id;
+    }
   }
 
   async saveSettings() {
