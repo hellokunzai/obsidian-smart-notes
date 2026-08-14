@@ -323,19 +323,24 @@ button.ana-settings-tab.is-active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
 }
 
 .ana-chat-header-btn svg,
 .ana-chat-header-btn .svg-icon {
-  width: 18px !important;
-  height: 18px !important;
+  /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标 */
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
 }
 
 .ana-chat-header-btn:hover {
@@ -584,8 +589,8 @@ button.ana-settings-tab.is-active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -597,8 +602,11 @@ button.ana-settings-tab.is-active {
 
 .ana-chat-model-btn svg,
 .ana-chat-model-btn .svg-icon {
-  width: 18px !important;
-  height: 18px !important;
+  /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标 */
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
 }
 
 .ana-chat-model-btn:hover {
@@ -633,8 +641,8 @@ button.ana-settings-tab.is-active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -645,8 +653,11 @@ button.ana-settings-tab.is-active {
 
 .ana-chat-action svg,
 .ana-chat-action .svg-icon {
-  width: 28px !important;
-  height: 28px !important;
+  /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标 */
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
 }
 
 .ana-chat-action:hover {
@@ -664,8 +675,8 @@ button.ana-settings-tab.is-active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -684,8 +695,11 @@ button.ana-settings-tab.is-active {
 
 .ana-chat-send svg,
 .ana-chat-send .svg-icon {
-  width: 28px !important;
-  height: 28px !important;
+  /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标 */
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
 }
 
 .ana-chat-send:hover:not(:disabled) {
