@@ -629,6 +629,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     categoriesSetting = new Setting(bodyEl)
       .setName(t("settings.memoryProfileCategories.name"))
       .setDesc(t("settings.memoryProfileCategories.desc"))
+      .setClass("ana-setting-textarea-full")
       .addTextArea((ta) => {
         ta
           .setPlaceholder(t("settings.memoryProfileCategories.placeholder"))
@@ -644,6 +645,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     memoryFileSetting = new Setting(bodyEl)
       .setName(t("settings.memoryFile.name"))
       .setDesc(t("settings.memoryFile.desc"))
+      .setClass("ana-setting-textarea-full")
       .addTextArea((ta) => {
         ta.setPlaceholder(t("settings.memoryFile.placeholder"))
           .setValue("")
@@ -837,6 +839,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     frontmatterTemplateSetting = new Setting(bodyEl)
       .setName(t("settings.frontmatterTemplate.name"))
       .setDesc(t("settings.frontmatterTemplate.desc"))
+      .setClass("ana-setting-textarea-full")
       .addTextArea((ta) => {
         ta
           .setPlaceholder(t("settings.frontmatterTemplate.placeholder"))

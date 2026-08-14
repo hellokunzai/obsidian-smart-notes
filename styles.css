@@ -1117,6 +1117,24 @@ button.ana-settings-tab.is-active {
   font-size: var(--font-small);
 }
 
+/* 设置项：textarea 独占下方一行（用于 Frontmatter 模版等） */
+.ana-setting-textarea-full {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.ana-setting-textarea-full > .setting-item-control {
+  width: 100%;
+  margin-left: 0;
+}
+.ana-setting-textarea-full > .setting-item-control textarea {
+  width: 100%;
+  min-height: 80px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-smaller);
+  resize: vertical;
+}
+
 /* 弹窗内多模型标签编辑器（设置行下方独立一行） */
 .ana-model-link-tags-editor {
   display: flex;

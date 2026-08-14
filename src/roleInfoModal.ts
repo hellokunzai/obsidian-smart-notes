@@ -60,6 +60,7 @@ export class RoleInfoModal extends Modal {
     new Setting(contentEl)
       .setName(t("settings.roles.modal.prompt"))
       .setDesc(t("settings.roles.modal.promptDesc"))
+      .setClass("ana-setting-textarea-full")
       .addTextArea((ta) => {
         ta.setPlaceholder(t("settings.roles.modal.promptPlaceholder"));
         ta.setValue(this.prompt);
