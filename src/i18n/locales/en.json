@@ -287,5 +287,9 @@
   "view.webNoCredentials": "Vault Mind: web search is on but no API keys/instances are configured. Add them in settings.",
   "view.webError": "Vault Mind: web search failed ({error}).",
   "view.modelSelect": "Select model",
-  "view.noModel": "No model"
+  "view.noModel": "No model",
+  "view.modelPicker.title": "Select Model",
+  "view.modelPicker.desc": "Choose the AI model for this conversation. Models are grouped by link.",
+  "view.modelPicker.searchPlaceholder": "Search models…",
+  "view.modelPicker.empty": "No model links configured. Please add one in Settings."
 }

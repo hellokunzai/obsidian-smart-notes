@@ -61,8 +61,12 @@ export class ChatView extends ItemView {
   private webToggleBtn!: HTMLButtonElement;
   private attachBtn!: HTMLButtonElement;
   private skillBtn!: HTMLButtonElement;
-  /** 模型选择下拉框（默认链接的模型列表） */
-  private modelSelectEl!: HTMLSelectElement;
+  /** 模型选择按钮（点击弹出选择弹窗） */
+  private modelBtn!: HTMLButtonElement;
+  /** 当前选中的模型显示标签（位于模型按钮与发送按钮之间） */
+  private modelLabelEl!: HTMLElement;
+  /** 当前选中的模型值（格式 linkId|modelName，与旧 select.value 一致） */
+  private selectedModelValue = "";
 
   private isStreaming = false;
   private sidebarCollapsed = true;
@@ -275,16 +279,23 @@ export class ChatView extends ItemView {
       }
     });
 
-    // 输入框内底部工具栏：右侧（模型选择 + 发送）
+    // 输入框内底部工具栏：模型选择（左）+ 模型名标签 + 发送（右）
     const inputBar = this.inputWrapEl.createEl("div", { cls: "ana-chat-input-bar" });
 
-    // 右侧：模型选择 + 发送按钮
+    // 左侧：模型选择按钮
+    this.modelBtn = inputBar.createEl("button", {
+      cls: "ana-chat-model-btn",
+      attr: { "aria-label": t("view.modelSelect") },
+    });
+    setIcon(this.modelBtn, "sparkle");
+    this.modelBtn.addEventListener("click", () => void this.openModelPicker());
+
+    // 右侧：模型名称标签 + 发送按钮
     const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
 
-    // 模型选择下拉框（发送按钮左侧）
-    this.modelSelectEl = rightActions.createEl("select", {
-      cls: "ana-chat-model-select",
-      attr: { "aria-label": t("view.modelSelect") },
+    // 模型名称标签（发送按钮左侧）
+    this.modelLabelEl = rightActions.createEl("span", {
+      cls: "ana-chat-model-label",
     });
     this.renderModelSelect();
 
@@ -688,25 +699,39 @@ export class ChatView extends ItemView {
 
   // ================= 模型选择 =================
 
-  /** 渲染模型下拉框：展示所有链接的全部模型，格式「链接名称/模型名称」。 */
+  /** 渲染模型选择状态：更新标签文本显示当前选中模型。 */
   private renderModelSelect(): void {
-    const sel = this.modelSelectEl;
-    sel.empty();
     const links = this.plugin.settings.modelLinks;
-    if (links.length === 0) {
-      sel.createEl("option", { text: t("view.noModel"), value: "" });
+    if (links.length === 0 || !this.selectedModelValue) {
+      this.modelLabelEl.setText(t("view.noModel"));
       return;
     }
-    for (const link of links) {
-      for (const m of link.models) {
-        sel.createEl("option", {
-          text: `${link.name}/${m}`,
-          value: `${link.id}|${m}`,
-        });
-      }
+    const pipeIdx = this.selectedModelValue.indexOf("|");
+    if (pipeIdx < 0) {
+      this.modelLabelEl.setText(t("view.noModel"));
+      return;
     }
-    // 默认选中第一个
-    if (sel.options.length > 0) sel.selectedIndex = 0;
+    const linkId = this.selectedModelValue.slice(0, pipeIdx);
+    const modelName = this.selectedModelValue.slice(pipeIdx + 1);
+    const link = links.find((l) => l.id === linkId);
+    if (link) {
+      this.modelLabelEl.setText(modelName);
+    } else {
+      this.modelLabelEl.setText(modelName);
+    }
+  }
+
+  /** 打开模型选择弹窗。 */
+  private openModelPicker(): void {
+    new ModelPickerModal(
+      this.plugin.app,
+      this.plugin,
+      this.selectedModelValue,
+      (value) => {
+        this.selectedModelValue = value;
+        this.renderModelSelect();
+      }
+    ).open();
   }
 
   // ================= 联网搜索开关 =================
@@ -871,8 +896,8 @@ export class ChatView extends ItemView {
     this.showTypingIndicator(assistantContentEl);
 
     try {
-      // 用下拉框选中的模型创建 provider（value 格式：linkId|modelName）
-      const raw = this.modelSelectEl.value || "";
+      // 用当前选中的模型创建 provider（value 格式：linkId|modelName）
+      const raw = this.selectedModelValue || "";
       const pipeIdx = raw.indexOf("|");
       let provider: import("../ai/provider").AIProvider;
       if (pipeIdx >= 0) {
@@ -1235,6 +1260,112 @@ class SkillPickerModal extends Modal {
         cls: "ana-picker-path",
       });
       void pathSpan;
+    }
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+/**
+ * 模型选择器：按链接分组展示所有可用模型，支持搜索与单选。
+ * 选中后回传 value（格式 linkId|modelName）。
+ */
+class ModelPickerModal extends Modal {
+  private plugin: AiNoteAgentPlugin;
+  private currentValue: string;
+  private onSelect: (value: string) => void;
+  private listEl!: HTMLElement;
+  private searchEl!: HTMLInputElement;
+
+  constructor(
+    app: import("obsidian").App,
+    plugin: AiNoteAgentPlugin,
+    currentValue: string,
+    onSelect: (value: string) => void
+  ) {
+    super(app);
+    this.plugin = plugin;
+    this.currentValue = currentValue;
+    this.onSelect = onSelect;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("ana-picker");
+    this.titleEl.setText(t("view.modelPicker.title"));
+
+    contentEl.createEl("p", {
+      text: t("view.modelPicker.desc"),
+      cls: "ana-picker-desc",
+    });
+
+    this.searchEl = contentEl.createEl("input", {
+      cls: "ana-picker-search",
+      attr: { type: "text", placeholder: t("view.modelPicker.searchPlaceholder") },
+    });
+    this.searchEl.addEventListener("input", () => this.renderList());
+
+    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+    this.renderList();
+
+    // 操作按钮
+    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new ButtonComponent(btns)
+      .setButtonText(t("modal.cancel"))
+      .onClick(() => this.close());
+
+    this.scope.register([], "Escape", () => this.close());
+  }
+
+  /** 收集所有链接的模型为扁平列表。 */
+  private getItems(): { value: string; label: string; linkName: string; modelName: string }[] {
+    const items: { value: string; label: string; linkName: string; modelName: string }[] = [];
+    for (const link of this.plugin.settings.modelLinks) {
+      for (const m of link.models) {
+        items.push({
+          value: `${link.id}|${m}`,
+          label: `${link.name}/${m}`,
+          linkName: link.name,
+          modelName: m,
+        });
+      }
+    }
+    return items;
+  }
+
+  private renderList(): void {
+    this.listEl.empty();
+    const all = this.getItems();
+    if (all.length === 0) {
+      this.listEl.createEl("div", {
+        text: t("view.modelPicker.empty"),
+        cls: "ana-picker-empty",
+      });
+      return;
+    }
+    const q = this.searchEl.value.trim().toLowerCase();
+    const filtered = q ? all.filter((i) => i.label.toLowerCase().includes(q)) : all;
+
+    for (const item of filtered) {
+      const row = this.listEl.createEl("button", {
+        cls:
+          "ana-model-picker-row" +
+          (item.value === this.currentValue ? " is-selected" : ""),
+        attr: { type: "button" },
+      });
+
+      // 模型名称
+      row.createSpan({ text: item.modelName, cls: "ana-model-picker-name" });
+      // 链接名
+      row.createSpan({ text: item.linkName, cls: "ana-model-picker-link" });
+
+      row.addEventListener("click", () => {
+        this.onSelect(item.value);
+        this.close();
+      });
     }
   }
 

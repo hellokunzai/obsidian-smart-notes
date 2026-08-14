@@ -563,12 +563,53 @@ button.ana-settings-tab.is-active {
   cursor: not-allowed;
 }
 
-/* 输入框内底部工具栏：右侧模型选择 + 发送 */
+/* 输入框内底部工具栏：模型选择按钮(左) + 模型名标签(flex) + 发送按钮(右) */
 .ana-chat-input-bar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 4px;
   padding: 4px var(--size-4-1);
+}
+
+/* 模型选择按钮（左） */
+.ana-chat-model-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.ana-chat-model-btn svg,
+.ana-chat-model-btn .svg-icon {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.ana-chat-model-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--interactive-accent);
+}
+
+/* 当前选中模型名称标签（模型按钮与发送按钮之间） */
+.ana-chat-model-label {
+  font-size: var(--font-smallest);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  line-height: 1;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* 右侧操作区：模型选择 + 发送按钮 */
@@ -625,28 +666,43 @@ button.ana-settings-tab.is-active {
   flex-shrink: 0;
 }
 
-/* 模型选择下拉框（输入栏右侧，发送按钮左侧） */
-.ana-chat-model-select {
-  flex-shrink: 0;
-  width: auto;
-  min-width: 80px;
-  max-width: 180px;
-  height: 28px;
-  padding: 0 var(--size-4-2);
-  border: 1px solid var(--background-modifier-border);
+/* 模型选择器弹窗：单选列表行 */
+.ana-model-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  width: 100%;
+  padding: var(--size-4-2) var(--size-4-3);
+  border: none;
   border-radius: var(--radius-s);
-  background: var(--background-primary);
+  background: transparent;
   color: var(--text-normal);
-  font-size: var(--font-smaller);
-  outline: none;
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  text-align: left;
+  transition: background-color 0.12s ease;
 }
-.ana-chat-model-select:focus {
-  border-color: var(--interactive-accent);
+
+.ana-model-picker-row:hover {
+  background: var(--background-modifier-hover);
 }
-.ana-chat-model-select:hover {
-  border-color: var(--background-modifier-border-hover);
+
+.ana-model-picker-row.is-selected {
+  background: var(--interactive-accent-hover);
+  color: var(--interactive-accent);
+  font-weight: var(--font-semibold);
+}
+
+.ana-model-picker-name {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  color: inherit;
+}
+
+.ana-model-picker-link {
+  margin-left: auto;
+  font-size: var(--font-smallest);
+  color: var(--text-faint);
+  flex-shrink: 0;
 }
 
 .ana-chat-send svg,

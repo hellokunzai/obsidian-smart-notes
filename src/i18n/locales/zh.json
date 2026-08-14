@@ -287,5 +287,9 @@
   "view.webNoCredentials": "Vault Mind：已开启联网搜索但未配置任何 API Key/实例，请到设置中填写。",
   "view.webError": "Vault Mind：联网搜索失败（{error}）。",
   "view.modelSelect": "选择模型",
-  "view.noModel": "无模型"
+  "view.noModel": "无模型",
+  "view.modelPicker.title": "选择模型",
+  "view.modelPicker.desc": "选择当前对话使用的 AI 模型。按链接名称分组显示。",
+  "view.modelPicker.searchPlaceholder": "搜索模型……",
+  "view.modelPicker.empty": "尚未配置任何模型链接，请到设置中添加。"
 }
