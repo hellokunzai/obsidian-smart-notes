@@ -1355,6 +1355,11 @@ button.ana-settings-tab.is-active {
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
+.ana-secret-picker-action-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
 .ana-secret-picker-action-btn:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
@@ -1606,5 +1611,42 @@ button.ana-settings-tab.is-active {
   /* 标签编辑器：换行 */
   .ana-model-link-tags-editor {
     flex-wrap: wrap;
+  }
+
+  /* 秘钥选择弹窗：移动端适配 */
+  .ana-secret-picker-modal {
+    min-width: auto;
+    width: calc(100vw - 32px);
+    max-width: 100%;
+  }
+  .ana-secret-picker-row {
+    padding: var(--size-4-2) var(--size-4-2);
+    gap: var(--size-4-1);
+  }
+  .ana-secret-picker-info {
+    min-width: 0;
+  }
+  .ana-secret-picker-name {
+    font-size: var(--font-smaller);
+    word-break: break-all;
+  }
+  .ana-secret-picker-actions {
+    flex-shrink: 0;
+  }
+  .ana-secret-picker-action-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .ana-secret-picker-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--size-4-2);
+  }
+  .ana-secret-picker-btn-group {
+    display: flex;
+    gap: var(--size-4-2);
+  }
+  .ana-secret-picker-btn-group button {
+    flex: 1;
   }
 }
