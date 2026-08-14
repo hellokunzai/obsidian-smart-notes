@@ -31,6 +31,7 @@ import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills
 import { WebSearchService, type SearchProviderConfig } from "../search/search";
 import { buildWebSearchContext } from "../search/prompt";
 import { getProfileMemoryContext } from "../memory/profileMemory";
+import { getActiveModelLink, createProviderFromLink } from "../ai/provider";
 
 export const CHAT_VIEW_TYPE = "ai-note-agent-chat";
 
@@ -60,6 +61,8 @@ export class ChatView extends ItemView {
   private webToggleBtn!: HTMLButtonElement;
   private attachBtn!: HTMLButtonElement;
   private skillBtn!: HTMLButtonElement;
+  /** 模型选择下拉框（默认链接的模型列表） */
+  private modelSelectEl!: HTMLSelectElement;
 
   private isStreaming = false;
   private sidebarCollapsed = true;
@@ -274,7 +277,17 @@ export class ChatView extends ItemView {
     setIcon(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
 
-    this.sendBtn = inputBar.createEl("button", {
+    // 右侧：模型选择 + 发送按钮
+    const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
+
+    // 模型选择下拉框（发送按钮左侧）
+    this.modelSelectEl = rightActions.createEl("select", {
+      cls: "ana-chat-model-select",
+      attr: { "aria-label": t("view.modelSelect") },
+    });
+    this.renderModelSelect();
+
+    this.sendBtn = rightActions.createEl("button", {
       cls: "ana-chat-send",
       attr: { "aria-label": t("view.send") },
     });
@@ -672,6 +685,25 @@ export class ChatView extends ItemView {
     ).open();
   }
 
+  // ================= 模型选择 =================
+
+  /** 渲染模型下拉框：从默认链接的 models 列表填充，默认选中第一个。 */
+  private renderModelSelect(): void {
+    const sel = this.modelSelectEl;
+    sel.empty();
+    const link = getActiveModelLink(this.plugin.settings);
+    const models = link?.models ?? [];
+    if (models.length === 0) {
+      sel.createEl("option", { text: t("view.noModel"), value: "" });
+      return;
+    }
+    for (const m of models) {
+      sel.createEl("option", { text: m, value: m });
+    }
+    // 默认选中第一个
+    if (sel.options.length > 0) sel.selectedIndex = 0;
+  }
+
   // ================= 联网搜索开关 =================
 
   /** 渲染图标按钮：更新各图标 active 状态与 tooltip。 */
@@ -832,7 +864,17 @@ export class ChatView extends ItemView {
     this.setInputDisabled(true);
 
     try {
-      const provider = this.plugin.getProvider();
+      // 用下拉框选中的模型创建 provider（默认链接 + 指定模型）
+      const link = getActiveModelLink(this.plugin.settings);
+      let provider: import("../ai/provider").AIProvider;
+      if (link) {
+        const selectedModel = this.modelSelectEl.value || link.models[0] || "";
+        // 临时覆盖模型的链接副本
+        const linkWithModel = { ...link, models: [selectedModel] };
+        provider = createProviderFromLink(linkWithModel);
+      } else {
+        provider = this.plugin.getProvider();
+      }
       const reply = await provider.complete(messages, {
         maxTokens: this.plugin.settings.maxTokens,
         temperature: this.plugin.settings.temperature,

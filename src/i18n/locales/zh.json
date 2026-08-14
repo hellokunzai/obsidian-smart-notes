@@ -284,5 +284,7 @@
   "view.webSearching": "Vault Mind：正在联网搜索……",
   "view.webNoResults": "Vault Mind：联网搜索没有返回结果。",
   "view.webNoCredentials": "Vault Mind：已开启联网搜索但未配置任何 API Key/实例，请到设置中填写。",
-  "view.webError": "Vault Mind：联网搜索失败（{error}）。"
+  "view.webError": "Vault Mind：联网搜索失败（{error}）。",
+  "view.modelSelect": "选择模型",
+  "view.noModel": "无模型"
 }

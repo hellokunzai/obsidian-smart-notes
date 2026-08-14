@@ -284,5 +284,7 @@
   "view.webSearching": "Vault Mind: searching the web…",
   "view.webNoResults": "Vault Mind: web search returned no results.",
   "view.webNoCredentials": "Vault Mind: web search is on but no API keys/instances are configured. Add them in settings.",
-  "view.webError": "Vault Mind: web search failed ({error})."
+  "view.webError": "Vault Mind: web search failed ({error}).",
+  "view.modelSelect": "Select model",
+  "view.noModel": "No model"
 }

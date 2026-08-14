@@ -522,6 +522,13 @@ button.ana-settings-tab.is-active {
   gap: 2px;
 }
 
+/* 右侧操作区：模型选择 + 发送按钮 */
+.ana-chat-input-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* 图标按钮：按钮尺寸还原，仅放大内部图标 */
 .ana-chat-action {
   display: inline-flex;
@@ -567,6 +574,29 @@ button.ana-settings-tab.is-active {
   cursor: pointer;
   box-shadow: none;
   flex-shrink: 0;
+}
+
+/* 模型选择下拉框（输入栏右侧，发送按钮左侧） */
+.ana-chat-model-select {
+  flex-shrink: 0;
+  max-width: 180px;
+  min-width: 80px;
+  height: 28px;
+  padding: 0 var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-smaller);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.ana-chat-model-select:focus {
+  border-color: var(--interactive-accent);
+}
+.ana-chat-model-select:hover {
+  border-color: var(--background-modifier-border-hover);
 }
 
 .ana-chat-send svg,
@@ -845,15 +875,6 @@ button.ana-settings-tab.is-active {
 }
 
 .ana-model-link-col-type {
-  white-space: nowrap;
-  color: var(--text-muted);
-  font-size: var(--font-smaller);
-}
-
-.ana-model-link-col-url {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-muted);
   font-size: var(--font-smaller);

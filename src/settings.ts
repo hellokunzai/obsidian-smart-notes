@@ -311,7 +311,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
   /**
    * 渲染模型链接列表（表格样式，支持按名称搜索过滤）。
-   * 表头：名称 | 类型 | Base URL | 模型 | 操作
+   * 表头：名称 | 类型 | 模型 | 操作
    */
   private renderModelLinkList(container: HTMLElement, query: string): void {
     container.empty();
@@ -338,7 +338,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     const htr = thead.createEl("tr");
     htr.createEl("th", { text: t("settings.modelLinks.table.name") });
     htr.createEl("th", { text: t("settings.modelLinks.table.type") });
-    htr.createEl("th", { text: t("settings.modelLinks.table.url") });
     htr.createEl("th", { text: t("settings.modelLinks.table.models") });
     htr.createEl("th", {
       text: t("settings.modelLinks.table.actions"),
@@ -369,10 +368,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             : t("settings.provider.openai"),
       });
 
-      // URL 列
-      tr.createEl("td", { cls: "ana-model-link-col-url", text: link.baseUrl });
-
-      // 模型列（标签）：内部包一层 flex 容器，保持 td 为默认表格单元格
+      // 模型列（标签）
       const tdModels = tr.createEl("td", { cls: "ana-model-link-col-models" });
       const modelsWrap = tdModels.createEl("div", {
         cls: "ana-model-link-models-wrap",
