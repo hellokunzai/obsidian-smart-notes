@@ -1150,10 +1150,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         toggle.onChange(async (v) => {
           const arr = plugin.settings.defaultSkills.slice();
           const has = arr.includes(sk.path);
-          if (v && !has) arr.push(sk.path);
-          else if (!v && has)
-            plugin.settings.defaultSkills = arr.filter((p) => p !== sk.path);
-          else plugin.settings.defaultSkills = arr;
+          if (v && !has) {
+            arr.push(sk.path);
+          } else if (!v && has) {
+            const idx = arr.indexOf(sk.path);
+            if (idx >= 0) arr.splice(idx, 1);
+          }
+          plugin.settings.defaultSkills = arr;
           await plugin.saveSettings();
         });
       }
