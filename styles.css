@@ -1248,28 +1248,29 @@ button.ana-settings-tab.is-active {
 
 /* 列表容器 */
 .ana-secret-picker-list {
-  max-height: 320px;
+  max-height: 290px;
+  min-height: 230px;
   overflow-y: auto;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   background: var(--background-primary);
 }
 
-/* 列表行（单选） */
+/* 列表行（卡片式：紧凑高度 + 圆角） */
 .ana-secret-picker-row {
   display: flex;
   align-items: center;
   gap: var(--size-4-2);
-  padding: var(--size-4-2) var(--size-4-3);
-  border-bottom: 1px solid var(--background-modifier-border-hover);
+  padding: 6px var(--size-4-3);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
   cursor: pointer;
-  transition: background-color 0.12s ease;
-}
-.ana-secret-picker-row:last-child {
-  border-bottom: none;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 .ana-secret-picker-row:hover {
   background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
 }
 
 /* 展开查看密钥值时的行样式（保持横向布局，展开区域换行到下方） */
@@ -1329,17 +1330,12 @@ button.ana-settings-tab.is-active {
   flex-shrink: 0;
 }
 
-/* 操作按钮区（查看 / 删除） */
+/* 操作按钮区（查看 / 删除）——始终显示 */
 .ana-secret-picker-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.ana-secret-picker-row:hover .ana-secret-picker-actions {
-  opacity: 1;
 }
 
 .ana-secret-picker-action-btn {
@@ -1363,10 +1359,6 @@ button.ana-settings-tab.is-active {
 .ana-secret-picker-action-btn:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
-}
-.ana-secret-picker-action-btn.danger:hover {
-  background: var(--background-modifier-error);
-  color: var(--text-error);
 }
 
 /* 空状态 */
@@ -1620,7 +1612,7 @@ button.ana-settings-tab.is-active {
     max-width: 100%;
   }
   .ana-secret-picker-row {
-    padding: var(--size-4-2) var(--size-4-2);
+    padding: 6px var(--size-4-2);
     gap: var(--size-4-1);
   }
   .ana-secret-picker-info {
