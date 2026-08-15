@@ -232,6 +232,11 @@ export class ModelLinkModal extends Modal {
         text: t("settings.test.button"),
       });
       testBtn.addEventListener("click", async () => {
+        // 未配置任何模型时直接提示，避免发送 model:"" 的无效请求（服务端返回 400）
+        if (this.models.length === 0) {
+          new Notice(t("settings.test.noModel"));
+          return;
+        }
         testBtn.disabled = true;
         testBtn.textContent = t("settings.test.testing");
         try {

@@ -34,6 +34,7 @@
   "settings.test.success": "Vault Mind: connection OK.",
   "settings.test.failure": "Vault Mind: connection failed — {error}",
   "settings.test.noKey": "Select a secret first",
+  "settings.test.noModel": "Add at least one model in \"Model names\" before testing the connection.",
   "settings.test.httpError": "HTTP status {status}",
 
   "settings.openaiKey.name": "API key",

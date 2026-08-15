@@ -764,7 +764,15 @@ export class ChatView extends ItemView {
     }
   }
 
-  /** 渲染模型选择状态：更新标签文本显示当前选中模型与角色。 */
+  /** 截断文本至指定最大字符数，超出时末尾追加 ".."（总长度不超过 maxChars）。 */
+  private truncate(text: string, maxChars: number): string {
+    if (text.length <= maxChars) return text;
+    // 保留前 maxChars-2 个字符 + ".."（确保总长度 ≤ maxChars）
+    const keep = Math.max(0, maxChars - 2);
+    return text.slice(0, keep) + "..";
+  }
+
+  /** 渲染模型选择状态：更新标签文本显示当前选中模型与角色（各自截断）。 */
   private renderModelSelect(): void {
     const links = this.plugin.settings.modelLinks;
     if (links.length === 0 || !this.selectedModelValue) {
@@ -788,7 +796,12 @@ export class ChatView extends ItemView {
       (r) => r.id === this.selectedRoleId
     );
     const roleName = role ? role.name : t("view.noRole");
-    this.modelLabelEl.setText(`${modelName}/${roleName}`);
+    // 各自截断：模型名最多 15 字符、角色名最多 8 字符，超出用 ".." 代替
+    const truncatedModel = this.truncate(modelName, 15);
+    const truncatedRole = this.truncate(roleName, 8);
+    this.modelLabelEl.setText(`${truncatedModel}/${truncatedRole}`);
+    // 完整信息保留到 title 属性，鼠标悬停可查看
+    this.modelLabelEl.setAttribute("title", `${modelName} / ${roleName}`);
   }
 
   /** 打开模型选择弹窗。 */

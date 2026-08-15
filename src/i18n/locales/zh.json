@@ -34,6 +34,7 @@
   "settings.test.success": "Vault Mind：连接正常。",
   "settings.test.failure": "Vault Mind：连接失败 —— {error}",
   "settings.test.noKey": "请先选择秘钥",
+  "settings.test.noModel": "请先在「模型名称」中至少添加一个模型，再测试连接。",
   "settings.test.httpError": "HTTP 状态 {status}",
 
   "settings.openaiKey.name": "API Key",
