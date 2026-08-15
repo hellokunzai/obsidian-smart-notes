@@ -20,6 +20,8 @@ import {
 } from "./settings";
 import {
   createProvider,
+  getActiveModelLink,
+  resolveLinkParams,
   type AIProvider,
   type ChatMessage,
 } from "./ai/provider";
@@ -324,9 +326,11 @@ export default class AiNoteAgentPlugin extends Plugin {
       { role: "user", content: body },
     ];
 
+    const activeLink = getActiveModelLink(this.settings);
+    const params = resolveLinkParams(activeLink, this.settings);
     const response = await this.provider.complete(messages, {
-      maxTokens: this.settings.maxTokens,
-      temperature: this.settings.temperature,
+      maxTokens: params.maxTokens,
+      temperature: params.temperature,
     });
 
     let yaml = response.trim();

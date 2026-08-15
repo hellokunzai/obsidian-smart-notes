@@ -16,6 +16,13 @@ export class OllamaProvider implements AIProvider {
 
   async complete(messages: ChatMessage[], opts?: CompletionOptions): Promise<string> {
     const url = this.baseUrl.replace(/\/+$/, "") + "/api/chat";
+    const options: Record<string, unknown> = {
+      temperature: opts?.temperature ?? 0.3,
+    };
+    if (opts?.maxTokens) {
+      options.num_predict = opts.maxTokens;
+    }
+
     const resp = await requestUrl({
       url,
       method: "POST",
@@ -26,10 +33,7 @@ export class OllamaProvider implements AIProvider {
         model: this.model,
         messages,
         stream: false,
-        options: {
-          temperature: opts?.temperature ?? 0.3,
-          num_predict: opts?.maxTokens ?? 1024,
-        },
+        options,
       }),
     });
     if (resp.status !== 200) {
@@ -55,6 +59,13 @@ export class OllamaProvider implements AIProvider {
     }
 
     const url = this.baseUrl.replace(/\/+$/, "") + "/api/chat";
+    const options: Record<string, unknown> = {
+      temperature: opts?.temperature ?? 0.3,
+    };
+    if (opts?.maxTokens) {
+      options.num_predict = opts.maxTokens;
+    }
+
     const resp = await fetch(url, {
       method: "POST",
       headers: {
@@ -64,10 +75,7 @@ export class OllamaProvider implements AIProvider {
         model: this.model,
         messages,
         stream: true,
-        options: {
-          temperature: opts?.temperature ?? 0.3,
-          num_predict: opts?.maxTokens ?? 1024,
-        },
+        options,
       }),
     });
 

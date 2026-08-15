@@ -590,9 +590,12 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       .setName(t("settings.chatContextMaxChars.name"))
       .setDesc(t("settings.chatContextMaxChars.desc"))
       .setDisabled(!this.plugin.settings.includeVaultIndex)
-      .addText((t2) =>
-        t2
-          .setPlaceholder("8000")
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "1";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("8000")
           .setValue(String(this.plugin.settings.chatContextMaxChars))
           .onChange(async (v) => {
             const n = parseInt(v, 10);
@@ -600,8 +603,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               this.plugin.settings.chatContextMaxChars = n;
               await this.plugin.saveSettings();
             }
-          })
-      );
+          });
+      });
 
     // --- 用户画像 ---
     this.createGroupHeader(bodyEl, "settings.memoryGroup.profile");
@@ -753,9 +756,12 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     debounceSetting = new Setting(bodyEl)
       .setName(t("settings.debounce.name"))
       .setDesc(t("settings.debounce.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("800")
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "1";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("800")
           .setValue(String(this.plugin.settings.realtimeDebounceMs))
           .onChange(async (v) => {
             const n = parseInt(v, 10);
@@ -763,8 +769,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               this.plugin.settings.realtimeDebounceMs = n;
               await this.plugin.saveSettings();
             }
-          })
-      )
+          });
+      })
       .setDisabled(!this.plugin.settings.realtimeEnabled);
 
     // --- 笔记优化 ---
@@ -1074,9 +1080,12 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     maxResultsSetting = new Setting(bodyEl)
       .setName(t("settings.webSearchMaxResults.name"))
       .setDesc(t("settings.webSearchMaxResults.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("5")
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "1";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("5")
           .setValue(String(this.plugin.settings.webSearchMaxResults))
           .onChange(async (v) => {
             const n = parseInt(v, 10);
@@ -1084,16 +1093,19 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               this.plugin.settings.webSearchMaxResults = n;
               await this.plugin.saveSettings();
             }
-          })
-      )
+          });
+      })
       .setDisabled(!webEnabled);
 
     maxCharsSetting = new Setting(bodyEl)
       .setName(t("settings.webSearchMaxChars.name"))
       .setDesc(t("settings.webSearchMaxChars.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder("1500")
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "1";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("1500")
           .setValue(String(this.plugin.settings.webSearchMaxCharsPerResult))
           .onChange(async (v) => {
             const n = parseInt(v, 10);
@@ -1101,8 +1113,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               this.plugin.settings.webSearchMaxCharsPerResult = n;
               await this.plugin.saveSettings();
             }
-          })
-      )
+          });
+      })
       .setDisabled(!webEnabled);
 
     citationsSetting = new Setting(bodyEl)

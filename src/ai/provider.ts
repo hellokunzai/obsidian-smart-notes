@@ -55,12 +55,13 @@ export function getActiveModelLink(
  * 链接自身有值则优先使用，否则 fallback 到全局设置。
  */
 export function resolveLinkParams(
-  link: ModelLink,
+  link: ModelLink | undefined,
   settings: AiNoteAgentSettings
 ): { maxTokens: number; temperature: number } {
   return {
-    maxTokens: link.maxTokens ?? settings.maxTokens,
-    temperature: link.temperature ?? settings.temperature,
+    // 0 表示不限制，优先于全局默认值；仅当未设置时才回退到全局。
+    maxTokens: link?.maxTokens != null ? link.maxTokens : settings.maxTokens,
+    temperature: link?.temperature ?? settings.temperature,
   };
 }
 

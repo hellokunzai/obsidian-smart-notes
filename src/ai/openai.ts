@@ -23,6 +23,16 @@ export class OpenAIProvider implements AIProvider {
       throw new Error(t("error.noApiKey"));
     }
     const url = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      temperature: opts?.temperature ?? 0.3,
+      stream: false,
+    };
+    if (opts?.maxTokens) {
+      body.max_tokens = opts.maxTokens;
+    }
+
     const resp = await requestUrl({
       url,
       method: "POST",
@@ -30,13 +40,7 @@ export class OpenAIProvider implements AIProvider {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        temperature: opts?.temperature ?? 0.3,
-        max_tokens: opts?.maxTokens ?? 1024,
-        stream: false,
-      }),
+      body: JSON.stringify(body),
     });
     if (resp.status !== 200) {
       throw new Error(
@@ -65,20 +69,24 @@ export class OpenAIProvider implements AIProvider {
     }
 
     const url = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages,
+      temperature: opts?.temperature ?? 0.3,
+      stream: true,
+      stream_options: { include_usage: true },
+    };
+    if (opts?.maxTokens) {
+      body.max_tokens = opts.maxTokens;
+    }
+
     const resp = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        temperature: opts?.temperature ?? 0.3,
-        max_tokens: opts?.maxTokens ?? 1024,
-        stream: true,
-        stream_options: { include_usage: true },
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!resp.ok) {

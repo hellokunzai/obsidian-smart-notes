@@ -45,8 +45,11 @@ export class ModelLinkModal extends Modal {
       this.baseUrl = editing.baseUrl;
       this.apiKey = editing.apiKey;
       this.models = editing.models.slice();
-      this.maxTokens = editing.maxTokens != null ? String(editing.maxTokens) : "";
-      this.temperature = editing.temperature != null ? String(editing.temperature) : "";
+      this.maxTokens = editing.maxTokens != null ? String(editing.maxTokens) : "0";
+      this.temperature = editing.temperature != null ? String(editing.temperature) : "0.3";
+    } else {
+      this.maxTokens = "0";
+      this.temperature = "0.3";
     }
   }
 
@@ -76,10 +79,12 @@ export class ModelLinkModal extends Modal {
       });
 
     // 链接名称（必填、唯一）
+    let nameInputEl: HTMLInputElement | null = null;
     new Setting(contentEl)
       .setName(t("settings.modelLinks.modal.name"))
       .setDesc(t("settings.modelLinks.modal.nameDesc"))
       .addText((tc: TextComponent) => {
+        nameInputEl = tc.inputEl;
         tc.setPlaceholder(t("settings.modelLinks.modal.namePlaceholder"));
         tc.setValue(this.name);
         tc.onChange((v) => {
@@ -91,16 +96,20 @@ export class ModelLinkModal extends Modal {
     this.dynamicEl = contentEl.createEl("div");
     this.renderDynamic();
 
-    // 最大 Token 数（可选，不填使用全局默认值）
+    // 最大 Token 数（可选，留空使用全局默认值；填 0 表示无限制）
+    let maxTokensInputEl: HTMLInputElement | null = null;
     new Setting(contentEl)
       .setName(t("settings.maxTokens.name"))
       .setDesc(t("settings.modelLinks.modal.maxTokensDesc"))
       .addText((tc: TextComponent) => {
-        tc.setPlaceholder(
-          String(this.plugin.settings.maxTokens) +
-            " " +
-            t("settings.modelLinks.modal.useGlobalDefault")
-        );
+        maxTokensInputEl = tc.inputEl;
+        tc.inputEl.type = "number";
+        tc.inputEl.min = "0";
+        tc.inputEl.step = "1";
+        tc.inputEl.inputMode = "numeric";
+        tc.inputEl.style.setProperty("width", "100%", "important");
+        tc.inputEl.style.textAlign = "left";
+        tc.setPlaceholder(String(this.plugin.settings.maxTokens));
         tc.setValue(this.maxTokens);
         tc.onChange((v) => {
           this.maxTokens = v.trim();
@@ -108,20 +117,44 @@ export class ModelLinkModal extends Modal {
       });
 
     // Temperature（可选，不填使用全局默认值）
+    let temperatureInputEl: HTMLInputElement | null = null;
     new Setting(contentEl)
       .setName(t("settings.temperature.name"))
       .setDesc(t("settings.modelLinks.modal.temperatureDesc"))
       .addText((tc: TextComponent) => {
-        tc.setPlaceholder(
-          String(this.plugin.settings.temperature) +
-            " " +
-            t("settings.modelLinks.modal.useGlobalDefault")
-        );
+        temperatureInputEl = tc.inputEl;
+        tc.inputEl.type = "number";
+        tc.inputEl.min = "0";
+        tc.inputEl.max = "2";
+        tc.inputEl.step = "0.1";
+        tc.inputEl.inputMode = "decimal";
+        tc.inputEl.style.setProperty("width", "100%", "important");
+        tc.inputEl.style.textAlign = "left";
+        tc.setPlaceholder(String(this.plugin.settings.temperature));
         tc.setValue(this.temperature);
         tc.onChange((v) => {
           this.temperature = v.trim();
         });
       });
+
+    // 等 DOM 布局完成后，把两个数字输入框的 max-width 同步为「链接名称」输入框的宽度
+    requestAnimationFrame(() => {
+      if (nameInputEl && maxTokensInputEl && temperatureInputEl) {
+        const nameWidth = nameInputEl.offsetWidth;
+        if (nameWidth > 0) {
+          maxTokensInputEl.style.setProperty(
+            "max-width",
+            `${nameWidth}px`,
+            "important"
+          );
+          temperatureInputEl.style.setProperty(
+            "max-width",
+            `${nameWidth}px`,
+            "important"
+          );
+        }
+      }
+    });
 
     // 底部按钮
     const footer = contentEl.createEl("div", {
@@ -310,7 +343,9 @@ export class ModelLinkModal extends Modal {
       baseUrl: this.baseUrl.trim() || (isOllama ? "http://localhost:11434" : "https://api.openai.com/v1"),
       apiKey: this.apiKey.trim(),
       models: this.models.map((m) => m.trim()).filter(Boolean),
-      maxTokens: this.maxTokens ? parseInt(this.maxTokens, 10) || undefined : undefined,
+      maxTokens: this.maxTokens
+        ? parseInt(this.maxTokens, 10) || 0
+        : undefined,
       temperature: this.temperature ? parseFloat(this.temperature) || undefined : undefined,
     };
   }

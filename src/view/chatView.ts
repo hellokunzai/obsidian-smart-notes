@@ -34,7 +34,11 @@ import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills
 import { WebSearchService, type SearchProviderConfig } from "../search/search";
 import { buildWebSearchContext } from "../search/prompt";
 import { getProfileMemoryContext } from "../memory/profileMemory";
-import { getActiveModelLink, createProviderFromLink } from "../ai/provider";
+import {
+  getActiveModelLink,
+  createProviderFromLink,
+  resolveLinkParams,
+} from "../ai/provider";
 
 export const CHAT_VIEW_TYPE = "ai-note-agent-chat";
 
@@ -1125,12 +1129,15 @@ export class ChatView extends ItemView {
       const raw = this.selectedModelValue || "";
       const pipeIdx = raw.indexOf("|");
       let provider: import("../ai/provider").AIProvider;
+      let selectedLink: import("../settings").ModelLink | undefined;
       if (pipeIdx >= 0) {
         const linkId = raw.slice(0, pipeIdx);
         const modelName = raw.slice(pipeIdx + 1);
-        const link = this.plugin.settings.modelLinks.find((l) => l.id === linkId);
-        if (link) {
-          const linkWithModel = { ...link, models: [modelName] };
+        selectedLink = this.plugin.settings.modelLinks.find(
+          (l) => l.id === linkId
+        );
+        if (selectedLink) {
+          const linkWithModel = { ...selectedLink, models: [modelName] };
           provider = createProviderFromLink(linkWithModel);
         } else {
           provider = this.plugin.getProvider();
@@ -1140,12 +1147,17 @@ export class ChatView extends ItemView {
       }
 
       // 带超时的流式请求（默认 60 秒），避免不可达模型导致无限挂起
+      const paramLink =
+        selectedLink ??
+        getActiveModelLink(this.plugin.settings) ??
+        this.plugin.settings.modelLinks[0];
+      const params = resolveLinkParams(paramLink, this.plugin.settings);
       const result = await this.withTimeout(
         provider.stream(
           messages,
           {
-            maxTokens: this.plugin.settings.maxTokens,
-            temperature: this.plugin.settings.temperature,
+            maxTokens: params.maxTokens,
+            temperature: params.temperature,
           },
           (chunk) => {
             this.streamingRawContent += chunk.content;
