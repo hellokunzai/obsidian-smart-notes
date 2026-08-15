@@ -28,6 +28,7 @@ import {
   type AttachmentRef,
   type SessionMeta,
   type SessionsIndex,
+  type SessionMessage,
 } from "../utils/aiFolder";
 import { buildKnowledgeIndex, buildAttachmentContext } from "../context/knowledge";
 import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills";
@@ -90,6 +91,12 @@ export class ChatView extends ItemView {
   private streamingContentEl: HTMLElement | null = null;
   private streamingCursorEl: HTMLElement | null = null;
   private streamingTokenEl: HTMLElement | null = null;
+  /** 流式过程中累积的推理（思考）内容。 */
+  private streamingRawReasoning = "";
+  /** 当前助手消息内已创建的「思考过程」块根元素。 */
+  private streamingReasoningEl: HTMLElement | null = null;
+  /** 当前助手消息内「思考过程」块的内容容器。 */
+  private streamingReasoningBodyEl: HTMLElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: AiNoteAgentPlugin) {
     super(leaf);
@@ -899,20 +906,26 @@ export class ChatView extends ItemView {
       return;
     }
     for (const m of s.messages) {
-      this.addMessage(m.role, m.content, m.usage);
+      this.addMessage(m.role, m.content, m.usage, m.reasoningContent);
     }
   }
 
   private addMessage(
     role: "user" | "assistant",
     text: string,
-    usage?: import("../ai/provider").TokenUsage
+    usage?: import("../ai/provider").TokenUsage,
+    reasoning?: string
   ): { contentEl: HTMLElement; bubbleEl: HTMLElement; rowEl: HTMLElement } {
     const row = this.messagesEl.createEl("div", {
       cls: `ana-chat-message ana-chat-message-${role}`,
     });
     const bubble = row.createEl("div", { cls: "ana-chat-bubble" });
     const content = bubble.createEl("div", { cls: "ana-chat-text" });
+
+    // 历史渲染：若模型返回了思考过程且用户开启显示，则在正文上方插入可折叠的思考块
+    if (role === "assistant" && reasoning && this.plugin.settings.showReasoning) {
+      this.renderReasoning(bubble, content, reasoning, /* collapsed */ true);
+    }
 
     if (role === "assistant") {
       void this.renderMarkdown(content, text);
@@ -925,6 +938,33 @@ export class ChatView extends ItemView {
 
     this.scrollToBottom();
     return { contentEl: content, bubbleEl: bubble, rowEl: row };
+  }
+
+  /**
+   * 在气泡内、正文元素之前插入一个可折叠的「思考过程」块。
+   * 点击标题栏可展开 / 收起；collapsed=true 时默认收起。
+   */
+  private renderReasoning(
+    bubble: HTMLElement,
+    beforeEl: HTMLElement,
+    reasoning: string,
+    collapsed: boolean
+  ): void {
+    const wrap = bubble.createDiv({
+      cls: "ana-chat-reasoning" + (collapsed ? " is-collapsed" : ""),
+    });
+    const header = wrap.createDiv({ cls: "ana-chat-reasoning-header" });
+    header.createSpan({
+      cls: "ana-chat-reasoning-title",
+      text: t("view.reasoning.title"),
+    });
+    header.createSpan({ cls: "ana-chat-reasoning-toggle", text: "▾" });
+    const body = wrap.createDiv({ cls: "ana-chat-reasoning-body" });
+    body.setText(reasoning);
+    header.addEventListener("click", () =>
+      wrap.toggleClass("is-collapsed", !wrap.hasClass("is-collapsed"))
+    );
+    bubble.insertBefore(wrap, beforeEl);
   }
 
   private addUserMessage(text: string): void {
@@ -1100,11 +1140,46 @@ export class ChatView extends ItemView {
     }
   }
 
+  /**
+   * 懒创建「思考过程」块：首个 reasoning chunk 到来时调用。
+   * 插入到正文元素之前；若仍在显示「思考中」跳点（正文为空）则一并替换掉。
+   */
+  private ensureReasoningBlock(): void {
+    if (this.streamingReasoningEl) return;
+    const bubble = this.streamingContentEl?.closest(
+      ".ana-chat-bubble"
+    ) as HTMLElement | null;
+    if (!bubble || !this.streamingContentEl) return;
+
+    const wrap = bubble.createDiv({ cls: "ana-chat-reasoning" });
+    const header = wrap.createDiv({ cls: "ana-chat-reasoning-header" });
+    header.createSpan({
+      cls: "ana-chat-reasoning-title",
+      text: t("view.reasoning.title"),
+    });
+    header.createSpan({ cls: "ana-chat-reasoning-toggle", text: "▾" });
+    const body = wrap.createDiv({ cls: "ana-chat-reasoning-body" });
+    header.addEventListener("click", () =>
+      wrap.toggleClass("is-collapsed", !wrap.hasClass("is-collapsed"))
+    );
+    bubble.insertBefore(wrap, this.streamingContentEl);
+    this.streamingReasoningEl = wrap;
+    this.streamingReasoningBodyEl = body;
+
+    // 仍处于「思考中」跳点状态（正文元素为空）时，替换为思考块视图
+    if (this.streamingContentEl.hasClass("ana-chat-typing")) {
+      this.hideTypingIndicator(this.streamingContentEl);
+    }
+  }
+
   private clearStreamingState(): void {
     this.clearStreamingRender();
     this.removeStreamingCursor();
     this.streamingContentEl = null;
     this.streamingRawContent = "";
+    this.streamingRawReasoning = "";
+    this.streamingReasoningEl = null;
+    this.streamingReasoningBodyEl = null;
     this.streamingTokenEl = null;
   }
 
@@ -1215,8 +1290,17 @@ export class ChatView extends ItemView {
             temperature: params.temperature,
           },
           (chunk) => {
-            this.streamingRawContent += chunk.content;
-            this.scheduleStreamingRender();
+            if (chunk.reasoning) {
+              this.streamingRawReasoning += chunk.reasoning;
+              this.ensureReasoningBlock();
+              if (this.streamingReasoningBodyEl) {
+                this.streamingReasoningBodyEl.setText(this.streamingRawReasoning);
+              }
+            }
+            if (chunk.content) {
+              this.streamingRawContent += chunk.content;
+              this.scheduleStreamingRender();
+            }
           }
         ),
         60_000
@@ -1225,6 +1309,10 @@ export class ChatView extends ItemView {
       // 流式结束：最终渲染并显示 token 消耗
       this.clearStreamingRender();
       this.removeStreamingCursor();
+      // 思考过程：流结束后默认收起，避免占屏
+      if (this.streamingReasoningEl && this.streamingRawReasoning) {
+        this.streamingReasoningEl.addClass("is-collapsed");
+      }
       const reply = result.content;
       await this.renderMarkdown(this.streamingContentEl!, reply);
 
@@ -1249,7 +1337,13 @@ export class ChatView extends ItemView {
 
       // 首条助手回复后，用首句 user 消息命名会话（仅当仍为默认标题）
       const isFirstAssistant = !s!.messages.some((m) => m.role === "assistant");
-      s!.messages.push({ role: "assistant", content: reply, usage });
+      const assistantMsg: SessionMessage = {
+        role: "assistant",
+        content: reply,
+        usage,
+      };
+      if (result.reasoning) assistantMsg.reasoningContent = result.reasoning;
+      s!.messages.push(assistantMsg);
       s!.updatedAt = Date.now();
       if (isFirstAssistant && (s!.title === t("view.defaultTitle") || !s!.title)) {
         const firstUser = s!.messages.find((m) => m.role === "user");

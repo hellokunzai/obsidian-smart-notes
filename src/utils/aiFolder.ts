@@ -52,6 +52,8 @@ export type SessionMessage = {
   content: string;
   /** 可选：该助手消息返回的 token 消耗统计。 */
   usage?: TokenUsage;
+  /** 可选：推理模型（DeepSeek-R1 / o1 等）返回的「思考过程」。普通模型无此字段。 */
+  reasoningContent?: string;
 };
 
 /** 附件引用：用户显式附加到会话的文件或文件夹（仅此部分内容会被读取并注入上下文）。 */

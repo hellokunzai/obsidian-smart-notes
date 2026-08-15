@@ -131,6 +131,8 @@
   "settings.chatPanel.desc": "Enable the \"Open AI chat panel\" command in the command palette.",
   "settings.addCurrentNoteToChat.name": "Attach current note to chat",
   "settings.addCurrentNoteToChat.desc": "When opening the AI chat panel, automatically attach the active Markdown note as context.",
+  "settings.showReasoning.name": "Show AI reasoning",
+  "settings.showReasoning.desc": "Display the model's reasoning (thinking) process above its reply. Only applies when the model returns reasoning_content (e.g. DeepSeek-R1, OpenAI o1 and other reasoning models).",
   "settings.frontmatterGeneration.name": "Auto-generate frontmatter",
   "settings.frontmatterGeneration.desc": "Enable the \"Generate frontmatter\" command in the command palette. Reads the current Markdown note and asks AI to produce YAML frontmatter.",
   "settings.frontmatterTemplate.name": "Frontmatter template",
@@ -332,5 +334,6 @@
   "view.rolePicker.desc": "Choose the default role. Its prompt will be injected into the system prompt for all AI features.",
   "view.rolePicker.searchPlaceholder": "Search roles…",
   "view.rolePicker.empty": "No roles added yet. Please add one in Settings.",
-  "view.rolePicker.noResults": "No matching roles."
+  "view.rolePicker.noResults": "No matching roles.",
+  "view.reasoning.title": "Reasoning"
 }

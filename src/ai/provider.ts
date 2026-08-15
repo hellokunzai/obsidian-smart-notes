@@ -20,12 +20,17 @@ export interface TokenUsage {
 }
 
 export interface StreamChunk {
-  content: string;
+  /** 增量正文内容（reasoning chunk 时可能为空）。 */
+  content?: string;
+  /** 增量推理（思考）内容，仅推理模型（DeepSeek-R1 / o1 等）返回。 */
+  reasoning?: string;
   done: boolean;
 }
 
 export interface CompletionResult {
   content: string;
+  /** 完整推理（思考）内容，仅推理模型返回；普通模型为 undefined。 */
+  reasoning?: string;
   usage?: TokenUsage;
 }
 

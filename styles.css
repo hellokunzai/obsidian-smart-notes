@@ -653,6 +653,65 @@ button.ana-settings-tab.is-active {
   50% { opacity: 0; }
 }
 
+/* ==================== AI 思考过程（推理）块 ==================== */
+.ana-chat-reasoning {
+  margin-bottom: var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary-alt);
+  overflow: hidden;
+}
+
+.ana-chat-reasoning-header {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding: 4px var(--size-4-2);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+}
+
+.ana-chat-reasoning-header:hover {
+  background: var(--background-modifier-hover);
+}
+
+.ana-chat-reasoning-title {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ana-chat-reasoning-toggle {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+  line-height: 1;
+}
+
+/* 折叠时箭头朝上，并隐藏正文 */
+.ana-chat-reasoning.is-collapsed .ana-chat-reasoning-toggle {
+  transform: rotate(-90deg);
+}
+
+.ana-chat-reasoning-body {
+  padding: 0 var(--size-4-2) var(--size-4-2);
+  color: var(--text-muted);
+  font-size: var(--font-smallest);
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ana-chat-reasoning.is-collapsed .ana-chat-reasoning-body {
+  display: none;
+}
+
 /* ==================== Token 消耗提示 ==================== */
 .ana-chat-token-usage {
   margin-top: 0.5em;

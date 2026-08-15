@@ -106,6 +106,7 @@ export class OpenAIProvider implements AIProvider {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let fullContent = "";
+    let fullReasoning = "";
     let usage: TokenUsage | undefined;
 
     try {
@@ -120,10 +121,18 @@ export class OpenAIProvider implements AIProvider {
           if (data === "[DONE]") continue;
           try {
             const json = JSON.parse(data);
-            const delta = json.choices?.[0]?.delta?.content;
-            if (typeof delta === "string") {
-              fullContent += delta;
-              onChunk({ content: delta, done: false });
+            const delta = json.choices?.[0]?.delta ?? {};
+            // 推理模型（DeepSeek-R1）用 reasoning_content，OpenAI o 系列用 reasoning
+            const reasoning =
+              delta.reasoning_content ?? (delta as Record<string, unknown>).reasoning;
+            const content = delta.content;
+            if (typeof reasoning === "string" && reasoning.length > 0) {
+              fullReasoning += reasoning;
+              onChunk({ reasoning, done: false });
+            }
+            if (typeof content === "string" && content.length > 0) {
+              fullContent += content;
+              onChunk({ content, done: false });
             }
             if (json.usage) {
               usage = {
@@ -141,6 +150,6 @@ export class OpenAIProvider implements AIProvider {
       reader.releaseLock();
     }
 
-    return { content: fullContent, usage };
+    return { content: fullContent, reasoning: fullReasoning || undefined, usage };
   }
 }

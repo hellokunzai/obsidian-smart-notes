@@ -89,6 +89,8 @@ export interface AiNoteAgentSettings {
   chatPanelEnabled: boolean;
   // 打开 AI 对话面板时是否自动把当前 Markdown 笔记作为附件加入
   addCurrentNoteToChat: boolean;
+  // 是否在 AI 回复上方展示推理模型的「思考过程」（仅模型返回 reasoning_content 时生效）
+  showReasoning: boolean;
   // 是否启用「生成 Frontmatter」命令
   frontmatterGenerationEnabled: boolean;
   // Frontmatter 生成模板（留空则使用默认 system prompt）
@@ -156,6 +158,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   linkType: "shortest",
   chatPanelEnabled: true,
   addCurrentNoteToChat: true,
+  showReasoning: true,
   frontmatterGenerationEnabled: true,
   frontmatterTemplate: "",
   fetchWebContentEnabled: true,
@@ -735,6 +738,18 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       )
       .setDisabled(!this.plugin.settings.chatPanelEnabled);
+
+    new Setting(bodyEl)
+      .setName(t("settings.showReasoning.name"))
+      .setDesc(t("settings.showReasoning.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.showReasoning)
+          .onChange(async (v) => {
+            this.plugin.settings.showReasoning = v;
+            await this.plugin.saveSettings();
+          })
+      );
 
     // --- 自动提示 ---
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.autoprompt");

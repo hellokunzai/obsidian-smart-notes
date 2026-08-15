@@ -96,6 +96,7 @@ export class OllamaProvider implements AIProvider {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let fullContent = "";
+    let fullReasoning = "";
     let promptTokens = 0;
     let completionTokens = 0;
     let gotUsage = false;
@@ -109,8 +110,16 @@ export class OllamaProvider implements AIProvider {
           if (!line.trim()) continue;
           try {
             const json = JSON.parse(line);
-            const delta = json.message?.content;
-            if (typeof delta === "string") {
+            const msg = json.message ?? {};
+            // Ollama 本地推理模型（qwq / deepseek-r1 蒸馏等）用 thinking 字段，
+            // 部分兼容实现用 reasoning_content。
+            const thinking = msg.thinking ?? msg.reasoning_content;
+            const delta = msg.content;
+            if (typeof thinking === "string" && thinking.length > 0) {
+              fullReasoning += thinking;
+              onChunk({ reasoning: thinking, done: false });
+            }
+            if (typeof delta === "string" && delta.length > 0) {
               fullContent += delta;
               onChunk({ content: delta, done: false });
             }
@@ -141,6 +150,6 @@ export class OllamaProvider implements AIProvider {
         }
       : undefined;
 
-    return { content: fullContent, usage };
+    return { content: fullContent, reasoning: fullReasoning || undefined, usage };
   }
 }
