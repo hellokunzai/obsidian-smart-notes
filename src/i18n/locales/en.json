@@ -326,6 +326,7 @@
   "view.roleSelect": "Select role",
   "view.noModel": "No model",
   "view.noRole": "No role",
+  "view.roleFallback": "Assistant",
   "view.modelPicker.title": "Select Model",
   "view.modelPicker.desc": "Choose the AI model for this conversation. Models are grouped by link.",
   "view.modelPicker.searchPlaceholder": "Search models…",

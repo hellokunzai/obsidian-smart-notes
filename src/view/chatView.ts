@@ -906,7 +906,7 @@ export class ChatView extends ItemView {
       return;
     }
     for (const m of s.messages) {
-      this.addMessage(m.role, m.content, m.usage, m.reasoningContent);
+      this.addMessage(m.role, m.content, m.usage, m.reasoningContent, m.roleId);
     }
   }
 
@@ -914,13 +914,23 @@ export class ChatView extends ItemView {
     role: "user" | "assistant",
     text: string,
     usage?: import("../ai/provider").TokenUsage,
-    reasoning?: string
+    reasoning?: string,
+    roleId?: string
   ): { contentEl: HTMLElement; bubbleEl: HTMLElement; rowEl: HTMLElement } {
     const row = this.messagesEl.createEl("div", {
       cls: `ana-chat-message ana-chat-message-${role}`,
     });
     const bubble = row.createEl("div", { cls: "ana-chat-bubble" });
     const content = bubble.createEl("div", { cls: "ana-chat-text" });
+
+    // 助手消息：在气泡外顶部展示生成该消息时所用角色名（方案 A）
+    if (role === "assistant") {
+      const roleName = this.resolveRoleName(roleId);
+      if (roleName) {
+        const label = row.createDiv({ cls: "ana-chat-role-name", text: roleName });
+        row.insertBefore(label, bubble);
+      }
+    }
 
     // 历史渲染：若模型返回了思考过程且用户开启显示，则在正文上方插入可折叠的思考块
     if (role === "assistant" && reasoning && this.plugin.settings.showReasoning) {
@@ -967,15 +977,28 @@ export class ChatView extends ItemView {
     bubble.insertBefore(wrap, beforeEl);
   }
 
+  /**
+   * 根据角色 id 解析展示名。
+   * - 无 roleId（未选角色 / 旧会话）→ 返回 null（不渲染标签）
+   * - 角色存在 → 返回角色名
+   * - roleId 存在但角色已被删除 → 返回兜底文案「助手」
+   */
+  private resolveRoleName(roleId?: string): string | null {
+    if (!roleId) return null;
+    const role = this.plugin.settings.roles.find((r) => r.id === roleId);
+    return role ? role.name : t("view.roleFallback");
+  }
+
   private addUserMessage(text: string): void {
     this.addMessage("user", text);
   }
 
   private addAssistantMessage(
     text: string,
-    usage?: import("../ai/provider").TokenUsage
+    usage?: import("../ai/provider").TokenUsage,
+    roleId?: string
   ): HTMLElement {
-    return this.addMessage("assistant", text, usage).contentEl;
+    return this.addMessage("assistant", text, usage, undefined, roleId).contentEl;
   }
 
   private scrollToBottom(): void {
@@ -1245,7 +1268,7 @@ export class ChatView extends ItemView {
       currentUser,
     ];
 
-    const assistantContentEl = this.addAssistantMessage("");
+    const assistantContentEl = this.addAssistantMessage("", undefined, this.selectedRoleId);
     this.isStreaming = true;
     this.setInputDisabled(true);
     // 显示加载动画（打字指示器）
@@ -1343,6 +1366,7 @@ export class ChatView extends ItemView {
         usage,
       };
       if (result.reasoning) assistantMsg.reasoningContent = result.reasoning;
+      if (this.selectedRoleId) assistantMsg.roleId = this.selectedRoleId;
       s!.messages.push(assistantMsg);
       s!.updatedAt = Date.now();
       if (isFirstAssistant && (s!.title === t("view.defaultTitle") || !s!.title)) {

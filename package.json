@@ -1,6 +1,6 @@
 {
   "name": "vault-mind",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Vault Mind - an Obsidian plugin that analyzes your vault with AI.",
   "main": "main.js",
   "scripts": {

@@ -384,6 +384,16 @@ button.ana-settings-tab.is-active {
 
 .ana-chat-message-assistant {
   justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* 助手消息气泡外顶部的角色名标签（方案 A） */
+.ana-chat-role-name {
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0 0 var(--size-4-1) var(--size-4-1);
 }
 
 .ana-chat-bubble {

@@ -326,6 +326,7 @@
   "view.roleSelect": "选择角色",
   "view.noModel": "无模型",
   "view.noRole": "无角色",
+  "view.roleFallback": "助手",
   "view.modelPicker.title": "选择模型",
   "view.modelPicker.desc": "选择当前对话使用的 AI 模型。按链接名称分组显示。",
   "view.modelPicker.searchPlaceholder": "搜索模型……",

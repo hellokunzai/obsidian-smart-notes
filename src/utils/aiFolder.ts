@@ -54,6 +54,8 @@ export type SessionMessage = {
   usage?: TokenUsage;
   /** 可选：推理模型（DeepSeek-R1 / o1 等）返回的「思考过程」。普通模型无此字段。 */
   reasoningContent?: string;
+  /** 可选：生成该助手消息时使用的角色 id（发送时快照）。无角色或旧会话无此字段。 */
+  roleId?: string;
 };
 
 /** 附件引用：用户显式附加到会话的文件或文件夹（仅此部分内容会被读取并注入上下文）。 */
