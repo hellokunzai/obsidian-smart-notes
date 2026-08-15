@@ -751,6 +751,7 @@ button.ana-settings-tab.is-active {
 /* 文件入口：输入框上方 */
 .ana-chat-attach-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--size-4-2);
   padding: 0 var(--size-4-1);
@@ -839,7 +840,7 @@ button.ana-settings-tab.is-active {
   cursor: not-allowed;
 }
 
-/* 输入框内底部工具栏：左侧模型/角色按钮 + 右侧模型名标签/发送按钮 */
+/* 输入框内底部工具栏：左 模型名/角色名标签，右 发送按钮 */
 .ana-chat-input-bar {
   display: flex;
   align-items: center;
@@ -847,15 +848,7 @@ button.ana-settings-tab.is-active {
   padding: 4px var(--size-4-1);
 }
 
-/* 左侧按钮组：模型选择 + 角色选择 */
-.ana-chat-input-actions-left {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-/* 模型选择按钮（左） */
+/* 模型选择按钮（普通图标按钮） */
 .ana-chat-model-btn {
   display: inline-flex;
   align-items: center;
@@ -885,20 +878,20 @@ button.ana-settings-tab.is-active {
   color: var(--interactive-accent);
 }
 
-/* 当前选中模型名称标签（模型按钮与发送按钮之间） */
+/* 输入框底部模型名/角色名标签（左下，红框位置） */
 .ana-chat-model-label {
   font-size: var(--font-smallest);
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  max-width: 220px;
   line-height: 1;
-  user-select: text;
-  -webkit-user-select: text;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
-/* 右侧操作区：模型名标签 + 发送按钮 */
+/* 右侧操作区：发送按钮 */
 .ana-chat-input-actions-right {
   display: flex;
   align-items: center;
@@ -2064,40 +2057,34 @@ button.ana-settings-tab.is-active {
 }
 
 /* ============================================================
- * 角色选择按钮（pill：头像 + 名）
+ * 角色选择按钮（普通图标按钮，与模型按钮同款）
  * ============================================================ */
 .ana-chat-role-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  max-width: 160px;
-  padding: 0 8px 0 4px;
+  justify-content: center;
+  width: 22px;
   height: 22px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 11px;
-  background: var(--background-primary);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   box-shadow: none;
   flex-shrink: 0;
 }
 
-.ana-chat-role-btn:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.ana-chat-role-btn-name {
-  font-size: var(--font-smallest);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  line-height: 1;
-}
-
-.ana-chat-role-btn-icon svg {
+.ana-chat-role-btn svg,
+.ana-chat-role-btn .svg-icon {
   width: 15px !important;
   height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
+}
+
+.ana-chat-role-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--interactive-accent);
 }
 
 /* 角色选择器弹窗行：头像 + 名称 */

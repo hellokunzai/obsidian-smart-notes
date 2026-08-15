@@ -72,9 +72,9 @@ export class ChatView extends ItemView {
   private skillBtn!: HTMLButtonElement;
   /** 角色选择按钮（点击弹出选择弹窗） */
   private roleBtn!: HTMLButtonElement;
-  /** 模型选择按钮（点击弹出选择弹窗） */
+  /** 模型选择按钮（普通图标按钮，点击弹出选择弹窗） */
   private modelBtn!: HTMLButtonElement;
-  /** 当前选中的模型显示标签（位于模型按钮与发送按钮之间） */
+  /** 当前选中模型的展示标签（输入框底部右下角："模型名/角色名"） */
   private modelLabelEl!: HTMLElement;
   /** 当前选中的模型值（格式 linkId|modelName，与旧 select.value 一致） */
   private selectedModelValue = "";
@@ -265,8 +265,26 @@ export class ChatView extends ItemView {
 
     const footer = main.createEl("div", { cls: "ana-chat-footer" });
 
-    // 文件入口：位于输入框上方（附件 / Skill / 联网搜索）
+    // 文件入口行（输入框上方）：模型 › 角色 › 附件 › Skill › 联网，全部靠左
     const attachRow = footer.createEl("div", { cls: "ana-chat-attach-row" });
+
+    // 模型选择按钮（普通图标按钮）
+    this.modelBtn = attachRow.createEl("button", {
+      cls: "ana-chat-model-btn",
+      attr: { "aria-label": t("view.modelSelect") },
+    });
+    setIcon(this.modelBtn, "sparkle");
+    this.modelBtn.addEventListener("click", () => void this.openModelPicker());
+
+    // 角色选择按钮（普通图标按钮）
+    this.roleBtn = attachRow.createEl("button", {
+      cls: "ana-chat-role-btn",
+      attr: { "aria-label": t("view.roleSelect") },
+    });
+    setIcon(this.roleBtn, "user");
+    this.roleBtn.addEventListener("click", () => void this.openRolePicker());
+
+    // 附件按钮（角色右侧）
     this.attachBtn = attachRow.createEl("button", {
       cls: "ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") },
@@ -311,36 +329,16 @@ export class ChatView extends ItemView {
       }
     });
 
-    // 输入框内底部工具栏：模型/角色选择（左）+ 模型名标签 + 发送（右）
+    // 输入框内底部工具栏：左 模型名/角色名标签，右 发送按钮
     const inputBar = this.inputWrapEl.createEl("div", { cls: "ana-chat-input-bar" });
 
-    // 左侧按钮组：模型选择 + 角色选择
-    const leftActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-left" });
-
-    // 模型选择按钮
-    this.modelBtn = leftActions.createEl("button", {
-      cls: "ana-chat-model-btn",
-      attr: { "aria-label": t("view.modelSelect") },
-    });
-    setIcon(this.modelBtn, "sparkle");
-    this.modelBtn.addEventListener("click", () => void this.openModelPicker());
-
-    // 角色选择按钮（pill：头像 + 名）
-    this.roleBtn = leftActions.createEl("button", {
-      cls: "ana-chat-role-btn",
-      attr: { "aria-label": t("view.roleSelect") },
-    });
-    this.roleBtn.addEventListener("click", () => void this.openRolePicker());
-    this.renderRoleButton();
-
-    // 右侧：模型名称标签 + 发送按钮
-    const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
-
-    // 模型名称标签（发送按钮左侧）
-    this.modelLabelEl = rightActions.createEl("span", {
+    // 模型名/角色名标签（左侧，发送按钮在右侧由 .ana-chat-input-actions-right 推右）
+    this.modelLabelEl = inputBar.createEl("span", {
       cls: "ana-chat-model-label",
     });
     this.renderModelSelect();
+
+    const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
 
     this.sendBtn = rightActions.createEl("button", {
       cls: "ana-chat-send",
@@ -780,16 +778,18 @@ export class ChatView extends ItemView {
     return text.slice(0, keep) + "..";
   }
 
-  /** 渲染模型选择状态：更新标签文本显示当前选中模型与角色（各自截断）。 */
+  /** 渲染模型选择状态：更新底部标签 "模型名/角色名"。 */
   private renderModelSelect(): void {
     const links = this.plugin.settings.modelLinks;
     if (links.length === 0 || !this.selectedModelValue) {
       this.modelLabelEl.setText(t("view.noModel"));
+      this.modelLabelEl.setAttribute("title", t("view.noModel"));
       return;
     }
     const pipeIdx = this.selectedModelValue.indexOf("|");
     if (pipeIdx < 0) {
       this.modelLabelEl.setText(t("view.noModel"));
+      this.modelLabelEl.setAttribute("title", t("view.noModel"));
       return;
     }
     const linkId = this.selectedModelValue.slice(0, pipeIdx);
@@ -797,6 +797,7 @@ export class ChatView extends ItemView {
     const link = links.find((l) => l.id === linkId);
     if (!link || !link.models.includes(modelName)) {
       this.modelLabelEl.setText(t("view.noModel"));
+      this.modelLabelEl.setAttribute("title", t("view.noModel"));
       return;
     }
 
@@ -836,32 +837,8 @@ export class ChatView extends ItemView {
       (roleId) => {
         this.selectedRoleId = roleId;
         this.renderModelSelect();
-        this.renderRoleButton();
       }
     ).open();
-  }
-
-  /** 渲染角色选择按钮（pill）：选中角色时显示头像 + 名；否则显示默认 user 图标。 */
-  private renderRoleButton(): void {
-    const btn = this.roleBtn;
-    btn.empty();
-    const role = this.plugin.settings.roles.find(
-      (r) => r.id === this.selectedRoleId
-    );
-    if (role) {
-      renderAvatar(
-        this.app,
-        btn.createSpan({ cls: "ana-chat-role-btn-avatar" }),
-        role,
-        20
-      );
-      btn.createSpan({ cls: "ana-chat-role-btn-name", text: role.name });
-      btn.setAttribute("aria-label", t("view.roleAvatarAria", { name: role.name }));
-    } else {
-      const icon = btn.createSpan({ cls: "ana-chat-role-btn-icon" });
-      setIcon(icon, "user");
-      btn.setAttribute("aria-label", t("view.roleSelect"));
-    }
   }
 
   // ================= 联网搜索开关 =================
