@@ -1799,15 +1799,21 @@ button.ana-settings-tab.is-active {
     margin-left: 0;
     justify-content: flex-start;
   }
-  /* API Key 按钮行：移动端允许换行 */
-  .ana-model-link-key-btn-row {
+  /* API Key 按钮行：移动端强制一行并排（弹窗 + 设置面板共用） */
+  .ana-model-link-modal .ana-model-link-key-btn-row,
+  .ana-settings-panel-body .ana-model-link-key-btn-row {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 8px;
     margin-top: 6px;
+    width: 100%;
   }
-  .ana-model-link-key-btn-row button {
+  .ana-model-link-modal .ana-model-link-key-btn-row button,
+  .ana-settings-panel-body .ana-model-link-key-btn-row button {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
     font-size: var(--font-smaller);
   }
 
