@@ -192,7 +192,7 @@
   "settings.section.autoprompt": "交互设置",
   "settings.section.autoprompt.desc": "配置 AI 实时建议、笔记优化、对话面板、Frontmatter 生成与拉取网页内容等交互行为。",
 
-  "settings.section.memoryChat": "会话与记忆",
+  "settings.section.memoryChat": "记忆与角色",
   "settings.section.memoryChat.desc": "控制 AI 角色设定、知识库上下文注入与长期画像记忆。",
   "settings.memoryGroup.knowledge": "知识库",
   "settings.memoryGroup.profile": "用户画像",

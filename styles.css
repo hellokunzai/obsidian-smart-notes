@@ -64,6 +64,12 @@
   border-bottom: 2px solid var(--background-modifier-border);
   margin-bottom: var(--size-4-4);
   overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ana-settings-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 button.ana-settings-tab {
@@ -86,17 +92,17 @@ button.ana-settings-tab {
 }
 
 button.ana-settings-tab:hover {
-  background: transparent;
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
 button.ana-settings-tab:active {
-  background: transparent;
+  background: var(--background-modifier-active-hover);
   box-shadow: none;
 }
 
 button.ana-settings-tab.is-active {
-  background: transparent;
+  background: var(--background-modifier-hover);
   color: var(--text-normal);
   font-weight: var(--font-semibold);
   border-bottom-color: var(--interactive-accent);
@@ -1223,31 +1229,31 @@ button.ana-settings-tab.is-active {
 }
 
 /* 搜索框 */
-.ana-secret-picker-search {
+.ana-secret-picker-modal .ana-secret-picker-search {
   margin-bottom: var(--size-4-2);
 }
 
-.ana-secret-picker-search-input {
+.ana-secret-picker-modal .ana-secret-picker-search-input {
   width: 100%;
   padding: var(--size-4-2) var(--size-4-3);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-s);
   background: var(--background-primary);
   color: var(--text-normal);
-  font-size: var(--font-normal);
+  font-size: var(--font-ui-medium);
   outline: none;
   box-sizing: border-box;
   transition: border-color 0.15s ease;
 }
-.ana-secret-picker-search-input:focus {
+.ana-secret-picker-modal .ana-secret-picker-search-input:focus {
   border-color: var(--interactive-accent);
 }
-.ana-secret-picker-search-input::placeholder {
+.ana-secret-picker-modal .ana-secret-picker-search-input::placeholder {
   color: var(--text-faint);
 }
 
 /* 列表容器 */
-.ana-secret-picker-list {
+.ana-secret-picker-modal .ana-secret-picker-list {
   max-height: 290px;
   min-height: 230px;
   overflow-y: auto;
@@ -1258,7 +1264,7 @@ button.ana-settings-tab.is-active {
 }
 
 /* 列表行（卡片式：紧凑高度 + 圆角） */
-.ana-secret-picker-row {
+.ana-secret-picker-modal .ana-secret-picker-row {
   display: flex;
   align-items: center;
   gap: var(--size-4-2);
@@ -1268,19 +1274,19 @@ button.ana-settings-tab.is-active {
   cursor: pointer;
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
-.ana-secret-picker-row:hover {
+.ana-secret-picker-modal .ana-secret-picker-row:hover {
   background: var(--background-modifier-hover);
   border-color: var(--background-modifier-border-hover);
 }
 
 /* 展开查看密钥值时的行样式（保持横向布局，展开区域换行到下方） */
-.ana-secret-picker-row.is-expanded {
+.ana-secret-picker-modal .ana-secret-picker-row.is-expanded {
   flex-wrap: wrap;
   background: var(--background-secondary);
 }
 
 /* 行内展开的密钥值（占满整行宽度，自动换行到下一行） */
-.ana-secret-picker-expanded {
+.ana-secret-picker-modal .ana-secret-picker-expanded {
   width: 100%;
   font-family: var(--font-monospace);
   font-size: var(--font-smaller);
@@ -1294,7 +1300,7 @@ button.ana-settings-tab.is-active {
 }
 
 /* 单选按钮 */
-.ana-secret-picker-radio {
+.ana-secret-picker-modal .ana-secret-picker-radio {
   flex-shrink: 0;
   accent-color: var(--interactive-accent);
   width: 16px;
@@ -1303,7 +1309,7 @@ button.ana-settings-tab.is-active {
 }
 
 /* 名称 + 徽标区 */
-.ana-secret-picker-info {
+.ana-secret-picker-modal .ana-secret-picker-info {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1311,8 +1317,8 @@ button.ana-settings-tab.is-active {
   gap: var(--size-4-2);
 }
 
-.ana-secret-picker-name {
-  font-size: var(--font-normal);
+.ana-secret-picker-modal .ana-secret-picker-name {
+  font-size: var(--font-ui-medium);
   color: var(--text-normal);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1320,8 +1326,8 @@ button.ana-settings-tab.is-active {
 }
 
 /* 「已选择」徽标 */
-.ana-secret-picker-selected-badge {
-  font-size: var(--font-xs);
+.ana-secret-picker-modal .ana-secret-picker-selected-badge {
+  font-size: var(--font-ui-smaller);
   padding: 1px 8px;
   border-radius: 10px;
   background: var(--interactive-accent);
@@ -1331,14 +1337,14 @@ button.ana-settings-tab.is-active {
 }
 
 /* 操作按钮区（查看 / 删除）——始终显示 */
-.ana-secret-picker-actions {
+.ana-secret-picker-modal .ana-secret-picker-actions {
   display: flex;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
 }
 
-.ana-secret-picker-action-btn {
+.ana-secret-picker-modal .ana-secret-picker-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1351,18 +1357,18 @@ button.ana-settings-tab.is-active {
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
-.ana-secret-picker-action-btn svg {
+.ana-secret-picker-modal .ana-secret-picker-action-btn svg {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
 }
-.ana-secret-picker-action-btn:hover {
+.ana-secret-picker-modal .ana-secret-picker-action-btn:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
 /* 空状态 */
-.ana-secret-picker-empty {
+.ana-secret-picker-modal .ana-secret-picker-empty {
   padding: var(--size-4-5) var(--size-4-3);
   text-align: center;
   color: var(--text-faint);
@@ -1370,7 +1376,7 @@ button.ana-settings-tab.is-active {
 }
 
 /* 底部栏：左侧添加 + 右侧保存/取消 */
-.ana-secret-picker-footer {
+.ana-secret-picker-modal .ana-secret-picker-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1378,7 +1384,7 @@ button.ana-settings-tab.is-active {
   gap: var(--size-4-2);
 }
 
-.ana-secret-picker-add-btn {
+.ana-secret-picker-modal .ana-secret-picker-add-btn {
   padding: var(--size-4-1) var(--size-4-3);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-s);
@@ -1388,13 +1394,13 @@ button.ana-settings-tab.is-active {
   cursor: pointer;
   transition: all 0.12s ease;
 }
-.ana-secret-picker-add-btn:hover {
+.ana-secret-picker-modal .ana-secret-picker-add-btn:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
   border-color: var(--background-modifier-border-hover);
 }
 
-.ana-secret-picker-btn-group {
+.ana-secret-picker-modal .ana-secret-picker-btn-group {
   display: flex;
   gap: var(--size-4-2);
 }
@@ -1402,7 +1408,7 @@ button.ana-settings-tab.is-active {
 /* ============================================================
  * 内联添加表单（搜索框下方、列表上方）
  * ============================================================ */
-.ana-secret-picker-add-form {
+.ana-secret-picker-modal .ana-secret-picker-add-form {
   display: none;
   flex-direction: column;
   gap: var(--size-4-1);
@@ -1413,32 +1419,32 @@ button.ana-settings-tab.is-active {
   margin-bottom: var(--size-4-1);
 }
 
-.ana-secret-picker-add-input {
+.ana-secret-picker-modal .ana-secret-picker-add-input {
   width: 100%;
   padding: var(--size-4-2) var(--size-4-3);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-s);
   background: var(--background-primary);
   color: var(--text-normal);
-  font-size: var(--font-normal);
+  font-size: var(--font-ui-medium);
   outline: none;
   box-sizing: border-box;
 }
-.ana-secret-picker-add-input:focus {
+.ana-secret-picker-modal .ana-secret-picker-add-input:focus {
   border-color: var(--interactive-accent);
 }
-.ana-secret-picker-add-input::placeholder {
+.ana-secret-picker-modal .ana-secret-picker-add-input::placeholder {
   color: var(--text-faint);
 }
 
-.ana-secret-picker-add-btn-row {
+.ana-secret-picker-modal .ana-secret-picker-add-btn-row {
   display: flex;
   justify-content: flex-end;
   gap: var(--size-4-2);
 }
 
-.ana-secret-picker-add-confirm,
-.ana-secret-picker-add-cancel {
+.ana-secret-picker-modal .ana-secret-picker-add-confirm,
+.ana-secret-picker-modal .ana-secret-picker-add-cancel {
   padding: var(--size-4-1) var(--size-4-3);
   border-radius: var(--radius-s);
   font-size: var(--font-small);
@@ -1446,27 +1452,49 @@ button.ana-settings-tab.is-active {
   transition: all 0.12s ease;
 }
 
-.ana-secret-picker-add-confirm {
+.ana-secret-picker-modal .ana-secret-picker-add-confirm {
   border: 1px solid var(--interactive-accent);
   background: var(--interactive-accent);
   color: var(--text-on-accent);
 }
-.ana-secret-picker-add-confirm:hover:not(:disabled) {
+.ana-secret-picker-modal .ana-secret-picker-add-confirm:hover:not(:disabled) {
   background: var(--interactive-accent-hover);
 }
-.ana-secret-picker-add-confirm:disabled {
+.ana-secret-picker-modal .ana-secret-picker-add-confirm:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.ana-secret-picker-add-cancel {
+.ana-secret-picker-modal .ana-secret-picker-add-cancel {
   border: 1px solid var(--background-modifier-border);
   background: transparent;
   color: var(--text-muted);
 }
-.ana-secret-picker-add-cancel:hover {
+.ana-secret-picker-modal .ana-secret-picker-add-cancel:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
+}
+
+/* ============================================================
+ * 兼容性补丁（Obsidian 1.13+）
+ * Obsidian 1.13 对 .modal 内的 button / input 增加了全局样式
+ * （.modal button、.modal input，specificity 0,1,1），会覆盖本插件
+ * 原先用单类名选择器（specificity 0,1,0）定义的 width / flex / display，
+ * 导致单选框与操作按钮被拉伸、列表行排版崩坏。上面所有 .ana-secret-picker-*
+ * 规则已统一加 .ana-secret-picker-modal 父级前缀（specificity 提升至 0,2,0）
+ * 以夺回控制权；此处再固化关键布局属性，防止被 Obsidian 默认值再次覆盖。
+ * ============================================================ */
+.ana-secret-picker-modal .ana-secret-picker-radio {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.ana-secret-picker-modal .ana-secret-picker-action-btn {
+  flex: 0 0 auto;
+  padding: 0;
+}
+.ana-secret-picker-modal .ana-secret-picker-search-input,
+.ana-secret-picker-modal .ana-secret-picker-add-input {
+  box-sizing: border-box;
 }
 
 /* ============================================================
@@ -1611,34 +1639,34 @@ button.ana-settings-tab.is-active {
     width: calc(100vw - 32px);
     max-width: 100%;
   }
-  .ana-secret-picker-row {
+  .ana-secret-picker-modal .ana-secret-picker-row {
     padding: 6px var(--size-4-2);
     gap: var(--size-4-1);
   }
-  .ana-secret-picker-info {
+  .ana-secret-picker-modal .ana-secret-picker-info {
     min-width: 0;
   }
-  .ana-secret-picker-name {
+  .ana-secret-picker-modal .ana-secret-picker-name {
     font-size: var(--font-smaller);
     word-break: break-all;
   }
-  .ana-secret-picker-actions {
+  .ana-secret-picker-modal .ana-secret-picker-actions {
     flex-shrink: 0;
   }
-  .ana-secret-picker-action-btn {
+  .ana-secret-picker-modal .ana-secret-picker-action-btn {
     width: 30px;
     height: 30px;
   }
-  .ana-secret-picker-footer {
+  .ana-secret-picker-modal .ana-secret-picker-footer {
     flex-direction: column;
     align-items: stretch;
     gap: var(--size-4-2);
   }
-  .ana-secret-picker-btn-group {
+  .ana-secret-picker-modal .ana-secret-picker-btn-group {
     display: flex;
     gap: var(--size-4-2);
   }
-  .ana-secret-picker-btn-group button {
+  .ana-secret-picker-modal .ana-secret-picker-btn-group button {
     flex: 1;
   }
 }

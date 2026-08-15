@@ -25,3 +25,9 @@
 - 设置页「模型配置」标签页：添加按钮 + 按名称搜索 + 列表（编辑/删除/设为默认）；`ModelLinkModal` 负责新增/编辑。
 - 旧配置迁移在 `main.ts` 的 `loadSettings()` 中：无 `modelLinks` 时把旧字段合成一条名为「默认」的链接。
 - 未配置任何链接时 `createProvider()` 返回 NoopProvider，调用即提示去设置添加。
+
+## Obsidian CSS 变量/选择器使用规范
+- **不要把 `--font-normal` 当 `font-size` 用**：在 Obsidian 官方变量体系里 `--font-normal` 是 **font-weight（默认 400）**，不是字号。用它做 `font-size` 在 1.12.x 可能碰巧继承正常大小，在 1.13.x 下会解析异常，导致文字被放大成巨字。UI 弹窗字号应使用 `--font-ui-medium` / `--font-ui-small` / `--font-ui-smaller` 等标准 UI 字体变量；编辑器相关内容才用 `--font-text-size`。
+- **不要使用不存在的变量**：如 `--font-xs` 不是 Obsidian 标准变量，主题没定义时就会 fallback 到不可预期的大小。
+- **Obsidian 1.13+ 对 `.modal` 内的 `button` / `input` 套用了更高优先级的全局样式**（`.modal button`、`.modal input`，specificity 0,1,1）。插件自定义 Modal 若用单类名选择器（specificity 0,1,0）定义 `width`/`flex`/`display`，可能被覆盖。修复模式：给弹窗内自定义选择器统一加父级类前缀（如 `.ana-secret-picker-modal .ana-secret-picker-*`），specificity 提升到 0,2,0；并对 radio/按钮补 `flex: 0 0 auto` / `margin:0` / `padding:0` 固化布局。
+- 当 1.12.x 正常、1.13.x 自定义弹窗样式「崩了」时，优先检查 **变量误用** 和 **选择器优先级**。

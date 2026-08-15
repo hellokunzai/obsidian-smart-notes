@@ -192,7 +192,7 @@
   "settings.section.autoprompt": "Interaction settings",
   "settings.section.autoprompt.desc": "Configure AI inline suggestions, note optimization, chat panel, frontmatter generation, and web content fetching behavior.",
 
-  "settings.section.memoryChat": "Conversation & memory",
+  "settings.section.memoryChat": "Memory & roles",
   "settings.section.memoryChat.desc": "Controls AI role settings, knowledge base context injection, and long-term profile memory.",
   "settings.memoryGroup.knowledge": "Knowledge base",
   "settings.memoryGroup.profile": "User profile",
