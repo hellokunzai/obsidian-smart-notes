@@ -1,5 +1,6 @@
 import { Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
+import type { TokenUsage } from "../ai/provider";
 
 const SESSIONS_DIR = "sessions";
 const SESSIONS_INDEX = "index.json";
@@ -46,7 +47,12 @@ const SKILLS_README_CONTENT = `# Skills 目录
 `;
 
 /** 单个对话中的一条消息：仅 user / assistant（system 每次动态构造，不持久化）。 */
-export type SessionMessage = { role: "user" | "assistant"; content: string };
+export type SessionMessage = {
+  role: "user" | "assistant";
+  content: string;
+  /** 可选：该助手消息返回的 token 消耗统计。 */
+  usage?: TokenUsage;
+};
 
 /** 附件引用：用户显式附加到会话的文件或文件夹（仅此部分内容会被读取并注入上下文）。 */
 export type AttachmentRef = {
@@ -160,10 +166,23 @@ function isValidMessage(m: unknown): m is SessionMessage {
   if (!m || typeof m !== "object") return false;
   const obj = m as Record<string, unknown>;
   // 记忆中只保存 user/assistant 消息；system 是每次动态构造的，不应持久化
-  return (
-    (obj.role === "user" || obj.role === "assistant") &&
-    typeof obj.content === "string"
-  );
+  if (
+    !(obj.role === "user" || obj.role === "assistant") ||
+    typeof obj.content !== "string"
+  ) {
+    return false;
+  }
+  if (obj.usage && typeof obj.usage === "object") {
+    const u = obj.usage as Record<string, unknown>;
+    if (
+      typeof u.promptTokens !== "number" ||
+      typeof u.completionTokens !== "number" ||
+      typeof u.totalTokens !== "number"
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** 校验一个附件引用是否合法（文件/文件夹、路径为字符串）。 */

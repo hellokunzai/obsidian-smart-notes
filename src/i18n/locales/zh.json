@@ -160,6 +160,11 @@
   "error.openaiFailed": "OpenAI 请求失败（{status}）：{text}",
   "error.ollamaFailed": "Ollama 请求失败（{status}）：{text}",
   "error.noModelLink": "Vault Mind：尚未配置任何模型链接，请打开设置 → 模型配置添加。",
+  "error.streamingNotSupported": "当前环境不支持流式输出，已回退到普通请求。",
+
+  "view.tokens": "Token",
+  "view.tokensEstimated": "约 Token",
+  "view.tokensHint": "本次回复的 Token 消耗（prompt + completion）",
 
   "frontmatter.systemPrompt": "你是一名元数据整理助手。请根据用户提供的 Markdown 笔记内容，生成一段简洁、相关的 YAML frontmatter。建议包含 title、date、tags、category、summary、keywords 等标准字段。请只返回被 `---` 包裹的 YAML 代码块，不要输出解释或其他内容。",
 

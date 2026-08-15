@@ -8,6 +8,8 @@ import {
   Setting,
   ButtonComponent,
   setIcon,
+  MarkdownRenderer,
+  Component,
 } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { t } from "../i18n";
@@ -75,6 +77,15 @@ export class ChatView extends ItemView {
 
   private isStreaming = false;
   private sidebarCollapsed = true;
+
+  // 流式渲染状态
+  private pendingRender = false;
+  private isRenderingMarkdown = false;
+  private renderFrameId: number | null = null;
+  private streamingRawContent = "";
+  private streamingContentEl: HTMLElement | null = null;
+  private streamingCursorEl: HTMLElement | null = null;
+  private streamingTokenEl: HTMLElement | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: AiNoteAgentPlugin) {
     super(leaf);
@@ -870,31 +881,172 @@ export class ChatView extends ItemView {
       return;
     }
     for (const m of s.messages) {
-      this.addMessage(m.role, m.content);
+      this.addMessage(m.role, m.content, m.usage);
     }
   }
 
-  private addMessage(role: "user" | "assistant", text: string): HTMLElement {
+  private addMessage(
+    role: "user" | "assistant",
+    text: string,
+    usage?: import("../ai/provider").TokenUsage
+  ): { contentEl: HTMLElement; bubbleEl: HTMLElement; rowEl: HTMLElement } {
     const row = this.messagesEl.createEl("div", {
       cls: `ana-chat-message ana-chat-message-${role}`,
     });
     const bubble = row.createEl("div", { cls: "ana-chat-bubble" });
     const content = bubble.createEl("div", { cls: "ana-chat-text" });
-    content.setText(text);
+
+    if (role === "assistant") {
+      void this.renderMarkdown(content, text);
+      if (usage) {
+        this.renderTokenUsage(bubble, usage);
+      }
+    } else {
+      content.setText(text);
+    }
+
     this.scrollToBottom();
-    return content;
+    return { contentEl: content, bubbleEl: bubble, rowEl: row };
   }
 
   private addUserMessage(text: string): void {
     this.addMessage("user", text);
   }
 
-  private addAssistantMessage(text: string): HTMLElement {
-    return this.addMessage("assistant", text);
+  private addAssistantMessage(
+    text: string,
+    usage?: import("../ai/provider").TokenUsage
+  ): HTMLElement {
+    return this.addMessage("assistant", text, usage).contentEl;
   }
 
   private scrollToBottom(): void {
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+  }
+
+  // ================= Markdown 渲染 =================
+
+  /** 使用 Obsidian 内置渲染器将 Markdown 渲染到指定元素。 */
+  private async renderMarkdown(el: HTMLElement, text: string): Promise<void> {
+    el.empty();
+    if (!text.trim()) {
+      return;
+    }
+    try {
+      await MarkdownRenderer.renderMarkdown(text, el, "", this as Component);
+    } catch {
+      // 渲染失败时回退到纯文本
+      el.setText(text);
+    }
+  }
+
+  // ================= Token 消耗提示 =================
+
+  /** 在气泡底部渲染 token 消耗信息。 */
+  private renderTokenUsage(
+    bubbleEl: HTMLElement,
+    usage: import("../ai/provider").TokenUsage
+  ): void {
+    const existing = bubbleEl.querySelector(".ana-chat-token-usage");
+    if (existing) existing.remove();
+
+    const footer = bubbleEl.createEl("div", {
+      cls: "ana-chat-token-usage",
+      text: this.formatTokenUsage(usage),
+    });
+    footer.setAttribute("aria-label", t("view.tokensHint"));
+  }
+
+  private formatTokenUsage(
+    usage: import("../ai/provider").TokenUsage
+  ): string {
+    const isEstimate =
+      usage.promptTokens === 0 &&
+      usage.completionTokens === 0 &&
+      usage.totalTokens > 0;
+    const prefix = isEstimate ? t("view.tokensEstimated") : t("view.tokens");
+    return `${prefix}: ${usage.totalTokens}`;
+  }
+
+  /** 按字符数粗略估算 token 数（用于接口未返回 usage 时）。 */
+  private estimateTokens(text: string): number {
+    // 中文按字，英文按词，取一个保守估计
+    const cnChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const nonCn = text.length - cnChars;
+    return Math.ceil(cnChars + nonCn / 4);
+  }
+
+  // ================= 流式渲染 =================
+
+  /** 标记需要重新渲染流式内容，并通过 requestAnimationFrame 节流。 */
+  private scheduleStreamingRender(): void {
+    this.pendingRender = true;
+    if (this.renderFrameId !== null) return;
+
+    this.renderFrameId = window.requestAnimationFrame(() => {
+      this.renderFrameId = null;
+      if (!this.pendingRender) return;
+      this.pendingRender = false;
+      void this.renderStreaming();
+    });
+  }
+
+  /** 实际执行流式 Markdown 渲染，串行避免重入导致内容闪烁。 */
+  private async renderStreaming(): Promise<void> {
+    if (this.isRenderingMarkdown) {
+      this.pendingRender = true;
+      return;
+    }
+    if (!this.streamingContentEl) return;
+
+    this.isRenderingMarkdown = true;
+    this.streamingContentEl.removeClass("ana-chat-typing");
+    try {
+      await this.renderMarkdown(
+        this.streamingContentEl,
+        this.streamingRawContent
+      );
+      this.appendStreamingCursor();
+      this.scrollToBottom();
+    } finally {
+      this.isRenderingMarkdown = false;
+      if (this.pendingRender) {
+        this.pendingRender = false;
+        void this.renderStreaming();
+      }
+    }
+  }
+
+  private clearStreamingRender(): void {
+    this.pendingRender = false;
+    if (this.renderFrameId !== null) {
+      window.cancelAnimationFrame(this.renderFrameId);
+      this.renderFrameId = null;
+    }
+  }
+
+  private appendStreamingCursor(): void {
+    if (!this.streamingContentEl) return;
+    this.removeStreamingCursor();
+    this.streamingCursorEl = this.streamingContentEl.createEl("span", {
+      cls: "ana-chat-streaming-cursor",
+      text: "▍",
+    });
+  }
+
+  private removeStreamingCursor(): void {
+    if (this.streamingCursorEl) {
+      this.streamingCursorEl.remove();
+      this.streamingCursorEl = null;
+    }
+  }
+
+  private clearStreamingState(): void {
+    this.clearStreamingRender();
+    this.removeStreamingCursor();
+    this.streamingContentEl = null;
+    this.streamingRawContent = "";
+    this.streamingTokenEl = null;
   }
 
   // ================= 发送 =================
@@ -929,18 +1081,19 @@ export class ChatView extends ItemView {
       try {
         const svc = new WebSearchService(this.buildSearchConfig());
         if (svc.hasCredentials()) {
-          new Notice(t("view.webSearching"));
           const results = await svc.search(text);
           webContext = buildWebSearchContext(
             results,
             this.plugin.settings.webSearchShowCitations
           );
-          if (results.length === 0) new Notice(t("view.webNoResults"));
+          if (results.length === 0) {
+            this.addInlineError(t("view.webNoResults"));
+          }
         } else {
-          new Notice(t("view.webNoCredentials"));
+          this.addInlineError(t("view.webNoCredentials"));
         }
       } catch (e) {
-        new Notice(t("view.webError", { error: (e as Error).message }));
+        this.addInlineError(t("view.webError", { error: (e as Error).message }));
       }
     }
 
@@ -964,6 +1117,9 @@ export class ChatView extends ItemView {
     // 显示加载动画（打字指示器）
     this.showTypingIndicator(assistantContentEl);
 
+    this.streamingContentEl = assistantContentEl;
+    this.streamingRawContent = "";
+
     try {
       // 用当前选中的模型创建 provider（value 格式：linkId|modelName）
       const raw = this.selectedModelValue || "";
@@ -982,21 +1138,51 @@ export class ChatView extends ItemView {
       } else {
         provider = this.plugin.getProvider();
       }
-      // 带超时的请求（默认 60 秒），避免不可达模型导致无限挂起
-      const reply = await this.withTimeout(
-        provider.complete(messages, {
-          maxTokens: this.plugin.settings.maxTokens,
-          temperature: this.plugin.settings.temperature,
-        }),
+
+      // 带超时的流式请求（默认 60 秒），避免不可达模型导致无限挂起
+      const result = await this.withTimeout(
+        provider.stream(
+          messages,
+          {
+            maxTokens: this.plugin.settings.maxTokens,
+            temperature: this.plugin.settings.temperature,
+          },
+          (chunk) => {
+            this.streamingRawContent += chunk.content;
+            this.scheduleStreamingRender();
+          }
+        ),
         60_000
       );
-      // 移除加载动画，设置实际回复内容
-      this.hideTypingIndicator(assistantContentEl);
-      assistantContentEl.setText(reply);
+
+      // 流式结束：最终渲染并显示 token 消耗
+      this.clearStreamingRender();
+      this.removeStreamingCursor();
+      const reply = result.content;
+      await this.renderMarkdown(this.streamingContentEl!, reply);
+
+      // 若接口未返回 usage，按字符粗略估算
+      let usage = result.usage;
+      if (!usage && reply.length > 0) {
+        const promptText = messages.map((m) => m.content).join("\n");
+        const promptTokens = this.estimateTokens(promptText);
+        const completionTokens = this.estimateTokens(reply);
+        usage = {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: promptTokens + completionTokens,
+        };
+      }
+      if (usage && usage.totalTokens > 0) {
+        this.renderTokenUsage(
+          this.streamingContentEl!.closest(".ana-chat-bubble") as HTMLElement,
+          usage
+        );
+      }
 
       // 首条助手回复后，用首句 user 消息命名会话（仅当仍为默认标题）
       const isFirstAssistant = !s!.messages.some((m) => m.role === "assistant");
-      s!.messages.push({ role: "assistant", content: reply });
+      s!.messages.push({ role: "assistant", content: reply, usage });
       s!.updatedAt = Date.now();
       if (isFirstAssistant && (s!.title === t("view.defaultTitle") || !s!.title)) {
         const firstUser = s!.messages.find((m) => m.role === "user");
@@ -1009,18 +1195,27 @@ export class ChatView extends ItemView {
       await this.persist();
       this.renderSessionList();
     } catch (e) {
-      this.hideTypingIndicator(assistantContentEl);
+      this.clearStreamingState();
+      const bubble = assistantContentEl.closest(".ana-chat-bubble") as HTMLElement;
+      bubble.addClass("ana-chat-bubble-error");
+      assistantContentEl.empty();
       assistantContentEl.setText(t("view.error", { error: (e as Error).message }));
-      // 给错误消息添加特殊样式，使其与正常回复区分
-      assistantContentEl.closest(".ana-chat-bubble")?.addClass("ana-chat-bubble-error");
       // 出错时回滚刚加入的用户消息，避免污染历史
       s!.messages.pop();
       s!.updatedAt = Date.now();
     } finally {
       this.isStreaming = false;
+      this.clearStreamingState();
       this.setInputDisabled(false);
       this.scrollToBottom();
     }
+  }
+
+  /** 在对话中插入一条不带 Markdown 渲染的内联错误提示。 */
+  private addInlineError(text: string): void {
+    const { contentEl, bubbleEl } = this.addMessage("assistant", "");
+    bubbleEl.addClass("ana-chat-bubble-error");
+    contentEl.setText(text);
   }
 
   private setInputDisabled(disabled: boolean): void {

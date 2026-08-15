@@ -1,7 +1,7 @@
 {
   "id": "vault-mind",
   "name": "Vault Mind",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "minAppVersion": "1.4.0",
   "description": "Analyze your vault with AI to generate bidirectional links, enrich frontmatter properties, optimize notes, and provide in-editor autocompletion.",
   "author": "hellokunzai",

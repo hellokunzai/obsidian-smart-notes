@@ -13,9 +13,30 @@ export interface CompletionOptions {
   maxTokens?: number;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface StreamChunk {
+  content: string;
+  done: boolean;
+}
+
+export interface CompletionResult {
+  content: string;
+  usage?: TokenUsage;
+}
+
 export interface AIProvider {
   id: string;
   complete(messages: ChatMessage[], opts?: CompletionOptions): Promise<string>;
+  stream(
+    messages: ChatMessage[],
+    opts: CompletionOptions,
+    onChunk: (chunk: StreamChunk) => void
+  ): Promise<CompletionResult>;
 }
 
 /** 返回当前生效的模型链接：优先 defaultModelLinkId，否则列表第一个。 */
@@ -55,6 +76,9 @@ export function createProviderFromLink(link: ModelLink): AIProvider {
 class NoopProvider implements AIProvider {
   id = "noop";
   async complete(): Promise<string> {
+    throw new Error(t("error.noModelLink"));
+  }
+  async stream(): Promise<CompletionResult> {
     throw new Error(t("error.noModelLink"));
   }
 }

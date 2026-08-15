@@ -392,15 +392,30 @@ button.ana-settings-tab.is-active {
   border-radius: var(--radius-m);
   font-size: var(--font-smaller);
   line-height: var(--line-height-normal);
-  white-space: pre-wrap;
   word-break: break-word;
   user-select: text;
   -webkit-user-select: text;
+  animation: ana-message-in 0.2s ease-out;
 }
 
 .ana-chat-text {
   user-select: text;
   -webkit-user-select: text;
+}
+
+.ana-chat-message-user .ana-chat-text {
+  white-space: pre-wrap;
+}
+
+@keyframes ana-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .ana-chat-message-user .ana-chat-bubble {
@@ -471,6 +486,187 @@ button.ana-settings-tab.is-active {
   background: var(--background-secondary) !important;
   border-color: var(--background-modifier-error) !important;
   color: var(--text-error) !important;
+}
+
+/* ==================== 助手消息 Markdown 渲染 ==================== */
+.ana-chat-message-assistant .ana-chat-text {
+  /* 让 Markdown 渲染出的段落、列表等按正常文档流排版 */
+}
+
+.ana-chat-message-assistant .ana-chat-text > *:first-child {
+  margin-top: 0;
+}
+
+.ana-chat-message-assistant .ana-chat-text > *:last-child {
+  margin-bottom: 0;
+}
+
+.ana-chat-message-assistant .ana-chat-text p {
+  margin: 0.5em 0;
+}
+
+.ana-chat-message-assistant .ana-chat-text ul,
+.ana-chat-message-assistant .ana-chat-text ol {
+  margin: 0.5em 0;
+  padding-left: 1.4em;
+}
+
+.ana-chat-message-assistant .ana-chat-text li {
+  margin: 0.2em 0;
+}
+
+.ana-chat-message-assistant .ana-chat-text h1,
+.ana-chat-message-assistant .ana-chat-text h2,
+.ana-chat-message-assistant .ana-chat-text h3,
+.ana-chat-message-assistant .ana-chat-text h4,
+.ana-chat-message-assistant .ana-chat-text h5,
+.ana-chat-message-assistant .ana-chat-text h6 {
+  margin: 0.8em 0 0.4em;
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.ana-chat-message-assistant .ana-chat-text h1 { font-size: 1.25em; }
+.ana-chat-message-assistant .ana-chat-text h2 { font-size: 1.15em; }
+.ana-chat-message-assistant .ana-chat-text h3 { font-size: 1.05em; }
+.ana-chat-message-assistant .ana-chat-text h4,
+.ana-chat-message-assistant .ana-chat-text h5,
+.ana-chat-message-assistant .ana-chat-text h6 { font-size: 1em; }
+
+.ana-chat-message-assistant .ana-chat-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 0.95em;
+}
+
+.ana-chat-message-assistant .ana-chat-text th,
+.ana-chat-message-assistant .ana-chat-text td {
+  border: 1px solid var(--background-modifier-border);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+
+.ana-chat-message-assistant .ana-chat-text th {
+  background: var(--background-secondary-alt);
+  font-weight: var(--font-semibold);
+}
+
+.ana-chat-message-assistant .ana-chat-text tr:nth-child(even) {
+  background: var(--background-primary-alt);
+}
+
+.ana-chat-message-assistant .ana-chat-text code {
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  background: var(--background-primary-alt);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+}
+
+.ana-chat-message-assistant .ana-chat-text pre {
+  background: var(--background-primary-alt);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 0.6em 0.8em;
+  margin: 0.6em 0;
+  overflow-x: auto;
+}
+
+.ana-chat-message-assistant .ana-chat-text pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* 代码块复制按钮：移至右上角、图标缩小、背景透明、保留点击区域 */
+.ana-chat-message-assistant .ana-chat-text pre {
+  position: relative;
+}
+
+.ana-chat-message-assistant .ana-chat-text pre .copy-code-button {
+  position: absolute;
+  top: 0.35em;
+  right: 0.35em;
+  bottom: auto;
+  left: auto;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.4em;
+  margin: 0;
+  opacity: 0.55;
+  transform: scale(0.8);
+  transform-origin: top right;
+  transition: opacity 0.15s ease;
+}
+
+.ana-chat-message-assistant .ana-chat-text pre .copy-code-button:hover {
+  opacity: 1;
+  background: transparent !important;
+}
+
+.ana-chat-message-assistant .ana-chat-text pre .copy-code-button svg,
+.ana-chat-message-assistant .ana-chat-text pre .copy-code-button .svg-icon {
+  width: 1em;
+  height: 1em;
+}
+
+.ana-chat-message-assistant .ana-chat-text blockquote {
+  margin: 0.6em 0;
+  padding: 0.2em 0.8em;
+  border-left: 3px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  background: var(--background-primary-alt);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+
+.ana-chat-message-assistant .ana-chat-text hr {
+  border: none;
+  border-top: 1px solid var(--background-modifier-border);
+  margin: 0.8em 0;
+}
+
+.ana-chat-message-assistant .ana-chat-text a {
+  color: var(--interactive-accent);
+  text-decoration: none;
+}
+
+.ana-chat-message-assistant .ana-chat-text a:hover {
+  text-decoration: underline;
+}
+
+/* ==================== 流式输出光标动画 ==================== */
+.ana-chat-streaming-cursor {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  background: var(--interactive-accent);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: ana-cursor-blink 1s step-end infinite;
+}
+
+@keyframes ana-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ==================== Token 消耗提示 ==================== */
+.ana-chat-token-usage {
+  margin-top: 0.5em;
+  padding-top: 0.3em;
+  border-top: 1px solid var(--background-modifier-border);
+  color: var(--text-faint);
+  font-size: var(--font-smallest);
+  text-align: right;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ana-chat-message-user .ana-chat-token-usage {
+  display: none;
 }
 
 .ana-chat-footer {
