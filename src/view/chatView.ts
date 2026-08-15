@@ -1082,8 +1082,9 @@ export class ChatView extends ItemView {
           await saveSessionFile(this.plugin, s);
         }
       }
-    } catch {
-      // 记忆写入失败不应影响对话
+    } catch (e) {
+      // 记忆写入失败不应影响对话，但需记录以便排查
+      console.error("[Vault Mind] 会话持久化失败", e);
     }
   }
 

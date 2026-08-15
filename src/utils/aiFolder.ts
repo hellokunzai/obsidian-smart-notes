@@ -1,4 +1,4 @@
-import { TFile, TFolder, Vault } from "obsidian";
+import { Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 
 const SESSIONS_DIR = "sessions";
@@ -121,14 +121,19 @@ export function getMemoryDir(plugin: AiNoteAgentPlugin): string {
   return `${getAiFolderPath(plugin)}/${MEMORY_DIR}`;
 }
 
-/** 若指定路径的文件夹不存在则创建（逐级创建，已存在则跳过）。 */
+/**
+ * 若指定路径的文件夹不存在则创建（已存在则跳过）。
+ * 使用 vault.adapter 而非 vault 缓存 API：Obsidian 的 vault 缓存不会索引
+ * 「.」开头的隐藏文件夹（如 .vaultmind），导致 getAbstractFileByPath 对
+ * 其内部文件/目录返回 undefined；adapter 走底层文件系统，可正常访问。
+ */
 async function ensureFolder(vault: Vault, path: string): Promise<void> {
-  if (vault.getAbstractFileByPath(path) instanceof TFolder) return;
   try {
-    await vault.createFolder(path);
+    if (await vault.adapter.exists(path)) return;
+    await vault.adapter.mkdir(path);
   } catch (e) {
     // 并发/已存在等情况下再次确认，避免误报
-    if (!(vault.getAbstractFileByPath(path) instanceof TFolder)) throw e;
+    if (!(await vault.adapter.exists(path))) throw e;
   }
 }
 
@@ -146,8 +151,8 @@ export async function ensureAiFolder(plugin: AiNoteAgentPlugin): Promise<void> {
   await ensureFolder(vault, getSkillsDir(plugin));
 
   const readmePath = `${getSkillsDir(plugin)}/${SKILLS_README}`;
-  if (!vault.getAbstractFileByPath(readmePath)) {
-    await vault.create(readmePath, SKILLS_README_CONTENT);
+  if (!(await vault.adapter.exists(readmePath))) {
+    await vault.adapter.write(readmePath, SKILLS_README_CONTENT);
   }
 }
 
@@ -241,13 +246,9 @@ export async function saveSessionFile(
   await ensureFolder(vault, getAiFolderPath(plugin));
   await ensureFolder(vault, getSessionsDir(plugin));
   const path = getSessionFile(plugin, session.id);
-  const file = vault.getAbstractFileByPath(path);
-  const json = JSON.stringify(session, null, 2);
-  if (file instanceof TFile) {
-    await vault.modify(file, json);
-  } else {
-    await vault.create(path, json);
-  }
+  // adapter.write 同时支持「不存在则创建 / 已存在则覆盖」，且绕过 vault 缓存，
+  // 对隐藏文件夹（.vaultmind）也能正常读写。
+  await vault.adapter.write(path, JSON.stringify(session, null, 2));
 }
 
 /**
@@ -259,9 +260,8 @@ export async function deleteSessionFile(
 ): Promise<void> {
   const vault = plugin.app.vault;
   const path = getSessionFile(plugin, id);
-  const file = vault.getAbstractFileByPath(path);
-  if (file instanceof TFile) {
-    await vault.delete(file);
+  if (await vault.adapter.exists(path)) {
+    await vault.adapter.remove(path);
   }
 }
 
@@ -277,13 +277,7 @@ export async function saveSessionsIndex(
   await ensureFolder(vault, getSessionsDir(plugin));
   const path = getSessionsIndexFile(plugin);
   const out: SessionsIndex = { ...index, version: SESSIONS_VERSION };
-  const json = JSON.stringify(out, null, 2);
-  const file = vault.getAbstractFileByPath(path);
-  if (file instanceof TFile) {
-    await vault.modify(file, json);
-  } else {
-    await vault.create(path, json);
-  }
+  await vault.adapter.write(path, JSON.stringify(out, null, 2));
 }
 
 /**
@@ -297,10 +291,10 @@ export async function loadSessionsIndex(
 ): Promise<SessionsIndex> {
   const vault = plugin.app.vault;
 
-  const idxFile = vault.getAbstractFileByPath(getSessionsIndexFile(plugin));
-  if (idxFile instanceof TFile) {
+  const idxPath = getSessionsIndexFile(plugin);
+  if (await vault.adapter.exists(idxPath)) {
     try {
-      const content = await vault.read(idxFile);
+      const content = await vault.adapter.read(idxPath);
       if (content.trim()) return normalizeIndex(JSON.parse(content));
     } catch {
       // 损坏则继续尝试迁移 / 返回空
@@ -310,7 +304,60 @@ export async function loadSessionsIndex(
   const migrated = await tryMigrateLegacy(plugin);
   if (migrated) return migrated;
 
+  // 兜底恢复：旧版在隐藏文件夹上用普通 vault API 持久化，可能把 session 文件
+  // 实际写到了磁盘，却始终无法维护/读取 index；这里扫描 sessions 目录，把磁盘上
+  // 残留的 session-<id>.json 重新编入索引，避免用户历史对话丢失。
+  const recovered = await recoverFromOrphanedFiles(plugin);
+  if (recovered) return recovered;
+
   return emptyIndex();
+}
+
+/**
+ * 扫描 sessions 目录，从磁盘上残留的 session-<id>.json 重建索引。
+ * 仅当 index 缺失/为空时作为兜底调用；无任何残留文件时返回 null。
+ */
+async function recoverFromOrphanedFiles(
+  plugin: AiNoteAgentPlugin
+): Promise<SessionsIndex | null> {
+  const vault = plugin.app.vault;
+  const dir = getSessionsDir(plugin);
+  if (!(await vault.adapter.exists(dir))) return null;
+
+  let listed: { files: string[]; folders: string[] };
+  try {
+    listed = await vault.adapter.list(dir);
+  } catch {
+    return null;
+  }
+
+  const metas: SessionMeta[] = [];
+  for (const file of listed.files) {
+    const name = file.slice(file.lastIndexOf("/") + 1);
+    if (
+      !name.startsWith(SESSION_FILE_PREFIX) ||
+      !name.endsWith(SESSION_FILE_SUFFIX)
+    ) {
+      continue;
+    }
+    const id = name.slice(
+      SESSION_FILE_PREFIX.length,
+      name.length - SESSION_FILE_SUFFIX.length
+    );
+    const full = await loadSessionFile(plugin, id);
+    if (full) metas.push(sessionToMeta(full));
+  }
+
+  if (metas.length === 0) return null;
+  metas.sort((a, b) => b.updatedAt - a.updatedAt);
+  const index: SessionsIndex = {
+    version: SESSIONS_VERSION,
+    activeSessionId: metas[0].id,
+    sessions: metas,
+  };
+  // 写回索引，使后续加载走正常路径
+  await saveSessionsIndex(plugin, index);
+  return index;
 }
 
 /**
@@ -322,10 +369,10 @@ export async function loadSessionFile(
   id: string
 ): Promise<Session | null> {
   const vault = plugin.app.vault;
-  const file = vault.getAbstractFileByPath(getSessionFile(plugin, id));
-  if (!(file instanceof TFile)) return null;
+  const path = getSessionFile(plugin, id);
+  if (!(await vault.adapter.exists(path))) return null;
   try {
-    const content = await vault.read(file);
+    const content = await vault.adapter.read(path);
     if (!content.trim()) return null;
     const obj = JSON.parse(content);
     if (isValidSession(obj)) return obj;
@@ -344,11 +391,10 @@ async function tryMigrateLegacy(
 ): Promise<SessionsIndex | null> {
   const vault = plugin.app.vault;
   const legacyPath = `${getAiFolderPath(plugin)}/${MEMORY_LEGACY_DIR}/${MEMORY_LEGACY_FILE}`;
-  const file = vault.getAbstractFileByPath(legacyPath);
-  if (!(file instanceof TFile)) return null;
+  if (!(await vault.adapter.exists(legacyPath))) return null;
 
   try {
-    const content = await vault.read(file);
+    const content = await vault.adapter.read(legacyPath);
     if (!content.trim()) return null;
     const legacy = migrateLegacy(JSON.parse(content));
     if (legacy.sessions.length === 0) return null;
@@ -364,7 +410,7 @@ async function tryMigrateLegacy(
     }
     await saveSessionsIndex(plugin, index);
     // 迁移完成后删除旧文件，避免重复迁移
-    await vault.delete(file).catch(() => undefined);
+    await vault.adapter.remove(legacyPath).catch(() => undefined);
     return index;
   } catch {
     return null;
@@ -462,16 +508,21 @@ export function createSession(title = "新对话", defaultSkills: string[] = [])
 /** 清空当前所有会话（重建空索引并删除所有会话文件）。 */
 export async function clearAllSessions(plugin: AiNoteAgentPlugin): Promise<void> {
   const vault = plugin.app.vault;
-  const dir = vault.getAbstractFileByPath(getSessionsDir(plugin));
-  if (dir instanceof TFolder) {
-    for (const child of [...dir.children]) {
-      if (
-        child instanceof TFile &&
-        child.name.startsWith(SESSION_FILE_PREFIX) &&
-        child.name.endsWith(SESSION_FILE_SUFFIX)
-      ) {
-        await vault.delete(child).catch(() => undefined);
+  const dir = getSessionsDir(plugin);
+  if (await vault.adapter.exists(dir)) {
+    try {
+      const listed = await vault.adapter.list(dir);
+      for (const file of listed.files) {
+        const name = file.slice(file.lastIndexOf("/") + 1);
+        if (
+          name.startsWith(SESSION_FILE_PREFIX) &&
+          name.endsWith(SESSION_FILE_SUFFIX)
+        ) {
+          await vault.adapter.remove(file).catch(() => undefined);
+        }
       }
+    } catch {
+      // 列出失败则忽略，仍可重置索引
     }
   }
   await saveSessionsIndex(plugin, emptyIndex());

@@ -1,4 +1,3 @@
-import { TFile, TFolder, Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import {
   ensureAiFolder,
@@ -32,10 +31,10 @@ export async function loadMemoryFile(
   relativePath: string
 ): Promise<string> {
   const vault = plugin.app.vault;
-  const file = vault.getAbstractFileByPath(resolveMemoryPath(plugin, relativePath));
-  if (!(file instanceof TFile)) return "";
+  const path = resolveMemoryPath(plugin, relativePath);
+  if (!(await vault.adapter.exists(path))) return "";
   try {
-    return await vault.read(file);
+    return await vault.adapter.read(path);
   } catch {
     return "";
   }
@@ -50,12 +49,7 @@ export async function saveMemoryFile(
   const vault = plugin.app.vault;
   await ensureAiFolder(plugin);
   const path = resolveMemoryPath(plugin, relativePath);
-  const file = vault.getAbstractFileByPath(path);
-  if (file instanceof TFile) {
-    await vault.modify(file, content);
-  } else {
-    await vault.create(path, content);
-  }
+  await vault.adapter.write(path, content);
 }
 
 /** 获取文件 mtime（毫秒时间戳），不存在返回 null。 */
@@ -63,11 +57,15 @@ async function fileMtime(
   plugin: AiNoteAgentPlugin,
   relativePath: string
 ): Promise<number | null> {
-  const file = plugin.app.vault.getAbstractFileByPath(
-    resolveMemoryPath(plugin, relativePath)
-  );
-  if (file instanceof TFile && file.stat) {
-    return file.stat.mtime;
+  const vault = plugin.app.vault;
+  const path = resolveMemoryPath(plugin, relativePath);
+  try {
+    const stat = await vault.adapter.stat(path);
+    if (stat && stat.type === "file") {
+      return stat.mtime;
+    }
+  } catch {
+    // stat 失败（文件不存在等）
   }
   return null;
 }
