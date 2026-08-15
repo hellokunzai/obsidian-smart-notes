@@ -14,6 +14,7 @@ import { RoleInfoModal } from "./roleInfoModal";
 import { loadMemoryFile, saveMemoryFile, rebuildProfileMemory } from "./memory/profileMemory";
 import { WebSearchService } from "./search/search";
 import { listSkills, type SkillEntry } from "./skills/skills";
+import { renderAvatar } from "./avatar";
 import { getSkillsDir } from "./utils/aiFolder";
 
 export type ProviderType = "openai" | "ollama";
@@ -46,6 +47,14 @@ export interface RoleInfo {
   name: string;
   /** 角色提示词（立场 / 语气 / 职责描述），注入 system prompt。 */
   prompt: string;
+  /**
+   * 角色头像（可选）：
+   *  - 缺省 / 空 → 自动显示名字首字母色块
+   *  - 内置 emoji 预设 → 直接存储 emoji 字符
+   *  - vault 内图片 → 存储相对路径（渲染走 getResourcePath）
+   *  - 用户上传图片 → 存储 `data:image/...;base64,...`
+   */
+  avatar?: string;
 }
 
 /**
@@ -510,11 +519,17 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       const tr = tbody.createEl("tr");
       const isDefault = role.id === this.plugin.settings.defaultRoleId;
 
-      // 名称列（含默认徽标）
+      // 名称列（头像 + 名称 + 默认徽标合并在一格）
+      // 注意：renderAvatar 会把容器本身变成圆形头像（border-radius:50% + overflow:hidden），
+      // 因此在 <td> 内再套一层 div 作为头像容器，保持 <td> 为正常表格单元格；
+      // 头像/名称/徽标放在一个 inline-flex 行容器内，整体垂直居中。
       const tdName = tr.createEl("td", { cls: "ana-model-link-col-name" });
-      tdName.createEl("span", { cls: "ana-model-link-name", text: role.name });
+      const nameRow = tdName.createDiv({ cls: "ana-role-list-name-row" });
+      const avatarWrap = nameRow.createDiv({ cls: "ana-role-list-avatar" });
+      renderAvatar(this.app, avatarWrap, role, 24);
+      nameRow.createEl("span", { cls: "ana-model-link-name", text: role.name });
       if (isDefault) {
-        tdName.createEl("span", {
+        nameRow.createEl("span", {
           cls: "ana-model-link-default-badge",
           text: t("settings.roles.defaultBadge"),
         });

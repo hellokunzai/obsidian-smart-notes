@@ -237,6 +237,10 @@
   "settings.roles.modal.untitled": "未命名角色",
   "settings.roles.modal.nameRequired": "Vault Mind：角色名称不能为空。",
   "settings.roles.modal.nameDuplicate": "Vault Mind：已存在同名角色，请换一个名称。",
+  "settings.roles.modal.avatar.uploadAria": "点击头像上传图片",
+  "settings.roles.modal.avatar.hint": "点击头像上传图片（未上传时显示首字母色块）",
+  "settings.roles.modal.avatar.invalid": "Vault Mind：请选择有效的图片文件。",
+  "settings.roles.modal.avatar.readError": "Vault Mind：读取图片失败。",
 
   "settings.memoryProfileCategories.name": "画像维度",
   "settings.memoryProfileCategories.desc": "每行一个维度，AI 会从全部会话历史中自动提取关键信息，整理进 memory/MEMORY.md。",
@@ -324,6 +328,7 @@
   "view.webError": "Vault Mind：联网搜索失败（{error}）。",
   "view.modelSelect": "选择模型",
   "view.roleSelect": "选择角色",
+  "view.roleAvatarAria": "当前角色：{name}",
   "view.noModel": "无模型",
   "view.noRole": "无角色",
   "view.roleFallback": "助手",

@@ -237,6 +237,10 @@
   "settings.roles.modal.untitled": "Untitled role",
   "settings.roles.modal.nameRequired": "Vault Mind: role name cannot be empty.",
   "settings.roles.modal.nameDuplicate": "Vault Mind: a role with this name already exists. Pick another name.",
+  "settings.roles.modal.avatar.uploadAria": "Click avatar to upload an image",
+  "settings.roles.modal.avatar.hint": "Click the avatar to upload an image (falls back to an initial-color block when empty)",
+  "settings.roles.modal.avatar.invalid": "Vault Mind: please choose a valid image file.",
+  "settings.roles.modal.avatar.readError": "Vault Mind: failed to read the image.",
 
   "settings.memoryProfileCategories.name": "Profile dimensions",
   "settings.memoryProfileCategories.desc": "One dimension per line. The AI extracts key information from all chat history into memory/MEMORY.md using these dimensions.",
@@ -324,6 +328,7 @@
   "view.webError": "Vault Mind: web search failed ({error}).",
   "view.modelSelect": "Select model",
   "view.roleSelect": "Select role",
+  "view.roleAvatarAria": "Current role: {name}",
   "view.noModel": "No model",
   "view.noRole": "No role",
   "view.roleFallback": "Assistant",

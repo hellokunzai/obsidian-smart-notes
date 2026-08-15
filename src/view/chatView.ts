@@ -15,7 +15,8 @@ import type AiNoteAgentPlugin from "../main";
 import { t } from "../i18n";
 import { ChatMessage } from "../ai/provider";
 import { buildSystemPrompt } from "../ai/prompt";
-import { getActiveRolePrompt } from "../settings";
+import { getActiveRolePrompt, type RoleInfo } from "../settings";
+import { renderAvatar } from "../avatar";
 import {
   loadSessionsIndex,
   loadSessionFile,
@@ -324,13 +325,13 @@ export class ChatView extends ItemView {
     setIcon(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
 
-    // 角色选择按钮
+    // 角色选择按钮（pill：头像 + 名）
     this.roleBtn = leftActions.createEl("button", {
-      cls: "ana-chat-model-btn",
+      cls: "ana-chat-role-btn",
       attr: { "aria-label": t("view.roleSelect") },
     });
-    setIcon(this.roleBtn, "user");
     this.roleBtn.addEventListener("click", () => void this.openRolePicker());
+    this.renderRoleButton();
 
     // 右侧：模型名称标签 + 发送按钮
     const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
@@ -835,8 +836,32 @@ export class ChatView extends ItemView {
       (roleId) => {
         this.selectedRoleId = roleId;
         this.renderModelSelect();
+        this.renderRoleButton();
       }
     ).open();
+  }
+
+  /** 渲染角色选择按钮（pill）：选中角色时显示头像 + 名；否则显示默认 user 图标。 */
+  private renderRoleButton(): void {
+    const btn = this.roleBtn;
+    btn.empty();
+    const role = this.plugin.settings.roles.find(
+      (r) => r.id === this.selectedRoleId
+    );
+    if (role) {
+      renderAvatar(
+        this.app,
+        btn.createSpan({ cls: "ana-chat-role-btn-avatar" }),
+        role,
+        20
+      );
+      btn.createSpan({ cls: "ana-chat-role-btn-name", text: role.name });
+      btn.setAttribute("aria-label", t("view.roleAvatarAria", { name: role.name }));
+    } else {
+      const icon = btn.createSpan({ cls: "ana-chat-role-btn-icon" });
+      setIcon(icon, "user");
+      btn.setAttribute("aria-label", t("view.roleSelect"));
+    }
   }
 
   // ================= 联网搜索开关 =================
@@ -923,12 +948,43 @@ export class ChatView extends ItemView {
     const bubble = row.createEl("div", { cls: "ana-chat-bubble" });
     const content = bubble.createEl("div", { cls: "ana-chat-text" });
 
-    // 助手消息：在气泡外顶部展示生成该消息时所用角色名（方案 A）
+    // 助手消息：在气泡外顶部展示「头像 + 角色名 + 默认徽标」（方案 A）
     if (role === "assistant") {
-      const roleName = this.resolveRoleName(roleId);
-      if (roleName) {
-        const label = row.createDiv({ cls: "ana-chat-role-name", text: roleName });
-        row.insertBefore(label, bubble);
+      const roleInfo = this.resolveRole(roleId);
+      if (roleInfo) {
+        // 角色存在：头像 + 名 + （若它是全局默认角色）默认徽标
+        const header = row.createDiv({ cls: "ana-chat-role-header" });
+        renderAvatar(
+          this.app,
+          header.createSpan({ cls: "ana-chat-role-avatar" }),
+          roleInfo,
+          28
+        );
+        header.createSpan({
+          cls: "ana-chat-role-name",
+          text: roleInfo.name,
+        });
+        if (roleInfo.id === this.plugin.settings.defaultRoleId) {
+          header.createSpan({
+            cls: "ana-chat-role-badge",
+            text: t("settings.roles.defaultBadge"),
+          });
+        }
+        row.insertBefore(header, bubble);
+      } else if (roleId) {
+        // roleId 存在但角色已被删除：降级显示兜底「助手」
+        const header = row.createDiv({ cls: "ana-chat-role-header" });
+        renderAvatar(
+          this.app,
+          header.createSpan({ cls: "ana-chat-role-avatar" }),
+          { name: t("view.roleFallback"), avatar: "" },
+          28
+        );
+        header.createSpan({
+          cls: "ana-chat-role-name",
+          text: t("view.roleFallback"),
+        });
+        row.insertBefore(header, bubble);
       }
     }
 
@@ -978,15 +1034,14 @@ export class ChatView extends ItemView {
   }
 
   /**
-   * 根据角色 id 解析展示名。
-   * - 无 roleId（未选角色 / 旧会话）→ 返回 null（不渲染标签）
-   * - 角色存在 → 返回角色名
-   * - roleId 存在但角色已被删除 → 返回兜底文案「助手」
+   * 根据角色 id 解析完整角色对象（含头像）。
+   * - 无 roleId（未选角色 / 旧会话）→ 返回 null
+   * - roleId 存在但角色已被删除 → 返回 null
    */
-  private resolveRoleName(roleId?: string): string | null {
+  private resolveRole(roleId?: string): RoleInfo | null {
     if (!roleId) return null;
     const role = this.plugin.settings.roles.find((r) => r.id === roleId);
-    return role ? role.name : t("view.roleFallback");
+    return role ?? null;
   }
 
   private addUserMessage(text: string): void {
@@ -1916,6 +1971,14 @@ class RolePickerModal extends Modal {
       const row = this.listEl.createEl("div", {
         cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
       });
+
+      // 头像（32px）
+      renderAvatar(
+        this.app,
+        row.createSpan({ cls: "ana-role-picker-avatar" }),
+        role,
+        32
+      );
 
       row.createSpan({
         text: role.name,

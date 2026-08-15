@@ -1941,3 +1941,178 @@ button.ana-settings-tab.is-active {
     flex: 1;
   }
 }
+
+/* ============================================================
+ * 角色头像（.ana-avatar）
+ * 圆形容器：emoji 文本 / 图片 / 首字母色块（fallback）
+ * 尺寸由内联 style 控制，这里只定义外观
+ * ============================================================ */
+.ana-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--background-modifier-border);
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ana-avatar-emoji {
+  line-height: 1;
+}
+
+.ana-avatar-letter {
+  font-weight: var(--font-bold);
+  line-height: 1;
+}
+
+.ana-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 角色编辑弹窗：头像编辑区（点击头像直接上传） */
+.ana-role-avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--size-4-2);
+  margin-bottom: var(--size-4-3);
+}
+
+/* 整圆形作为上传触发器：默认显示头像/fallback，hover 叠加「上传图标 + 提示」 */
+.ana-role-avatar-upload {
+  position: relative;
+  cursor: pointer;
+  border-radius: 50%;
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: var(--shadow-s);
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ana-role-avatar-upload:hover,
+.ana-role-avatar-upload:focus-visible {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* hover/focus 时：黑色半透明遮罩 + 居中相机 emoji（暗示"点一下换图"） */
+.ana-role-avatar-upload::after {
+  content: "📷";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.ana-role-avatar-upload:hover::after,
+.ana-role-avatar-upload:focus-visible::after {
+  opacity: 1;
+}
+
+/* 隐藏的真实 file input（trigger 用 JS 代为 click） */
+.ana-role-avatar-file-input {
+  display: none;
+}
+
+/* 弹窗下方的「点此上传」灰色提示 */
+.ana-role-avatar-hint {
+  margin: 0;
+  font-size: var(--font-smaller);
+  color: var(--text-muted);
+}
+
+/* ============================================================
+ * 助手消息作者头：头像 + 名称 + 默认徽标
+ * ============================================================ */
+.ana-chat-role-header {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  margin: 0 0 var(--size-4-1) var(--size-4-1);
+}
+
+.ana-chat-role-name {
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.ana-chat-role-badge {
+  font-size: var(--font-smallest);
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-success);
+  color: var(--text-on-accent);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* ============================================================
+ * 角色选择按钮（pill：头像 + 名）
+ * ============================================================ */
+.ana-chat-role-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 160px;
+  padding: 0 8px 0 4px;
+  height: 22px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 11px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.ana-chat-role-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.ana-chat-role-btn-name {
+  font-size: var(--font-smallest);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1;
+}
+
+.ana-chat-role-btn-icon svg {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* 角色选择器弹窗行：头像 + 名称 */
+.ana-role-picker-avatar {
+  flex-shrink: 0;
+}
+
+/* 设置面板角色表格：名称列（头像 + 名称 + 默认徽标 合并在一行） */
+.ana-role-list-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  vertical-align: middle;
+}
+
+.ana-role-list-avatar {
+  flex-shrink: 0;
+}
