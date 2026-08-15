@@ -186,6 +186,7 @@
   "view.error": "出错：{error}",
   "view.timeout": "请求超时（60秒内无响应）。请检查模型配置是否正确，或网络是否可达。",
   "view.openFailed": "无法打开 AI 对话面板。",
+  "view.fileNotFound": "未找到文件：{path}",
   "view.sessionsLoaded": "已从记忆中加载 {count} 个会话。",
 
   "settings.section.provider": "模型配置",

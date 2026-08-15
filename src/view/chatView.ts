@@ -253,6 +253,7 @@ export class ChatView extends ItemView {
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
 
     this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
+    this.attachLinkHandler(this.messagesEl);
 
     const footer = main.createEl("div", { cls: "ana-chat-footer" });
 
@@ -928,6 +929,47 @@ export class ChatView extends ItemView {
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
   }
 
+  /**
+   * 为消息容器添加委托点击事件，拦截内部文件链接：
+   * - Obsidian 渲染后内部链接常变成 app://obsidian.md/<vault-path>
+   * - AI 也可能直接输出相对路径的 .md 链接
+   * 这两种情况都由插件主动调用 Obsidian API 打开对应笔记。
+   */
+  private attachLinkHandler(container: HTMLElement): void {
+    container.addEventListener("click", (evt) => {
+      const anchor = (evt.target as HTMLElement).closest("a") as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href) return;
+
+      let filePath: string | null = null;
+      if (href.startsWith("app://obsidian.md/")) {
+        filePath = decodeURIComponent(href.slice("app://obsidian.md/".length));
+      } else if (href.startsWith("obsidian://")) {
+        // 让 Obsidian 自身处理 obsidian:// 协议
+        return;
+      } else if (/\.md([?#]|$)/i.test(href) && !/^\w+:\/\//i.test(href)) {
+        // 相对路径的 Markdown 链接（可能以 / 开头）
+        filePath = href.startsWith("/") ? href.slice(1) : href;
+      }
+
+      if (!filePath) return;
+
+      evt.preventDefault();
+      evt.stopPropagation();
+
+      // 去除可能的查询参数或 hash（Obsidian 内部路径不应包含）
+      const cleanPath = filePath.split("?")[0].split("#")[0];
+      const file = this.app.vault.getAbstractFileByPath(cleanPath);
+      if (file instanceof TFile) {
+        void this.app.workspace.getLeaf(false).openFile(file);
+      } else {
+        new Notice(t("view.fileNotFound", { path: cleanPath }));
+      }
+    });
+  }
+
   // ================= Markdown 渲染 =================
 
   /** 使用 Obsidian 内置渲染器将 Markdown 渲染到指定元素。 */
@@ -1298,7 +1340,7 @@ export class ChatView extends ItemView {
   /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。 */
   private async buildSystem(): Promise<string> {
     const base =
-      "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise. Note: you can see the vault's file paths and available skill names via the knowledge base index / skill index, but file/skill contents are only provided when the user explicitly attaches them, references them, or activates them.";
+      "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise. Note: you can see the vault's file paths and available skill names via the knowledge base index / skill index, but file/skill contents are only provided when the user explicitly attaches them, references them, or activates them. When referring to vault notes, always use standard Markdown links `[text](path/to/note.md)`; do NOT use Wikilinks [[...]] or app://obsidian.md/ URLs.";
     const sys = buildSystemPrompt(
       getActiveRolePrompt(this.plugin.settings, this.selectedRoleId),
       base

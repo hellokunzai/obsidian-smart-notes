@@ -186,6 +186,7 @@
   "view.error": "Error: {error}",
   "view.timeout": "Request timed out (no response within 60s). Please check if the model configuration is correct and the network is reachable.",
   "view.openFailed": "Could not open AI chat panel.",
+  "view.fileNotFound": "File not found: {path}",
   "view.sessionsLoaded": "Loaded {count} sessions from memory.",
 
   "settings.section.provider": "Model configuration",
