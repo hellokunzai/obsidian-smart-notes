@@ -253,6 +253,13 @@
   "settings.includeVaultIndex.desc": "Add a list of all Markdown file paths to the system prompt so the AI knows what's in your vault. Contents are NOT loaded unless attached or referenced.",
   "settings.chatContextMaxChars.name": "Max chars per attached file",
   "settings.chatContextMaxChars.desc": "Truncate each attached file's content to this many characters before sending to the AI.",
+  "settings.includeFrontmatterIndex.name": "Frontmatter index",
+  "settings.includeFrontmatterIndex.desc": "Inject a list of each Markdown file's Frontmatter properties (YAML metadata) into the system prompt, so the AI understands your vault's structure via tags, category, summary, etc. Only metadata is included — file contents are NOT loaded; contents still require explicit attach or reference.",
+  "settings.frontmatterIndexKeys.name": "Properties to index",
+  "settings.frontmatterIndexKeys.desc": "Only index the listed Frontmatter properties, one per line or comma-separated. Leave empty to index all non-empty properties.",
+  "settings.frontmatterIndexKeys.placeholder": "e.g. tags, category, summary",
+  "settings.frontmatterIndexMaxChars.name": "Max chars per property",
+  "settings.frontmatterIndexMaxChars.desc": "Truncate each Frontmatter property value to this many characters to avoid long fields like summary blowing up the token budget.",
 
   "settings.section.skills": "Skills",
   "settings.section.skills.desc": "Manage AI skills enabled by default for new chats.",

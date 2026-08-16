@@ -36,6 +36,89 @@ export function buildKnowledgeIndex(app: App, enabled: boolean): string {
   ].join("\n");
 }
 
+/**
+ * 构造 Frontmatter 索引（仅元数据，不含正文），用于注入 system prompt，
+ * 让 AI 能通过文件路径 + Frontmatter 属性快速了解库内结构，但读不到正文。
+ * 完全基于 Obsidian 原生 `metadataCache`，不引入任何第三方 YAML 解析。
+ *
+ * 设计要点：
+ *  - 只读取已解析好的 `cache.frontmatter`（Obsidian 已把 YAML 解析成对象）；
+ *  - 按白名单过滤属性（留空表示索引全部非空属性）；
+ *  - 单属性值按 maxChars 截断，防止长字段撑爆 token；
+ *  - 跳过 Obsidian 内部位置标记字段 `position` 以及没有 Frontmatter 的文件。
+ *
+ * @param app Obsidian app
+ * @param enabled 是否启用（设置项 includeFrontmatterIndex）
+ * @param keysRaw 属性白名单原始文本（换行/逗号/中文逗号分隔），空串表示全部
+ * @param maxChars 单属性值字符上限
+ */
+export function buildFrontmatterIndex(
+  app: App,
+  enabled: boolean,
+  keysRaw: string,
+  maxChars: number
+): string {
+  if (!enabled) return "";
+  const keys = parseKeyWhitelist(keysRaw);
+  const limit = Math.max(1, maxChars || 500);
+
+  const mdFiles = app.vault.getMarkdownFiles();
+  if (mdFiles.length === 0) return "";
+
+  const lines: string[] = [];
+  for (const f of mdFiles) {
+    const fm = app.metadataCache.getFileCache(f)?.frontmatter;
+    if (!fm || Object.keys(fm).length === 0) continue;
+
+    const pairs: string[] = [];
+    for (const [k, v] of Object.entries(fm)) {
+      if (k === "position") continue; // Obsidian 内部位置标记，无意义
+      if (keys.length > 0 && !keys.includes(k.toLowerCase())) continue;
+      const formatted = formatFrontmatterValue(v, limit);
+      if (formatted === "") continue;
+      pairs.push(`${k}=${formatted}`);
+    }
+    if (pairs.length > 0) {
+      lines.push(`- ${f.path}: ${pairs.join("; ")}`);
+    }
+  }
+
+  if (lines.length === 0) return "";
+  lines.sort();
+  return [
+    "# Frontmatter index (metadata only — file contents are NOT loaded)",
+    ...lines,
+  ].join("\n");
+}
+
+/** 解析属性白名单：按换行 / 逗号 / 中文逗号拆分，去空并转小写。空数组表示索引全部。 */
+function parseKeyWhitelist(raw: string): string[] {
+  return raw
+    .split(/[\n,，]/)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0);
+}
+
+/** 把 Frontmatter 值格式化为可读字符串，并按 maxChars 截断（超长标注 ...）。 */
+function formatFrontmatterValue(v: unknown, maxChars: number): string {
+  let s: string;
+  if (Array.isArray(v)) {
+    s = v.map((x) => String(x)).join(", ");
+  } else if (v && typeof v === "object") {
+    try {
+      s = JSON.stringify(v);
+    } catch {
+      s = String(v);
+    }
+  } else {
+    s = v == null ? "" : String(v);
+  }
+  if (s.length > maxChars) {
+    s = s.slice(0, maxChars) + "...";
+  }
+  return s;
+}
+
 /** 转义正则特殊字符。 */
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

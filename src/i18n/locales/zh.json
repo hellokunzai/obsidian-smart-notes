@@ -255,6 +255,13 @@
   "settings.includeVaultIndex.desc": "将所有 Markdown 文件路径清单注入 system prompt，让 AI 知道库里有哪些文件。文件内容不会自动加载，只有在被附加或被消息点名时才会发送。",
   "settings.chatContextMaxChars.name": "单文件注入字符上限",
   "settings.chatContextMaxChars.desc": "发送前将每个附加文件的内容截断到此长度，避免超大文件撑爆 token。",
+  "settings.includeFrontmatterIndex.name": "Frontmatter 索引",
+  "settings.includeFrontmatterIndex.desc": "将库内 Markdown 文件的 Frontmatter 属性（YAML 前置元数据）清单注入 system prompt，让 AI 通过 tags、category、summary 等属性了解库内结构。仅注入元数据，不加载正文；正文仍需通过附加或点名发送。",
+  "settings.frontmatterIndexKeys.name": "要索引的属性",
+  "settings.frontmatterIndexKeys.desc": "只索引列出的 Frontmatter 属性，每行一个或用逗号分隔；留空表示索引所有非空属性。",
+  "settings.frontmatterIndexKeys.placeholder": "例如：tags, category, summary",
+  "settings.frontmatterIndexMaxChars.name": "单属性字符上限",
+  "settings.frontmatterIndexMaxChars.desc": "每个 Frontmatter 属性值截断到此长度，避免 summary 等长字段撑爆 token。",
 
   "settings.section.skills": "Skill 技能",
   "settings.section.skills.desc": "管理新对话默认启用的 AI skill。",

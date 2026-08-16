@@ -31,7 +31,7 @@ import {
   type SessionsIndex,
   type SessionMessage,
 } from "../utils/aiFolder";
-import { buildKnowledgeIndex, buildAttachmentContext } from "../context/knowledge";
+import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex } from "../context/knowledge";
 import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills";
 import { WebSearchService, type SearchProviderConfig } from "../search/search";
 import { buildWebSearchContext } from "../search/prompt";
@@ -1514,6 +1514,17 @@ export class ChatView extends ItemView {
         this.plugin.settings.includeVaultIndex
       );
       if (index) parts.push(index);
+    }
+
+    // Frontmatter 索引（仅元数据，不含正文），与知识库索引触发方式一致
+    if (this.plugin.settings.includeFrontmatterIndex) {
+      const fmIndex = buildFrontmatterIndex(
+        this.plugin.app,
+        this.plugin.settings.includeFrontmatterIndex,
+        this.plugin.settings.frontmatterIndexKeys,
+        this.plugin.settings.frontmatterIndexMaxChars
+      );
+      if (fmIndex) parts.push(fmIndex);
     }
 
     // skill 上下文（索引 + 启用内容）

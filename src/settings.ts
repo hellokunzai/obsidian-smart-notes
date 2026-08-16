@@ -122,6 +122,12 @@ export interface AiNoteAgentSettings {
   includeVaultIndex: boolean;
   // 对话：单文件注入到上下文的内容字符上限（防止超大文件撑爆 token）
   chatContextMaxChars: number;
+  // 对话：是否启用 Frontmatter 索引（仅元数据，不含正文），让 AI 通过属性了解库内结构
+  includeFrontmatterIndex: boolean;
+  // 对话：Frontmatter 索引要包含的属性白名单（每行/逗号分隔一个；留空表示全部）
+  frontmatterIndexKeys: string;
+  // 对话：Frontmatter 索引中单属性值字符上限（防止长字段撑爆 token）
+  frontmatterIndexMaxChars: number;
   // 对话：是否启用 skill 功能（对话框「Skill 技能」按钮 + skill 内容注入）
   skillsEnabled: boolean;
   // 对话：全局默认启用的 skill（skills/ 目录下的 .md 相对路径）；新会话继承此列表
@@ -181,6 +187,9 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
     "职业\n技术栈\n输出偏好\n项目背景\n习惯\n重要事实\n待办事项",
   includeVaultIndex: true,
   chatContextMaxChars: 8000,
+  includeFrontmatterIndex: false,
+  frontmatterIndexKeys: "",
+  frontmatterIndexMaxChars: 500,
   skillsEnabled: true,
   defaultSkills: [],
   webSearchEnabled: false,
@@ -624,6 +633,60 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           });
       });
+
+    // --- Frontmatter 索引 ---
+    let fmKeysSetting: Setting | undefined;
+    let fmMaxCharsSetting: Setting | undefined;
+
+    new Setting(bodyEl)
+      .setName(t("settings.includeFrontmatterIndex.name"))
+      .setDesc(t("settings.includeFrontmatterIndex.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.includeFrontmatterIndex)
+          .onChange(async (v) => {
+            this.plugin.settings.includeFrontmatterIndex = v;
+            fmKeysSetting?.setDisabled(!v);
+            fmMaxCharsSetting?.setDisabled(!v);
+            await this.plugin.saveSettings();
+          })
+      );
+
+    fmKeysSetting = new Setting(bodyEl)
+      .setName(t("settings.frontmatterIndexKeys.name"))
+      .setDesc(t("settings.frontmatterIndexKeys.desc"))
+      .setClass("ana-setting-textarea-full")
+      .addTextArea((ta) => {
+        ta
+          .setPlaceholder(t("settings.frontmatterIndexKeys.placeholder"))
+          .setValue(this.plugin.settings.frontmatterIndexKeys)
+          .onChange(async (v) => {
+            this.plugin.settings.frontmatterIndexKeys = v;
+            await this.plugin.saveSettings();
+          });
+        ta.inputEl.rows = 4;
+      })
+      .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
+
+    fmMaxCharsSetting = new Setting(bodyEl)
+      .setName(t("settings.frontmatterIndexMaxChars.name"))
+      .setDesc(t("settings.frontmatterIndexMaxChars.desc"))
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "1";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("500")
+          .setValue(String(this.plugin.settings.frontmatterIndexMaxChars))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.frontmatterIndexMaxChars = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      })
+      .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
 
     // --- 用户画像 ---
     this.createGroupHeader(bodyEl, "settings.memoryGroup.profile");
