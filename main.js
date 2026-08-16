@@ -93,7 +93,16 @@ ${o.trim()}`:""}var te=require("obsidian");var Ke=class{async search(o,e,t){var 
 
 `):"";return[c,d].filter(Boolean).join(`
 
-`)}function K(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}function gt(a,o){let e=o!=null?o:a.defaultRoleId;if(!e)return"";let t=a.roles.find(s=>s.id===e);return t?t.prompt:""}var ye={provider:"openai",openaiApiKey:"",openaiBaseUrl:"https://api.openai.com/v1",openaiModel:"gpt-4o-mini",ollamaBaseUrl:"http://localhost:11434",ollamaModel:"llama3",modelLinks:[],defaultModelLinkId:"",maxTokens:1024,temperature:.3,realtimeEnabled:!1,realtimeDebounceMs:800,optimizeCurrentEnabled:!0,linkFormat:"wikilink",linkType:"shortest",chatPanelEnabled:!0,addCurrentNoteToChat:!0,showReasoning:!0,frontmatterGenerationEnabled:!0,frontmatterTemplate:"",fetchWebContentEnabled:!0,fetchWebContentSaveImages:!1,fetchWebContentImageLinkType:"shortest",fetchWebContentImageLinkFormat:"wikilink",aiFolderName:".smartnotes",memoryProfileEnabled:!0,memoryProfileCategories:`\u804C\u4E1A
+`)}function K(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}function gt(a,o){let e=o!=null?o:a.defaultRoleId;if(!e)return"";let t=a.roles.find(s=>s.id===e);return t?t.prompt:""}var ye={provider:"openai",openaiApiKey:"",openaiBaseUrl:"https://api.openai.com/v1",openaiModel:"gpt-4o-mini",ollamaBaseUrl:"http://localhost:11434",ollamaModel:"llama3",modelLinks:[],defaultModelLinkId:"",maxTokens:1024,temperature:.3,realtimeEnabled:!1,realtimeDebounceMs:800,optimizeCurrentEnabled:!0,linkFormat:"wikilink",linkType:"shortest",chatPanelEnabled:!0,addCurrentNoteToChat:!0,showReasoning:!0,frontmatterGenerationEnabled:!0,frontmatterTemplate:`\u8BF7\u6839\u636E\u7B14\u8BB0\u5185\u5BB9\u751F\u6210Frontmatter\u5C5E\u6027:
+---
+title:
+tags:
+  - demo1
+  - demo2
+summary: 
+created: yyyy-mm-dd
+updated: yyyy-mm-dd
+---`,fetchWebContentEnabled:!0,fetchWebContentSaveImages:!1,fetchWebContentImageLinkType:"shortest",fetchWebContentImageLinkFormat:"wikilink",aiFolderName:".smartnotes",memoryProfileEnabled:!0,memoryProfileCategories:`\u804C\u4E1A
 \u6280\u672F\u6808
 \u8F93\u51FA\u504F\u597D
 \u9879\u76EE\u80CC\u666F

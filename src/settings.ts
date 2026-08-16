@@ -169,7 +169,8 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   addCurrentNoteToChat: true,
   showReasoning: true,
   frontmatterGenerationEnabled: true,
-  frontmatterTemplate: "",
+  frontmatterTemplate:
+    "请根据笔记内容生成Frontmatter属性:\n---\ntitle:\ntags:\n  - demo1\n  - demo2\nsummary: \ncreated: yyyy-mm-dd\nupdated: yyyy-mm-dd\n---",
   fetchWebContentEnabled: true,
   fetchWebContentSaveImages: false,
   fetchWebContentImageLinkType: "shortest",
