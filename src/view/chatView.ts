@@ -1496,7 +1496,7 @@ export class ChatView extends ItemView {
       }
     } catch (e) {
       // 记忆写入失败不应影响对话，但需记录以便排查
-      console.error("[Vault Mind] 会话持久化失败", e);
+      console.error("[Smart Notes] 会话持久化失败", e);
     }
   }
 

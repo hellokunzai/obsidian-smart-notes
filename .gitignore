@@ -5,3 +5,7 @@ node_modules/
 .idea/
 .env
 *.log
+
+# 本地工作/产出目录（非插件产物，避免误提交）
+.workbuddy/
+outputs/

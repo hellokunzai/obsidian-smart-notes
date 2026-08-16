@@ -98,7 +98,7 @@ export interface SessionsIndex {
 
 /** 获取 vault 根目录下的 AI 文件夹名称（去除首尾空格，空值回退默认名）。 */
 export function getAiFolderName(plugin: AiNoteAgentPlugin): string {
-  return (plugin.settings.aiFolderName || ".vaultmind").trim() || ".vaultmind";
+  return (plugin.settings.aiFolderName || ".smartnotes").trim() || ".smartnotes";
 }
 
 /** AI 文件夹根路径（vault 根目录下的相对路径）。 */
@@ -134,7 +134,7 @@ export function getMemoryDir(plugin: AiNoteAgentPlugin): string {
 /**
  * 若指定路径的文件夹不存在则创建（已存在则跳过）。
  * 使用 vault.adapter 而非 vault 缓存 API：Obsidian 的 vault 缓存不会索引
- * 「.」开头的隐藏文件夹（如 .vaultmind），导致 getAbstractFileByPath 对
+ * 「.」开头的隐藏文件夹（如 .smartnotes），导致 getAbstractFileByPath 对
  * 其内部文件/目录返回 undefined；adapter 走底层文件系统，可正常访问。
  */
 async function ensureFolder(vault: Vault, path: string): Promise<void> {
@@ -270,7 +270,7 @@ export async function saveSessionFile(
   await ensureFolder(vault, getSessionsDir(plugin));
   const path = getSessionFile(plugin, session.id);
   // adapter.write 同时支持「不存在则创建 / 已存在则覆盖」，且绕过 vault 缓存，
-  // 对隐藏文件夹（.vaultmind）也能正常读写。
+  // 对隐藏文件夹（.smartnotes）也能正常读写。
   await vault.adapter.write(path, JSON.stringify(session, null, 2));
 }
 

@@ -174,7 +174,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   fetchWebContentSaveImages: false,
   fetchWebContentImageLinkType: "shortest",
   fetchWebContentImageLinkFormat: "wikilink",
-  aiFolderName: ".vaultmind",
+  aiFolderName: ".smartnotes",
   memoryProfileEnabled: true,
   memoryProfileCategories:
     "职业\n技术栈\n输出偏好\n项目背景\n习惯\n重要事实\n待办事项",
@@ -309,7 +309,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       .setDesc(t("settings.aiFolderName.desc"))
       .addText((t2) =>
         t2
-          .setPlaceholder(".vaultmind")
+          .setPlaceholder(".smartnotes")
           .setValue(this.plugin.settings.aiFolderName)
           .inputEl.addEventListener("blur", async () => {
             const name = t2.inputEl.value.trim();

@@ -198,7 +198,7 @@ ${digest}`;
       daily: parsed.daily.trim(),
     };
   } catch (e) {
-    console.error("[Vault Mind] memory extraction failed", e);
+    console.error("[Smart Notes] memory extraction failed", e);
     return null;
   }
 }
@@ -245,7 +245,7 @@ export async function rebuildProfileMemory(plugin: AiNoteAgentPlugin): Promise<v
     await saveMemoryFile(plugin, `${formatLocalDate()}.md`, dailyMarkdown);
   } catch (e) {
     // 后台整理失败不应打扰用户
-    console.error("[Vault Mind] rebuildProfileMemory failed", e);
+    console.error("[Smart Notes] rebuildProfileMemory failed", e);
   }
 }
 
