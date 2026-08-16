@@ -17,6 +17,8 @@ export interface TokenUsage {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  /** 推理模型（DeepSeek-R1 / o 系列）的思考 token，单独计费，需计入真实消耗。 */
+  reasoningTokens?: number;
 }
 
 export interface StreamChunk {

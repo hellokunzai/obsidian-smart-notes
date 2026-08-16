@@ -23,13 +23,22 @@ import type { AttachmentRef } from "../utils/aiFolder";
  * @param app Obsidian app
  * @param enabled 是否启用索引（设置项 includeVaultIndex）
  */
-export function buildKnowledgeIndex(app: App, enabled: boolean): string {
+export function buildKnowledgeIndex(
+  app: App,
+  enabled: boolean,
+  maxFiles = 0
+): string {
   if (!enabled) return "";
   const mdFiles = app.vault.getMarkdownFiles();
   if (mdFiles.length === 0) return "";
-  const lines = mdFiles
-    .map((f) => `- ${f.path}`)
-    .sort();
+  let lines: string[] = mdFiles.map((f) => `- ${f.path}`).sort();
+  // 大库保护：最多注入最近 maxFiles 个路径（防止几千个文件撑爆 token）
+  if (maxFiles > 0 && lines.length > maxFiles) {
+    lines = lines.slice(lines.length - maxFiles);
+    lines.push(
+      `... (${mdFiles.length - lines.length} more files omitted, total ${mdFiles.length})`
+    );
+  }
   return [
     "# Knowledge base index (paths only — file contents are NOT loaded unless explicitly attached or referenced)",
     ...lines,
@@ -56,7 +65,8 @@ export function buildFrontmatterIndex(
   app: App,
   enabled: boolean,
   keysRaw: string,
-  maxChars: number
+  maxChars: number,
+  maxFiles = 0
 ): string {
   if (!enabled) return "";
   const keys = parseKeyWhitelist(keysRaw);
@@ -65,7 +75,7 @@ export function buildFrontmatterIndex(
   const mdFiles = app.vault.getMarkdownFiles();
   if (mdFiles.length === 0) return "";
 
-  const lines: string[] = [];
+  let lines: string[] = [];
   for (const f of mdFiles) {
     const fm = app.metadataCache.getFileCache(f)?.frontmatter;
     if (!fm || Object.keys(fm).length === 0) continue;
@@ -85,10 +95,19 @@ export function buildFrontmatterIndex(
 
   if (lines.length === 0) return "";
   lines.sort();
+  // 大库保护：最多注入 maxFiles 个文件的元数据（防止几千个文件撑爆 token）
+  let truncatedNote = "";
+  if (maxFiles > 0 && lines.length > maxFiles) {
+    truncatedNote = `\n... (${lines.length - maxFiles} more files omitted, total ${lines.length})`;
+    lines = lines.slice(lines.length - maxFiles);
+  }
   return [
     "# Frontmatter index (metadata only — file contents are NOT loaded)",
     ...lines,
-  ].join("\n");
+    truncatedNote,
+  ]
+    .filter((s) => s)
+    .join("\n");
 }
 
 /** 解析属性白名单：按换行 / 逗号 / 中文逗号拆分，去空并转小写。空数组表示索引全部。 */

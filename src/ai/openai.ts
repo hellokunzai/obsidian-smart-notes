@@ -135,10 +135,16 @@ export class OpenAIProvider implements AIProvider {
               onChunk({ content, done: false });
             }
             if (json.usage) {
+              const details =
+                (json.usage as Record<string, unknown>).completion_tokens_details as
+                  | Record<string, unknown>
+                  | undefined;
               usage = {
                 promptTokens: json.usage.prompt_tokens ?? 0,
                 completionTokens: json.usage.completion_tokens ?? 0,
                 totalTokens: json.usage.total_tokens ?? 0,
+                reasoningTokens:
+                  (details?.reasoning_tokens as number | undefined) ?? undefined,
               };
             }
           } catch {

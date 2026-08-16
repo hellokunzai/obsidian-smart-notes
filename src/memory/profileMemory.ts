@@ -259,7 +259,13 @@ export async function getProfileMemoryContext(
   if (!plugin.settings.memoryProfileEnabled) return "";
   const content = await loadMemoryFile(plugin, MEMORY_FILE);
   if (!content.trim()) return "";
+  // 防止长期记忆无限膨胀：注入前按字符上限截断
+  const cap = plugin.settings.profileMemoryMaxChars;
+  const capped =
+    cap && cap > 0 && content.length > cap
+      ? content.slice(0, cap) + "\n…（已截断，完整内容见 memory/MEMORY.md）"
+      : content;
   return `## 长期画像记忆
 
-${content.trim()}`;
+${capped.trim()}`;
 }

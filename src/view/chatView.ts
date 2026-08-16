@@ -1117,7 +1117,11 @@ export class ChatView extends ItemView {
       usage.completionTokens === 0 &&
       usage.totalTokens > 0;
     const prefix = isEstimate ? t("view.tokensEstimated") : t("view.tokens");
-    return `${prefix}: ${usage.totalTokens}`;
+    let out = `${prefix}: ${usage.totalTokens}`;
+    if (usage.reasoningTokens && usage.reasoningTokens > 0) {
+      out += `（思考 ${usage.reasoningTokens} tokens）`;
+    }
+    return out;
   }
 
   /** 按字符数粗略估算 token 数（用于接口未返回 usage 时）。 */
@@ -1238,6 +1242,27 @@ export class ChatView extends ItemView {
 
   // ================= 发送 =================
 
+  /**
+   * 把超出窗口的旧消息压缩为一行一行的简短摘要，作为一条 system 消息注入。
+   * 纯本地截断（不调用模型，无额外延迟与费用）：每条最多保留约 120 字符，
+   * 整体上限约 2000 字符，溢出时优先保留较新的内容；用于在减少 token 的同时
+   * 尽量保留历史脉络。完整历史仍原样保存在本地，UI 中照常展示全部消息。
+   */
+  private buildHistorySummary(
+    older: { role: "user" | "assistant"; content: string }[]
+  ): string {
+    const lines: string[] = older.map((m) => {
+      const role = m.role === "user" ? "User" : "Assistant";
+      let c = m.content.replace(/\s+/g, " ").trim();
+      if (c.length > 120) c = c.slice(0, 120) + "…";
+      return `- ${role}: ${c}`;
+    });
+    let text = lines.join("\n");
+    const MAX = 2000;
+    if (text.length > MAX) text = text.slice(text.length - MAX);
+    return text;
+  }
+
   private async handleSend(): Promise<void> {
     const text = this.inputEl.value.trim();
     if (!text || this.isStreaming) return;
@@ -1290,13 +1315,26 @@ export class ChatView extends ItemView {
       content: extra ? `${text}\n\n${extra}` : text,
     };
 
-    // 将会话全部历史消息（不含当前这条刚加的）注入上下文
+    // 将会话历史消息（不含当前这条刚加的）注入上下文；
+    // 按「历史消息窗口」裁剪：只发送最近 N 条，更早的压缩成摘要注入，减少 token 消耗。
     const tail = s.messages.slice(0, -1);
-    const messages: ChatMessage[] = [
-      { role: "system", content: system },
-      ...tail,
-      currentUser,
-    ];
+    const limit = this.plugin.settings.historyMaxMessages;
+    const recent =
+      limit > 0 ? tail.slice(Math.max(0, tail.length - limit)) : tail;
+    const messages: ChatMessage[] = [{ role: "system", content: system }];
+    if (limit > 0 && tail.length > limit) {
+      const older = tail.slice(0, tail.length - limit);
+      const summary = this.buildHistorySummary(older);
+      if (summary) {
+        messages.push({
+          role: "system",
+          content:
+            "The following is a compressed summary of earlier conversation turns (not verbatim):\n" +
+            summary,
+        });
+      }
+    }
+    messages.push(...recent, currentUser);
 
     const assistantContentEl = this.addAssistantMessage("", undefined, this.selectedRoleId);
     this.isStreaming = true;
@@ -1511,7 +1549,8 @@ export class ChatView extends ItemView {
     if (this.plugin.settings.includeVaultIndex) {
       const index = buildKnowledgeIndex(
         this.plugin.app,
-        this.plugin.settings.includeVaultIndex
+        this.plugin.settings.includeVaultIndex,
+        this.plugin.settings.vaultIndexMaxFiles
       );
       if (index) parts.push(index);
     }
@@ -1522,7 +1561,8 @@ export class ChatView extends ItemView {
         this.plugin.app,
         this.plugin.settings.includeFrontmatterIndex,
         this.plugin.settings.frontmatterIndexKeys,
-        this.plugin.settings.frontmatterIndexMaxChars
+        this.plugin.settings.frontmatterIndexMaxChars,
+        this.plugin.settings.frontmatterIndexMaxFiles
       );
       if (fmIndex) parts.push(fmIndex);
     }

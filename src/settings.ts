@@ -110,12 +110,20 @@ export interface AiNoteAgentSettings {
   memoryProfileEnabled: boolean;
   // 长期画像记忆：AI 自动提取的维度（每行一个）
   memoryProfileCategories: string;
+  // 长期画像记忆：注入 system prompt 前截断到的字符数（防止无限膨胀撑爆 token）
+  profileMemoryMaxChars: number;
   // 对话：是否把知识库路径索引（仅路径）注入 system prompt，让 AI 知道库里有哪些文件
   includeVaultIndex: boolean;
+  // 对话：知识库路径索引最多注入的文件数（防止大库撑爆 token）；0 = 不限制
+  vaultIndexMaxFiles: number;
   // 对话：单文件注入到上下文的内容字符上限（防止超大文件撑爆 token）
   chatContextMaxChars: number;
+  // 对话：历史消息窗口（仅发送最近 N 条历史；更早的压缩为摘要注入）。0 = 不限制（发送全部历史）
+  historyMaxMessages: number;
   // 对话：是否启用 Frontmatter 索引（仅元数据，不含正文），让 AI 通过属性了解库内结构
   includeFrontmatterIndex: boolean;
+  // 对话：Frontmatter 索引最多注入的文件数（防止大库撑爆 token）；0 = 不限制
+  frontmatterIndexMaxFiles: number;
   // 对话：Frontmatter 索引要包含的属性白名单（每行/逗号分隔一个；留空表示全部）
   frontmatterIndexKeys: string;
   // 对话：Frontmatter 索引中单属性值字符上限（防止长字段撑爆 token）
@@ -158,22 +166,26 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   defaultModelLinkId: "",
   maxTokens: 1024,
   temperature: 0.3,
-  realtimeEnabled: true,
-  realtimeDebounceMs: 800,
+  realtimeEnabled: false,
+  realtimeDebounceMs: 1500,
   optimizeCurrentEnabled: true,
   linkFormat: "wikilink",
   linkType: "shortest",
   chatPanelEnabled: true,
-  addCurrentNoteToChat: true,
+  addCurrentNoteToChat: false,
   showReasoning: true,
   frontmatterGenerationEnabled: true,
   frontmatterTemplate: "",
   aiFolderName: ".smartnotes",
   memoryProfileEnabled: true,
   memoryProfileCategories: "",
-  includeVaultIndex: true,
+  profileMemoryMaxChars: 4000,
+  includeVaultIndex: false,
+  vaultIndexMaxFiles: 200,
   chatContextMaxChars: 8000,
-  includeFrontmatterIndex: true,
+  historyMaxMessages: 20,
+  includeFrontmatterIndex: false,
+  frontmatterIndexMaxFiles: 200,
   frontmatterIndexKeys: "",
   frontmatterIndexMaxChars: 500,
   skillsEnabled: true,
@@ -597,6 +609,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             this.plugin.settings.includeVaultIndex = v;
             await this.plugin.saveSettings();
             maxCharsSetting.setDisabled(!v);
+            vaultIndexMaxFilesSetting?.setDisabled(!v);
           })
       );
 
@@ -620,9 +633,50 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           });
       });
 
+    const vaultIndexMaxFilesSetting = new Setting(bodyEl)
+      .setName(t("settings.vaultIndexMaxFiles.name"))
+      .setDesc(t("settings.vaultIndexMaxFiles.desc"))
+      .setDisabled(!this.plugin.settings.includeVaultIndex)
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "0";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("200")
+          .setValue(String(this.plugin.settings.vaultIndexMaxFiles))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n >= 0) {
+              this.plugin.settings.vaultIndexMaxFiles = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
+
+    // --- 历史消息窗口 ---
+    new Setting(bodyEl)
+      .setName(t("settings.historyMaxMessages.name"))
+      .setDesc(t("settings.historyMaxMessages.desc"))
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "0";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("20")
+          .setValue(String(this.plugin.settings.historyMaxMessages))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n >= 0) {
+              this.plugin.settings.historyMaxMessages = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
+
     // --- Frontmatter 索引 ---
     let fmKeysSetting: Setting | undefined;
     let fmMaxCharsSetting: Setting | undefined;
+    let fmMaxFilesSetting: Setting | undefined;
 
     new Setting(bodyEl)
       .setName(t("settings.includeFrontmatterIndex.name"))
@@ -634,6 +688,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             this.plugin.settings.includeFrontmatterIndex = v;
             fmKeysSetting?.setDisabled(!v);
             fmMaxCharsSetting?.setDisabled(!v);
+            fmMaxFilesSetting?.setDisabled(!v);
             await this.plugin.saveSettings();
           })
       );
@@ -668,6 +723,26 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             const n = parseInt(v, 10);
             if (!isNaN(n) && n > 0) {
               this.plugin.settings.frontmatterIndexMaxChars = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      })
+      .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
+
+    fmMaxFilesSetting = new Setting(bodyEl)
+      .setName(t("settings.frontmatterIndexMaxFiles.name"))
+      .setDesc(t("settings.frontmatterIndexMaxFiles.desc"))
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "0";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("200")
+          .setValue(String(this.plugin.settings.frontmatterIndexMaxFiles))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n >= 0) {
+              this.plugin.settings.frontmatterIndexMaxFiles = n;
               await this.plugin.saveSettings();
             }
           });
@@ -735,6 +810,26 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         });
       })
       .setDisabled(!this.plugin.settings.memoryProfileEnabled);
+
+    new Setting(bodyEl)
+      .setName(t("settings.profileMemoryMaxChars.name"))
+      .setDesc(t("settings.profileMemoryMaxChars.desc"))
+      .setDisabled(!this.plugin.settings.memoryProfileEnabled)
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "1";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("4000")
+          .setValue(String(this.plugin.settings.profileMemoryMaxChars))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.profileMemoryMaxChars = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
 
     // --- 角色信息 ---
     this.createGroupHeader(bodyEl, "settings.roles.title");
