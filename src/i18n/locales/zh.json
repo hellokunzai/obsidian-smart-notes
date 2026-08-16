@@ -229,7 +229,7 @@
 
   "settings.memoryProfileCategories.name": "画像维度",
   "settings.memoryProfileCategories.desc": "每行一个维度，AI 会从全部会话历史中自动提取关键信息，整理进 memory/MEMORY.md。",
-  "settings.memoryProfileCategories.placeholder": "职业\n技术栈\n输出偏好\n项目背景\n习惯\n重要事实\n待办事项",
+  "settings.memoryProfileCategories.placeholder": "每行一个画像维度，例如：\n职业\n技术栈\n输出偏好\n项目背景\n习惯\n重要事实\n待办事项",
   "settings.memoryFile.name": "记忆文件（MEMORY.md）",
   "settings.memoryFile.desc": "可直接查看和编辑 AI 整理的长期画像记忆。修改会在停止输入 0.5 秒后自动保存到 AI 文件夹的 memory/MEMORY.md。",
   "settings.memoryFile.placeholder": "记忆内容将在此处加载。若尚未生成，可稍后在后台自动整理完成。",

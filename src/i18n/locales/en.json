@@ -229,7 +229,7 @@
 
   "settings.memoryProfileCategories.name": "Profile dimensions",
   "settings.memoryProfileCategories.desc": "One dimension per line. The AI extracts key information from all chat history into memory/MEMORY.md using these dimensions.",
-  "settings.memoryProfileCategories.placeholder": "Occupation\nTech stack\nOutput preferences\nProject background\nHabits\nKey facts\nTodos",
+  "settings.memoryProfileCategories.placeholder": "One profile dimension per line, e.g.:\nOccupation\nTech stack\nOutput preferences\nProject background\nHabits\nKey facts\nTodos",
   "settings.memoryFile.name": "Memory file (MEMORY.md)",
   "settings.memoryFile.desc": "View and edit the AI-curated long-term profile memory. Changes are auto-saved to memory/MEMORY.md in the AI folder 0.5 seconds after you stop typing.",
   "settings.memoryFile.placeholder": "Memory content will load here. If nothing appears yet, background organization may still be running.",
