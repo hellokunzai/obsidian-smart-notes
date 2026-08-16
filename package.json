@@ -1,6 +1,6 @@
 {
   "name": "vault-mind",
-  "version": "0.14.5",
+  "version": "0.14.6",
   "description": "Vault Mind - an Obsidian plugin that analyzes your vault with AI.",
   "main": "main.js",
   "scripts": {
@@ -15,14 +15,11 @@
   "author": "hellokunzai",
   "license": "MIT",
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^18.0.0",
     "esbuild": "^0.17.0",
     "obsidian": "latest",
     "tslib": "^2.6.0",
     "typescript": "^5.0.0"
   },
-  "dependencies": {
-    "js-yaml": "^4.1.0"
-  }
+  "dependencies": {}
 }

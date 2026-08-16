@@ -1,8 +1,8 @@
 {
   "id": "smart-notes",
   "name": "Smart Notes",
-  "version": "0.14.5",
-  "minAppVersion": "1.6.0",
+  "version": "0.14.6",
+  "minAppVersion": "1.11.4",
   "description": "Analyze your vault with AI to generate bidirectional links, enrich frontmatter properties, optimize notes, and provide in-editor autocompletion.",
   "author": "hellokunzai",
   "authorUrl": "https://github.com/hellokunzai",
