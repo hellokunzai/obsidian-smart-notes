@@ -314,7 +314,37 @@ export default class AiNoteAgentPlugin extends Plugin {
   }
 
   private async generateFrontmatterCommand(file: TFile): Promise<void> {
-    const content = await this.app.vault.read(file);
+    // 优先使用编辑器实时内容：vault.read 读的是磁盘文件，可能尚未落盘、
+    // 仍包含用户用于唤醒命令的斜杠触发文本（如 /sm），会被误送进 AI。
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const editor = view?.editor;
+    let content = editor
+      ? editor.getValue()
+      : await this.app.vault.read(file);
+
+    // 若编辑器里仍残留斜杠命令触发文本（如 /sm），从编辑器中删除，避免用户可见残留
+    if (editor) {
+      const pos = editor.getCursor();
+      const lineContent = editor.getLine(pos.line);
+      // 匹配行首斜杠命令：/ 后跟字母/数字/汉字（Obsidian slash command 触发模式）
+      const match = lineContent.match(/^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/);
+      if (match) {
+        editor.replaceRange(
+          "",
+          { line: pos.line, ch: 0 },
+          { line: pos.line, ch: lineContent.length }
+        );
+        // 编辑器已删除触发文本，刷新 content
+        content = editor.getValue();
+      }
+    }
+
+    // 兜底：清除正文中任何残留的斜杠命令触发（如 /sm），确保不会被送入 AI
+    content = content.replace(
+      /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm,
+      ""
+    );
+
     const body = content.replace(
       /^---\s*[\r\n]+[\s\S]*?[\r\n]+---\s*[\r\n]*/,
       ""
