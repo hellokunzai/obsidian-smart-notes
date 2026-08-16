@@ -203,7 +203,8 @@ export default class AiNoteAgentPlugin extends Plugin {
   }
 
   async loadSettings() {
-    const loaded = (await this.loadData()) as Record<string, any>;
+    // loadData() returns null when data.json doesn't exist (first install)
+    const loaded = ((await this.loadData()) as Record<string, any>) || {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
 
     // 迁移：旧的单一 provider 扁平配置 → 单条模型链接
