@@ -104,14 +104,6 @@ export interface AiNoteAgentSettings {
   frontmatterGenerationEnabled: boolean;
   // Frontmatter 生成模板（留空则使用默认 system prompt）
   frontmatterTemplate: string;
-  // 是否启用「拉取网页内容」命令
-  fetchWebContentEnabled: boolean;
-  // 拉取网页时是否把图片下载到本地
-  fetchWebContentSaveImages: boolean;
-  // 拉取网页时图片引用的内部链接类型
-  fetchWebContentImageLinkType: "shortest" | "relative" | "absolute";
-  // 拉取网页时图片引用的内部链接格式
-  fetchWebContentImageLinkFormat: "wikilink" | "markdown";
   // vault 根目录中用于存放记忆与 skill 的文件夹名称
   aiFolderName: string;
   // 长期画像记忆：总开关（关闭后不整理、不注入）
@@ -177,10 +169,6 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   frontmatterGenerationEnabled: true,
   frontmatterTemplate:
     "请根据笔记内容生成Frontmatter属性:\n---\ntitle:\ntags:\n  - demo1\n  - demo2\nsummary: \ncreated: yyyy-mm-dd\nupdated: yyyy-mm-dd\n---",
-  fetchWebContentEnabled: true,
-  fetchWebContentSaveImages: false,
-  fetchWebContentImageLinkType: "shortest",
-  fetchWebContentImageLinkFormat: "wikilink",
   aiFolderName: ".smartnotes",
   memoryProfileEnabled: true,
   memoryProfileCategories:
@@ -952,74 +940,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         ta.inputEl.rows = 5;
       })
       .setDisabled(!this.plugin.settings.frontmatterGenerationEnabled);
-
-    // --- 拉取网页内容（测试） ---
-    this.createGroupHeader(bodyEl, "settings.autopromptGroup.webContent");
-
-    new Setting(bodyEl)
-      .setName(t("settings.fetchWebContent.name"))
-      .setDesc(t("settings.fetchWebContent.desc"))
-      .addToggle((t2) =>
-        t2
-          .setValue(this.plugin.settings.fetchWebContentEnabled)
-          .onChange(async (v) => {
-            this.plugin.settings.fetchWebContentEnabled = v;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    let webLinkTypeSetting: Setting | undefined;
-    let webLinkFormatSetting: Setting | undefined;
-
-    new Setting(bodyEl)
-      .setName(t("settings.fetchWebContent.saveImages.name"))
-      .setDesc(t("settings.fetchWebContent.saveImages.desc"))
-      .addToggle((t2) =>
-        t2
-          .setValue(this.plugin.settings.fetchWebContentSaveImages)
-          .onChange(async (v) => {
-            this.plugin.settings.fetchWebContentSaveImages = v;
-            webLinkTypeSetting?.setDisabled(!v);
-            webLinkFormatSetting?.setDisabled(!v);
-            await this.plugin.saveSettings();
-          })
-      );
-
-    webLinkTypeSetting = new Setting(bodyEl)
-      .setName(t("settings.fetchWebContent.linkType.name"))
-      .setDesc(t("settings.fetchWebContent.linkType.desc"))
-      .addDropdown((dd: DropdownComponent) =>
-        dd
-          .addOption("shortest", t("settings.linkType.shortest"))
-          .addOption("relative", t("settings.linkType.relative"))
-          .addOption("absolute", t("settings.linkType.absolute"))
-          .setValue(this.plugin.settings.fetchWebContentImageLinkType)
-          .onChange(async (v) => {
-            this.plugin.settings.fetchWebContentImageLinkType = v as
-              | "shortest"
-              | "relative"
-              | "absolute";
-            await this.plugin.saveSettings();
-          })
-      )
-      .setDisabled(!this.plugin.settings.fetchWebContentSaveImages);
-
-    webLinkFormatSetting = new Setting(bodyEl)
-      .setName(t("settings.fetchWebContent.linkFormat.name"))
-      .setDesc(t("settings.fetchWebContent.linkFormat.desc"))
-      .addDropdown((dd: DropdownComponent) =>
-        dd
-          .addOption("wikilink", t("settings.linkFormat.wikilink"))
-          .addOption("markdown", t("settings.linkFormat.markdown"))
-          .setValue(this.plugin.settings.fetchWebContentImageLinkFormat)
-          .onChange(async (v) => {
-            this.plugin.settings.fetchWebContentImageLinkFormat = v as
-              | "wikilink"
-              | "markdown";
-            await this.plugin.saveSettings();
-          })
-      )
-      .setDisabled(!this.plugin.settings.fetchWebContentSaveImages);
   }
 
   // ===== 标签页：联网搜索 =====
