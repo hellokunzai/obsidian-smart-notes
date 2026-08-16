@@ -1940,7 +1940,7 @@ button.ana-settings-tab.is-active {
 /* ============================================================
  * 角色头像（.ana-avatar）
  * 圆形容器：emoji 文本 / 图片 / 首字母色块（fallback）
- * 尺寸由内联 style 控制，这里只定义外观
+ * 尺寸通过 ana-avatar--s* 类驱动，避免内联 style
  * ============================================================ */
 .ana-avatar {
   display: inline-flex;
@@ -1953,6 +1953,21 @@ button.ana-settings-tab.is-active {
   line-height: 1;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* 头像预设尺寸类（覆盖常见使用场景；如需非常规尺寸可追加） */
+.ana-avatar--s24 { width: 24px; height: 24px; }
+.ana-avatar--s28 { width: 28px; height: 28px; }
+.ana-avatar--s32 { width: 32px; height: 32px; }
+.ana-avatar--s36 { width: 36px; height: 36px; }
+.ana-avatar--s40 { width: 40px; height: 40px; }
+.ana-avatar--s48 { width: 48px; height: 48px; }
+.ana-avatar--s56 { width: 56px; height: 56px; }
+.ana-avatar--s64 { width: 64px; height: 64px; }
+
+/* emoji 模式下字体大小约为容器 55% */
+.ana-avatar--has-emoji > .ana-avatar-emoji {
+  font-size: 55%;
 }
 
 .ana-avatar-emoji {
@@ -2104,4 +2119,53 @@ button.ana-settings-tab.is-active {
 
 .ana-role-list-avatar {
   flex-shrink: 0;
+}
+
+/* ============================================================
+ * 通用工具类（替代内联 style 赋值）
+ * ============================================================ */
+
+/* 模型配置弹窗：全宽左对齐输入框 */
+.ana-modal-input-full {
+  width: 100% !important;
+  text-align: left;
+}
+
+/* 密钥选择器：内联添加表单显隐 */
+.ana-add-form-visible {
+  display: flex;
+}
+.ana-add-form-hidden {
+  display: none;
+}
+
+/* 拖拽调整高度时禁止文本选择 */
+.ana-no-select {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* 聊天区拖拽调整输入框高度（通过 CSS 变量驱动，避免内联 style） */
+.ana-chat-input {
+  height: var(--ana-drag-height, auto);
+}
+
+/* 首字母 fallback 色块：通过 CSS 变量接收动态背景色 */
+.ana-avatar--letter {
+  background: var(--ana-avatar-bg);
+  color: #ffffff;
+  font-size: 45%;
+}
+
+/* 通用隐藏类（替代 style.display="none"） */
+.is-hidden {
+  display: none !important;
+}
+
+/* 设置页 Tab 面板：默认隐藏，is-active 时显示 */
+.ana-settings-panel {
+  display: none;
+}
+.ana-settings-panel.is-active {
+  display: block;
 }

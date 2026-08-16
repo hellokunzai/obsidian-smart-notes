@@ -273,7 +273,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         btn.toggleClass("is-active", i === idx);
       });
       panels.forEach((panel, i) => {
-        panel.style.display = i === idx ? "block" : "none";
+        panel.classList.toggle("is-active", i === idx);
       });
     };
 

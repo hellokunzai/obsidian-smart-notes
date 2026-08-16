@@ -17,6 +17,20 @@ const AVATAR_PALETTE = [
   "#8b5cf6", "#ec4899",
 ];
 
+/** 将头像尺寸(px)映射到预设 CSS 类名，避免内联 style。 */
+function pickAvatarSizeClass(size: number): string | null {
+  if (size >= 64) return "ana-avatar--s64";
+  if (size >= 56) return "ana-avatar--s56";
+  if (size >= 48) return "ana-avatar--s48";
+  if (size >= 40) return "ana-avatar--s40";
+  if (size >= 36) return "ana-avatar--s36";
+  if (size >= 32) return "ana-avatar--s32";
+  if (size >= 28) return "ana-avatar--s28";
+  if (size >= 24) return "ana-avatar--s24";
+  // 极小尺寸回退：用最近的类或交由 CSS 默认
+  return "ana-avatar--s24";
+}
+
 /**
  * FNV-1a 哈希：把名字映射到稳定色块（同名恒定同色）。
  * 用 32 位无符号乘法（Math.imul）避免 JS 大数精度问题。
@@ -61,11 +75,9 @@ export function renderAvatar(
 ): void {
   container.empty();
   container.addClass("ana-avatar");
-  container.style.width = `${size}px`;
-  container.style.height = `${size}px`;
-  container.style.background = "";
-  container.style.color = "";
-  container.style.fontSize = "";
+  // 通过预设尺寸类驱动宽高（避免内联 style）
+  const sizeCls = pickAvatarSizeClass(size);
+  if (sizeCls) container.addClass(sizeCls);
   container.setAttribute("aria-hidden", "true"); // 与文字名一同出现时避免读屏重复播报
 
   const value = role.avatar ?? "";
@@ -74,7 +86,7 @@ export function renderAvatar(
   // 1) 内置 emoji 预设
   if (value && isPresetAvatar(value)) {
     container.createSpan({ cls: "ana-avatar-emoji", text: value });
-    container.style.fontSize = `${Math.round(size * 0.55)}px`;
+    container.addClass("ana-avatar--has-emoji");
     return;
   }
 
@@ -102,7 +114,7 @@ export function renderAvatar(
   // 3) fallback：首字母色块
   const ch = Array.from(name)[0]?.toUpperCase() ?? "?";
   container.createSpan({ cls: "ana-avatar-letter", text: ch });
-  container.style.background = hashColor(name);
-  container.style.color = "#ffffff";
-  container.style.fontSize = `${Math.round(size * 0.45)}px`;
+  container.addClass("ana-avatar--letter");
+  // 背景色由名字哈希动态决定，通过 CSS 变量注入（避免直接 .style.background=）
+  container.style.setProperty("--ana-avatar-bg", hashColor(name));
 }

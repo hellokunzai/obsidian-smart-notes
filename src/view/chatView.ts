@@ -360,26 +360,24 @@ export class ChatView extends ItemView {
     const MIN = 60;
     let startY = 0;
     let startH = 0;
-    let originalUserSelect = "";
 
     const onMove = (e: PointerEvent) => {
       const delta = startY - e.clientY; // 向上拖动为正
       const newH = Math.max(MIN, startH + delta);
-      input.style.height = `${newH}px`;
+      input.style.setProperty("--ana-drag-height", `${newH}px`);
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
-      document.body.style.userSelect = originalUserSelect;
+      document.body.removeClass("ana-no-select");
     };
 
     handle.addEventListener("pointerdown", (e: PointerEvent) => {
       e.preventDefault();
       startY = e.clientY;
       startH = input.offsetHeight;
-      originalUserSelect = document.body.style.userSelect;
-      document.body.style.userSelect = "none";
+      document.body.addClass("ana-no-select");
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onUp);
@@ -852,11 +850,11 @@ export class ChatView extends ItemView {
     this.skillBtn.classList.toggle("is-active", s.skills.length > 0);
 
     // 全局关闭「启用技能」时隐藏 Skill 按钮，开启时才显示
-    this.skillBtn.style.display = this.plugin.settings.skillsEnabled ? "" : "none";
+    this.skillBtn.classList.toggle("is-hidden", !this.plugin.settings.skillsEnabled);
 
     const globallyEnabled = this.plugin.settings.webSearchEnabled;
     // 全局关闭时隐藏 🌐 按钮，开启时才显示
-    this.webToggleBtn.style.display = globallyEnabled ? "" : "none";
+    this.webToggleBtn.classList.toggle("is-hidden", !globallyEnabled);
 
     const on = s.webSearch;
     this.webToggleBtn.classList.toggle("is-active", on);

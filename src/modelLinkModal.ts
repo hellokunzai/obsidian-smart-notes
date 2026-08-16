@@ -6,7 +6,6 @@ import {
   TextComponent,
   ButtonComponent,
   Notice,
-  addIcon,
   setIcon,
 } from "obsidian";
 import type AiNoteAgentPlugin from "./main";
@@ -109,8 +108,7 @@ export class ModelLinkModal extends Modal {
         tc.inputEl.min = "0";
         tc.inputEl.step = "1";
         tc.inputEl.inputMode = "numeric";
-        tc.inputEl.style.setProperty("width", "100%", "important");
-        tc.inputEl.style.textAlign = "left";
+        tc.inputEl.addClass("ana-modal-input-full");
         tc.setPlaceholder(String(this.plugin.settings.maxTokens));
         tc.setValue(this.maxTokens);
         tc.onChange((v) => {
@@ -130,8 +128,7 @@ export class ModelLinkModal extends Modal {
         tc.inputEl.max = "2";
         tc.inputEl.step = "0.1";
         tc.inputEl.inputMode = "decimal";
-        tc.inputEl.style.setProperty("width", "100%", "important");
-        tc.inputEl.style.textAlign = "left";
+        tc.inputEl.addClass("ana-modal-input-full");
         tc.setPlaceholder(String(this.plugin.settings.temperature));
         tc.setValue(this.temperature);
         tc.onChange((v) => {
@@ -566,7 +563,7 @@ export class SecretPickerModal extends Modal {
         cls: "ana-secret-picker-action-btn",
         attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.view") },
       });
-      setIcon(viewBtn, "ana-eye");
+      setIcon(viewBtn, "eye");
       viewBtn.addEventListener("click", () => {
         this.expandedId = this.expandedId === id ? null : id;
         this.renderList();
@@ -586,7 +583,7 @@ export class SecretPickerModal extends Modal {
         cls: "ana-secret-picker-action-btn danger",
         attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.delete") },
       });
-      setIcon(delBtn, "ana-trash");
+      setIcon(delBtn, "trash");
       delBtn.addEventListener("click", async () => {
         try {
           this.app.secretStorage.setSecret(id, "");
@@ -606,7 +603,8 @@ export class SecretPickerModal extends Modal {
     if (this.addFormEl.children.length > 0) return;
 
     this.addFormEl.empty();
-    this.addFormEl.style.display = "flex";
+    this.addFormEl.addClass("ana-add-form-visible");
+    this.addFormEl.removeClass("ana-add-form-hidden");
 
     let nameVal = "";
     let secretVal = "";
@@ -676,22 +674,11 @@ export class SecretPickerModal extends Modal {
   /** 收起内联添加表单。 */
   private hideAddForm(): void {
     this.addFormEl.empty();
-    this.addFormEl.style.display = "none";
+    this.addFormEl.addClass("ana-add-form-hidden");
+    this.addFormEl.removeClass("ana-add-form-visible");
   }
 
   onClose(): void {
     this.contentEl.empty();
   }
 }
-
-/** SVG 图标：眼睛（查看） */
-const SVG_EYE =
-  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
-
-/** SVG 图标：垃圾桶（删除） */
-const SVG_TRASH =
-  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
-
-// 以 Obsidian 官方方式注册图标（避免使用 innerHTML 注入 SVG 字符串）
-addIcon("ana-eye", SVG_EYE);
-addIcon("ana-trash", SVG_TRASH);
