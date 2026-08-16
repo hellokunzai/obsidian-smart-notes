@@ -1616,8 +1616,10 @@ button.ana-settings-tab.is-active {
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 .ana-secret-picker-modal .ana-secret-picker-action-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
   flex-shrink: 0;
 }
 .ana-secret-picker-modal .ana-secret-picker-action-btn:hover {

@@ -6,6 +6,8 @@ import {
   TextComponent,
   ButtonComponent,
   Notice,
+  addIcon,
+  setIcon,
 } from "obsidian";
 import type AiNoteAgentPlugin from "./main";
 import type { ModelLink, ProviderType } from "./settings";
@@ -564,7 +566,7 @@ export class SecretPickerModal extends Modal {
         cls: "ana-secret-picker-action-btn",
         attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.view") },
       });
-      viewBtn.innerHTML = SVG_EYE;
+      setIcon(viewBtn, "ana-eye");
       viewBtn.addEventListener("click", () => {
         this.expandedId = this.expandedId === id ? null : id;
         this.renderList();
@@ -584,7 +586,7 @@ export class SecretPickerModal extends Modal {
         cls: "ana-secret-picker-action-btn danger",
         attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.delete") },
       });
-      delBtn.innerHTML = SVG_TRASH;
+      setIcon(delBtn, "ana-trash");
       delBtn.addEventListener("click", async () => {
         try {
           this.app.secretStorage.setSecret(id, "");
@@ -689,3 +691,7 @@ const SVG_EYE =
 /** SVG 图标：垃圾桶（删除） */
 const SVG_TRASH =
   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+
+// 以 Obsidian 官方方式注册图标（避免使用 innerHTML 注入 SVG 字符串）
+addIcon("ana-eye", SVG_EYE);
+addIcon("ana-trash", SVG_TRASH);
