@@ -1,3 +1,11 @@
+<div align="center">
+
+**Language:** English · [中文](README.zh.md)
+
+</div>
+
+---
+
 # Smart Notes
 
 An [Obsidian](https://obsidian.md) plugin that turns your vault into an AI-assisted knowledge workspace. Chat with your notes, optimize them, autocomplete inside the editor, and give the AI a structured view of your vault — all powered by the model provider you configure.

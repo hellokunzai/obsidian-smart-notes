@@ -1,3 +1,11 @@
+<div align="center">
+
+**语言 / Language:** [English](README.md) · 中文
+
+</div>
+
+---
+
 # Smart Notes（智能笔记）
 
 一款 [Obsidian](https://obsidian.md) 插件，把你的仓库变成由 AI 辅助的知识工作台：和笔记对话、优化笔记、在编辑器内自动补全，并让 AI 以结构化方式认识你的仓库——全部由你配置的模型提供方驱动。
