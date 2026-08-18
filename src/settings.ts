@@ -243,11 +243,25 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         render: (el) => this.renderAutopromptTab(el),
       },
       {
-        id: "memoryChat",
-        titleKey: "settings.section.memoryChat",
-        descKey: "settings.section.memoryChat.desc",
-        icon: "messages-square",
-        render: (el) => this.renderMemoryChatTab(el),
+        id: "roles",
+        titleKey: "settings.section.roles",
+        descKey: "settings.section.roles.desc",
+        icon: "user",
+        render: (el) => this.renderRolesTab(el),
+      },
+      {
+        id: "knowledge",
+        titleKey: "settings.section.knowledge",
+        descKey: "settings.section.knowledge.desc",
+        icon: "file-text",
+        render: (el) => this.renderKnowledgeTab(el),
+      },
+      {
+        id: "profile",
+        titleKey: "settings.section.profile",
+        descKey: "settings.section.profile.desc",
+        icon: "user-round",
+        render: (el) => this.renderProfileTab(el),
       },
       {
         id: "skills",
@@ -594,10 +608,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     }
   }
 
-  // ===== 标签页：会话与记忆 =====
-  private renderMemoryChatTab(bodyEl: HTMLElement): void {
-    // --- 知识库 ---
-    this.createGroupHeader(bodyEl, "settings.memoryGroup.knowledge");
+  // ===== 标签页：知识库 =====
+  private renderKnowledgeTab(bodyEl: HTMLElement): void {
+    // --- 文件 ---
+    this.createGroupHeader(bodyEl, "settings.knowledgeGroup.files");
 
     const includeVaultIndexSetting = new Setting(bodyEl)
       .setName(t("settings.includeVaultIndex.name"))
@@ -612,26 +626,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             vaultIndexMaxFilesSetting?.setDisabled(!v);
           })
       );
-
-    const maxCharsSetting = new Setting(bodyEl)
-      .setName(t("settings.chatContextMaxChars.name"))
-      .setDesc(t("settings.chatContextMaxChars.desc"))
-      .setDisabled(!this.plugin.settings.includeVaultIndex)
-      .addText((t2) => {
-        t2.inputEl.type = "number";
-        t2.inputEl.min = "1";
-        t2.inputEl.step = "1";
-        t2.inputEl.inputMode = "numeric";
-        t2.setPlaceholder("8000")
-          .setValue(String(this.plugin.settings.chatContextMaxChars))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n > 0) {
-              this.plugin.settings.chatContextMaxChars = n;
-              await this.plugin.saveSettings();
-            }
-          });
-      });
 
     const vaultIndexMaxFilesSetting = new Setting(bodyEl)
       .setName(t("settings.vaultIndexMaxFiles.name"))
@@ -653,27 +647,28 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           });
       });
 
-    // --- 历史消息窗口 ---
-    new Setting(bodyEl)
-      .setName(t("settings.historyMaxMessages.name"))
-      .setDesc(t("settings.historyMaxMessages.desc"))
+    const maxCharsSetting = new Setting(bodyEl)
+      .setName(t("settings.chatContextMaxChars.name"))
+      .setDesc(t("settings.chatContextMaxChars.desc"))
+      .setDisabled(!this.plugin.settings.includeVaultIndex)
       .addText((t2) => {
         t2.inputEl.type = "number";
-        t2.inputEl.min = "0";
+        t2.inputEl.min = "1";
         t2.inputEl.step = "1";
         t2.inputEl.inputMode = "numeric";
-        t2.setPlaceholder("20")
-          .setValue(String(this.plugin.settings.historyMaxMessages))
+        t2.setPlaceholder("8000")
+          .setValue(String(this.plugin.settings.chatContextMaxChars))
           .onChange(async (v) => {
             const n = parseInt(v, 10);
-            if (!isNaN(n) && n >= 0) {
-              this.plugin.settings.historyMaxMessages = n;
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.chatContextMaxChars = n;
               await this.plugin.saveSettings();
             }
           });
       });
 
-    // --- Frontmatter 索引 ---
+    // --- 属性 ---
+    this.createGroupHeader(bodyEl, "settings.knowledgeGroup.props");
     let fmKeysSetting: Setting | undefined;
     let fmMaxCharsSetting: Setting | undefined;
     let fmMaxFilesSetting: Setting | undefined;
@@ -749,6 +744,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       })
       .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
 
+  }
+
+  // ===== 标签页：用户画像 =====
+  private renderProfileTab(bodyEl: HTMLElement): void {
     // --- 用户画像 ---
     this.createGroupHeader(bodyEl, "settings.memoryGroup.profile");
 
@@ -831,9 +830,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           });
       });
 
-    // --- 角色信息 ---
-    this.createGroupHeader(bodyEl, "settings.roles.title");
+  }
 
+  // ===== 标签页：角色信息 =====
+  private renderRolesTab(bodyEl: HTMLElement): void {
     // 添加角色按钮
     new Setting(bodyEl)
       .setName(t("settings.roles.add.name"))
@@ -910,6 +910,25 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    new Setting(bodyEl)
+      .setName(t("settings.historyMaxMessages.name"))
+      .setDesc(t("settings.historyMaxMessages.desc"))
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "0";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("20")
+          .setValue(String(this.plugin.settings.historyMaxMessages))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n >= 0) {
+              this.plugin.settings.historyMaxMessages = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
 
     // --- 自动提示 ---
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.autoprompt");
