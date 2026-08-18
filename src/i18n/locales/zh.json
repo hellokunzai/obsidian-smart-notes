@@ -318,6 +318,9 @@
   "view.picker.searchPlaceholder": "搜索文件与文件夹……",
   "view.picker.confirm": "附加所选",
   "view.picker.empty": "没有匹配的文件或文件夹。",
+  "view.picker.expandAll": "全部展开",
+  "view.picker.collapseAll": "全部折叠",
+  "view.picker.selectedCount": "已选 {{count}} 项",
 
   "view.manageSkills": "Skill 技能",
   "view.removeSkill": "移除 skill",

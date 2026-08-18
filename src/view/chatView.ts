@@ -1600,13 +1600,29 @@ export class ChatView extends ItemView {
  * 附件选择器：展示库内所有文件夹与 Markdown 文件，支持搜索与多选。
  * 确认后将选中的 file/folder 引用回传给回调。
  */
+/**
+ * 附件选择器（树形结构）：展示库内文件夹与 Markdown 文件的树，支持折叠展开、
+ * 三态复选框（文件夹 ☑ 全选 / ⊟ 半选 / ☐ 未选）、搜索（命中父链自动展开、不命中隐藏、
+ * 命中高亮）与多选。确认后将选中的 file/folder 引用回传给回调。
+ *
+ * 设计要点（已与用户确认）：
+ * - folder 选中回传为整文件夹一条引用 { type: "folder", path }，不展开成多条 file；
+ * - 回传前做父文件夹去重：祖先 folder 已选时，子 file 不再单独回传；
+ * - 初始只展开第一级（根的直接子文件夹可见，内部折叠）。
+ */
 class AttachmentPickerModal extends Modal {
   private plugin: AiNoteAgentPlugin;
   private onSubmit: (refs: AttachmentRef[]) => void;
-  private selected = new Map<string, AttachmentRef>();
+  /** 被选中的 file/folder 的 path 集合（folder 整文件夹也算一条）。 */
+  private selected = new Set<string>();
+  /** 已展开的 folder path 集合。 */
+  private expanded = new Set<string>();
+  /** 搜索关键字。 */
+  private query = "";
   private listEl!: HTMLElement;
   private searchEl!: HTMLInputElement;
-  private allEntries: { type: "file" | "folder"; path: string; name: string }[] = [];
+  private countEl!: HTMLElement;
+  private confirmBtn!: ButtonComponent;
 
   constructor(
     app: import("obsidian").App,
@@ -1634,34 +1650,57 @@ class AttachmentPickerModal extends Modal {
       cls: "ana-picker-search",
       attr: { type: "text", placeholder: t("view.picker.searchPlaceholder") },
     });
-    this.searchEl.addEventListener("input", () => this.renderList());
+    this.searchEl.addEventListener("input", () => {
+      this.query = this.searchEl.value;
+      this.render();
+    });
+
+    // 工具栏：全部展开 / 全部折叠 / 已选计数
+    const toolbar = contentEl.createEl("div", { cls: "ana-picker-toolbar" });
+    const expandAll = toolbar.createEl("button", {
+      cls: "ana-picker-tool-btn",
+      text: t("view.picker.expandAll"),
+    });
+    expandAll.addEventListener("click", () => {
+      this.vaultRoot().children.forEach((c) => {
+        if (c instanceof TFolder) this.walkFolders(c, (f) => this.expanded.add(f.path));
+      });
+      this.render();
+    });
+    const collapseAll = toolbar.createEl("button", {
+      cls: "ana-picker-tool-btn",
+      text: t("view.picker.collapseAll"),
+    });
+    collapseAll.addEventListener("click", () => {
+      this.expanded.clear();
+      // 折叠后保留第一级展开，与初始状态一致
+      this.vaultRoot().children.forEach((c) => {
+        if (c instanceof TFolder) this.expanded.add(c.path);
+      });
+      this.render();
+    });
+    this.countEl = toolbar.createEl("span", { cls: "ana-picker-count" });
 
     // 列表容器
     this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
 
-    // 收集所有文件夹与 Markdown 文件
-    this.allEntries = [];
-    for (const af of this.app.vault.getAllLoadedFiles()) {
-      if (af instanceof TFolder) {
-        this.allEntries.push({ type: "folder", path: af.path, name: af.name + "/" });
-      } else if (af instanceof TFile && af.extension === "md") {
-        this.allEntries.push({ type: "file", path: af.path, name: af.name });
-      }
-    }
-    this.allEntries.sort((a, b) => a.path.localeCompare(b.path));
+    // 初始只展开第一级
+    this.vaultRoot().children.forEach((c) => {
+      if (c instanceof TFolder) this.expanded.add(c.path);
+    });
 
-    this.renderList();
+    this.render();
 
     // 操作按钮
     const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
     new ButtonComponent(btns)
       .setButtonText(t("modal.cancel"))
       .onClick(() => this.close());
-    new ButtonComponent(btns)
+    this.confirmBtn = new ButtonComponent(btns)
       .setButtonText(t("view.picker.confirm"))
       .setCta()
       .onClick(() => {
-        const refs = Array.from(this.selected.values());
+        const refs = this.buildRefs();
         this.close();
         this.onSubmit(refs);
       });
@@ -1669,36 +1708,243 @@ class AttachmentPickerModal extends Modal {
     this.scope.register([], "Escape", () => this.close());
   }
 
-  private renderList(): void {
-    this.listEl.empty();
-    const q = this.searchEl.value.trim().toLowerCase();
-    const filtered = q
-      ? this.allEntries.filter((e) => e.path.toLowerCase().includes(q))
-      : this.allEntries;
+  // ---- 树遍历工具 ----
 
-    if (filtered.length === 0) {
+  private vaultRoot(): TFolder {
+    return this.app.vault.getRoot();
+  }
+
+  /** 递归遍历所有 folder（含自身），对每个 folder 调用 cb。 */
+  private walkFolders(node: TFolder, cb: (f: TFolder) => void): void {
+    for (const child of node.children) {
+      if (child instanceof TFolder) {
+        cb(child);
+        this.walkFolders(child, cb);
+      }
+    }
+  }
+
+  /** 收集 folder 下所有 markdown 叶子文件。 */
+  private allLeaves(folder: TFolder): TFile[] {
+    const out: TFile[] = [];
+    for (const child of folder.children) {
+      if (child instanceof TFile && child.extension === "md") out.push(child);
+      else if (child instanceof TFolder) out.push(...this.allLeaves(child));
+    }
+    return out;
+  }
+
+  /** 文件夹三态：自身已选 → checked；否则按叶子选中数推导。 */
+  private folderState(folder: TFolder): "checked" | "unchecked" | "indeterminate" {
+    if (this.selected.has(folder.path)) return "checked";
+    const leaves = this.allLeaves(folder);
+    if (leaves.length === 0) return "unchecked";
+    const sel = leaves.filter((l) => this.selected.has(l.path)).length;
+    if (sel === 0) return "unchecked";
+    if (sel === leaves.length) return "checked";
+    return "indeterminate";
+  }
+
+  /**
+   * 计算需要显示的节点 path 集合。
+   * 返回 null 表示不按搜索过滤（全部按 expanded 控制）；
+   * 否则只显示自身命中或有命中后代的节点（命中父链由 render 依据返回值强制展开，
+   * 不污染 expanded，以便清空搜索后恢复用户的折叠状态）。
+   */
+  private computeVisible(): Set<string> | null {
+    const q = this.query.trim().toLowerCase();
+    if (!q) return null;
+    const visible = new Set<string>();
+    const walk = (node: TFolder | TFile): boolean => {
+      const selfHit = node.name.toLowerCase().includes(q);
+      let childHit = false;
+      if (node instanceof TFolder) {
+        for (const child of node.children) {
+          if (child instanceof TFolder || child instanceof TFile) {
+            if (walk(child)) childHit = true;
+          }
+        }
+      }
+      if (selfHit || childHit) visible.add(node.path);
+      return selfHit || childHit;
+    };
+    for (const child of this.vaultRoot().children) {
+      if (child instanceof TFolder || child instanceof TFile) walk(child);
+    }
+    return visible;
+  }
+
+  private highlight(name: string): (Node | string)[] {
+    const q = this.query.trim();
+    if (!q) return [name];
+    const idx = name.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return [name];
+    return [
+      name.slice(0, idx),
+      (() => {
+        const m = document.createElement("mark");
+        m.textContent = name.slice(idx, idx + q.length);
+        return m;
+      })(),
+      name.slice(idx + q.length),
+    ];
+  }
+
+  // ---- 渲染 ----
+
+  private render(): void {
+    this.listEl.empty();
+    const visible = this.computeVisible();
+
+    let shown = 0;
+    const walk = (node: TFolder | TFile, depth: number): void => {
+      if (visible && !visible.has(node.path)) return;
+      shown++;
+
+      const row = this.listEl.createEl("div", {
+        cls: "ana-tree-row" + (node instanceof TFolder ? " is-folder" : ""),
+      });
+      row.style.paddingLeft = `${6 + depth * 18}px`;
+
+      // 展开/折叠箭头（仅文件夹，文件用占位对齐）
+      const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
+      if (node instanceof TFolder) {
+        const isOpen =
+          this.expanded.has(node.path) || (visible !== null && visible.has(node.path));
+        if (!isOpen) toggle.classList.add("collapsed");
+        toggle.setText("▼");
+        toggle.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (this.expanded.has(node.path)) this.expanded.delete(node.path);
+          else this.expanded.add(node.path);
+          this.render();
+        });
+      } else {
+        toggle.classList.add("leaf");
+      }
+
+      // 复选框
+      const cb = row.createEl("input", { cls: "ana-tree-cb" });
+      cb.type = "checkbox";
+      if (node instanceof TFolder) {
+        const st = this.folderState(node);
+        if (st === "checked") cb.checked = true;
+        else if (st === "indeterminate") cb.indeterminate = true;
+      } else {
+        cb.checked = this.selected.has(node.path);
+      }
+      cb.addEventListener("click", (e) => e.stopPropagation());
+      cb.addEventListener("change", () => this.onToggle(node));
+      row.appendChild(cb);
+
+      // 图标
+      const icon = row.createEl("span", { cls: "ana-tree-icon" });
+      icon.setText(node instanceof TFolder ? "📁" : "📄");
+
+      // 名称（带命中高亮）
+      const nameEl = row.createEl("span", { cls: "ana-tree-name" });
+      for (const part of this.highlight(node.name)) {
+        if (typeof part === "string") nameEl.appendChild(document.createTextNode(part));
+        else nameEl.appendChild(part);
+      }
+
+      // 整行点击：文件夹切换展开，文件切换勾选
+      row.addEventListener("click", () => {
+        if (node instanceof TFolder) {
+          toggle.click();
+        } else {
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event("change"));
+        }
+      });
+
+      // 递归子节点（搜索态下命中父链强制展开）
+      if (
+        node instanceof TFolder &&
+        (this.expanded.has(node.path) || (visible !== null && visible.has(node.path)))
+      ) {
+        for (const child of node.children) {
+          if (child instanceof TFolder || child instanceof TFile) walk(child, depth + 1);
+        }
+      }
+    };
+    for (const child of this.vaultRoot().children) {
+      if (child instanceof TFolder || child instanceof TFile) walk(child, 0);
+    }
+
+    if (shown === 0) {
       this.listEl.createEl("div", {
         text: t("view.picker.empty"),
         cls: "ana-picker-empty",
       });
-      return;
     }
 
-    for (const e of filtered) {
-      const key = `${e.type}:${e.path}`;
-      const row = this.listEl.createEl("label", { cls: "ana-picker-row" });
-      const cb = row.createEl("input", { attr: { type: "checkbox" } });
-      cb.checked = this.selected.has(key);
-      cb.addEventListener("change", () => {
-        if (cb.checked) {
-          this.selected.set(key, { type: e.type, path: e.path });
-        } else {
-          this.selected.delete(key);
-        }
-      });
-      const icon = e.type === "folder" ? "📁" : "📄";
-      row.createSpan({ text: `${icon} ${e.path}`, cls: "ana-picker-name" });
+    this.updateCount();
+  }
+
+  // ---- 勾选逻辑 ----
+
+  private onToggle(node: TFolder | TFile): void {
+    if (node instanceof TFolder) {
+      const wantSelect = this.folderState(node) !== "checked";
+      if (wantSelect) {
+        this.selected.add(node.path);
+        this.allLeaves(node).forEach((l) => this.selected.add(l.path));
+      } else {
+        this.selected.delete(node.path);
+        this.allLeaves(node).forEach((l) => this.selected.delete(l.path));
+      }
+    } else {
+      if (this.selected.has(node.path)) this.selected.delete(node.path);
+      else this.selected.add(node.path);
     }
+    this.render();
+  }
+
+  /** 回传前压缩：祖先 folder 已选时，子 file 不单独回传。 */
+  private buildRefs(): AttachmentRef[] {
+    const picked = Array.from(this.selected);
+    const result = picked.filter((p) => {
+      const node = this.findNode(p);
+      if (!node) return false;
+      if (node instanceof TFile) {
+        const parts = p.split("/");
+        for (let i = 1; i < parts.length; i++) {
+          if (this.selected.has(parts.slice(0, i).join("/"))) return false;
+        }
+      }
+      return true;
+    });
+    return result.map((p) => {
+      const node = this.findNode(p)!;
+      return { type: node instanceof TFolder ? "folder" : "file", path: p } as AttachmentRef;
+    });
+  }
+
+  private findNode(path: string): TFolder | TFile | null {
+    const walk = (node: TFolder): TFolder | TFile | null => {
+      if (node.path === path) return node;
+      for (const child of node.children) {
+        if (child.path === path && (child instanceof TFolder || child instanceof TFile)) {
+          return child;
+        }
+        if (child instanceof TFolder) {
+          const found = walk(child);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    return walk(this.vaultRoot());
+  }
+
+  private updateCount(): void {
+    const n = this.selected.size;
+    this.countEl.empty();
+    this.countEl.append(
+      document.createTextNode(t("view.picker.selectedCount", { count: String(n) }))
+    );
+    if (this.confirmBtn) this.confirmBtn.setDisabled(n === 0);
   }
 
   onClose(): void {

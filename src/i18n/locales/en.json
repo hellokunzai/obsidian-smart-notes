@@ -318,6 +318,9 @@
   "view.picker.searchPlaceholder": "Search files and folders…",
   "view.picker.confirm": "Attach selected",
   "view.picker.empty": "No matching files or folders.",
+  "view.picker.expandAll": "Expand all",
+  "view.picker.collapseAll": "Collapse all",
+  "view.picker.selectedCount": "{{count}} selected",
 
   "view.manageSkills": "Skills",
   "view.removeSkill": "Remove skill",
