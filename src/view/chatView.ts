@@ -1545,8 +1545,30 @@ export class ChatView extends ItemView {
 
   /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。 */
   private async buildSystem(): Promise<string> {
-    const base =
-      "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise. Note: you can see the vault's file paths and available skill names via the knowledge base index / skill index, but file/skill contents are only provided when the user explicitly attaches them, references them, or activates them. When referring to vault notes, always use standard Markdown links `[text](path/to/note.md)`; do NOT use Wikilinks [[...]] or app://obsidian.md/ URLs.";
+    const settings = this.plugin.settings;
+    const hasVaultIndex = settings.includeVaultIndex;
+    const hasFrontmatterIndex = settings.includeFrontmatterIndex;
+
+    let base =
+      "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise.";
+
+    if (hasVaultIndex && hasFrontmatterIndex) {
+      base +=
+        " Note: you can see all Markdown file paths via the knowledge base index, and Frontmatter metadata (including file paths) via the Frontmatter index. File contents are only provided when the user explicitly attaches them, references them, or activates them.";
+    } else if (hasVaultIndex) {
+      base +=
+        " Note: you can see all Markdown file paths via the knowledge base index, but file contents are only provided when the user explicitly attaches them, references them, or activates them.";
+    } else if (hasFrontmatterIndex) {
+      base +=
+        " Note: you can see file paths and Frontmatter metadata for notes that have Frontmatter, via the Frontmatter index. File contents are only provided when the user explicitly attaches them, references them, or activates them.";
+    } else {
+      base +=
+        " Note: you cannot see the vault's file list or file contents unless the user explicitly attaches files/folders or references a file in their message.";
+    }
+
+    base +=
+      " When referring to vault notes, always use standard Markdown links `[text](path/to/note.md)`; do NOT use Wikilinks [[...]] or app://obsidian.md/ URLs.";
+
     const sys = buildSystemPrompt(
       getActiveRolePrompt(this.plugin.settings, this.selectedRoleId),
       base
