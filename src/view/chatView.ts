@@ -869,10 +869,6 @@ export class ChatView extends ItemView {
 
     const on = s.webSearch;
     this.webToggleBtn.classList.toggle("is-active", on);
-    this.webToggleBtn.setAttribute(
-      "title",
-      on ? t("view.webOn") : t("view.webOff")
-    );
   }
 
   private async toggleWebSearch(): Promise<void> {

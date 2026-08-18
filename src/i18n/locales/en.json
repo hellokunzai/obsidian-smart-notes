@@ -333,8 +333,6 @@
   "view.skillPicker.empty": "No matching skills.",
 
   "view.webToggle": "Toggle web search for this chat (only searches when enabled)",
-  "view.webOn": "Web on",
-  "view.webOff": "Web off",
   "view.webSearching": "Smart Notes: searching the web…",
   "view.webNoResults": "Smart Notes: web search returned no results.",
   "view.webNoCredentials": "Smart Notes: web search is on but no API keys/instances are configured. Add them in settings.",

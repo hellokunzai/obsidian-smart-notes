@@ -333,8 +333,6 @@
   "view.skillPicker.empty": "没有匹配的 skill。",
 
   "view.webToggle": "切换本对话的联网搜索（仅开启时才会搜索）",
-  "view.webOn": "联网已开",
-  "view.webOff": "联网已关",
   "view.webSearching": "Smart Notes：正在联网搜索……",
   "view.webNoResults": "Smart Notes：联网搜索没有返回结果。",
   "view.webNoCredentials": "Smart Notes：已开启联网搜索但未配置任何 API Key/实例，请到设置中填写。",
