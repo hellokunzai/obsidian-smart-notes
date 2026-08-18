@@ -67,6 +67,8 @@ export function getActiveRolePrompt(
   settings: AiNoteAgentSettings,
   roleId?: string
 ): string {
+  // 关闭「启用角色功能」后，连默认角色也不再注入 system prompt
+  if (!settings.rolesEnabled) return "";
   const id = roleId ?? settings.defaultRoleId;
   if (!id) return "";
   const role = settings.roles.find((r) => r.id === id);
@@ -112,6 +114,8 @@ export interface AiNoteAgentSettings {
   memoryProfileCategories: string;
   // 长期画像记忆：注入 system prompt 前截断到的字符数（防止无限膨胀撑爆 token）
   profileMemoryMaxChars: number;
+  // 对话：是否启用文件选择功能（对话框「添加文件/文件夹」按钮）
+  fileSelectionEnabled: boolean;
   // 对话：是否把知识库路径索引（仅路径）注入 system prompt，让 AI 知道库里有哪些文件
   includeVaultIndex: boolean;
   // 对话：知识库路径索引最多注入的文件数（防止大库撑爆 token）；0 = 不限制
@@ -153,6 +157,8 @@ export interface AiNoteAgentSettings {
   roles: RoleInfo[];
   // 当前默认角色 id（其提示词注入所有 AI 功能）；为空表示不注入任何角色
   defaultRoleId: string;
+  // 角色信息：是否在 AI 对话框显示「角色」按钮（总开关）
+  rolesEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
@@ -180,6 +186,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   memoryProfileEnabled: true,
   memoryProfileCategories: "",
   profileMemoryMaxChars: 4000,
+  fileSelectionEnabled: true,
   includeVaultIndex: false,
   vaultIndexMaxFiles: 200,
   chatContextMaxChars: 8000,
@@ -201,6 +208,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   webSearchShowCitations: true,
   roles: [],
   defaultRoleId: "",
+  rolesEnabled: true,
 };
 
 interface SettingsSection {
@@ -243,13 +251,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         render: (el) => this.renderAutopromptTab(el),
       },
       {
-        id: "roles",
-        titleKey: "settings.section.roles",
-        descKey: "settings.section.roles.desc",
-        icon: "user",
-        render: (el) => this.renderRolesTab(el),
-      },
-      {
         id: "knowledge",
         titleKey: "settings.section.knowledge",
         descKey: "settings.section.knowledge.desc",
@@ -262,6 +263,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         descKey: "settings.section.profile.desc",
         icon: "user-round",
         render: (el) => this.renderProfileTab(el),
+      },
+      {
+        id: "roles",
+        titleKey: "settings.section.roles",
+        descKey: "settings.section.roles.desc",
+        icon: "user",
+        render: (el) => this.renderRolesTab(el),
       },
       {
         id: "skills",
@@ -613,6 +621,19 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     // --- 文件 ---
     this.createGroupHeader(bodyEl, "settings.knowledgeGroup.files");
 
+    // 启用文件选择功能
+    new Setting(bodyEl)
+      .setName(t("settings.fileSelectionEnabled.name"))
+      .setDesc(t("settings.fileSelectionEnabled.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.fileSelectionEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.fileSelectionEnabled = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
     const includeVaultIndexSetting = new Setting(bodyEl)
       .setName(t("settings.includeVaultIndex.name"))
       .setDesc(t("settings.includeVaultIndex.desc"))
@@ -834,6 +855,19 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
   // ===== 标签页：角色信息 =====
   private renderRolesTab(bodyEl: HTMLElement): void {
+    // 顶层：启用角色功能 总开关
+    new Setting(bodyEl)
+      .setName(t("settings.rolesEnabled.name"))
+      .setDesc(t("settings.rolesEnabled.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.rolesEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.rolesEnabled = v;
+            await this.plugin.saveSettings();
+          })
+      );
+
     // 添加角色按钮
     new Setting(bodyEl)
       .setName(t("settings.roles.add.name"))

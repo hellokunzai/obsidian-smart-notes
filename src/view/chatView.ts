@@ -276,15 +276,7 @@ export class ChatView extends ItemView {
     setIcon(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
 
-    // 角色选择按钮（普通图标按钮）
-    this.roleBtn = attachRow.createEl("button", {
-      cls: "ana-chat-role-btn",
-      attr: { "aria-label": t("view.roleSelect") },
-    });
-    setIcon(this.roleBtn, "user");
-    this.roleBtn.addEventListener("click", () => void this.openRolePicker());
-
-    // 附件按钮（角色右侧）
+    // 附件按钮（模型右侧）
     this.attachBtn = attachRow.createEl("button", {
       cls: "ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") },
@@ -292,7 +284,15 @@ export class ChatView extends ItemView {
     setIcon(this.attachBtn, "paperclip");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
 
-    // Skill 按钮（附件右侧）
+    // 角色选择按钮（附件右侧）
+    this.roleBtn = attachRow.createEl("button", {
+      cls: "ana-chat-role-btn",
+      attr: { "aria-label": t("view.roleSelect") },
+    });
+    setIcon(this.roleBtn, "user");
+    this.roleBtn.addEventListener("click", () => void this.openRolePicker());
+
+    // Skill 按钮（角色右侧）
     this.skillBtn = attachRow.createEl("button", {
       cls: "ana-chat-action",
       attr: { "aria-label": t("view.manageSkills") },
@@ -805,10 +805,15 @@ export class ChatView extends ItemView {
     const roleName = role ? role.name : t("view.noRole");
     // 各自截断：模型名最多 15 字符、角色名最多 8 字符，超出用 ".." 代替
     const truncatedModel = this.truncate(modelName, 15);
-    const truncatedRole = this.truncate(roleName, 8);
-    this.modelLabelEl.setText(`${truncatedModel}/${truncatedRole}`);
-    // 完整信息保留到 title 属性，鼠标悬停可查看
-    this.modelLabelEl.setAttribute("title", `${modelName} / ${roleName}`);
+    if (this.plugin.settings.rolesEnabled) {
+      const truncatedRole = this.truncate(roleName, 8);
+      this.modelLabelEl.setText(`${truncatedModel}/${truncatedRole}`);
+      // 完整信息保留到 title 属性，鼠标悬停可查看
+      this.modelLabelEl.setAttribute("title", `${modelName} / ${roleName}`);
+    } else {
+      this.modelLabelEl.setText(truncatedModel);
+      this.modelLabelEl.setAttribute("title", modelName);
+    }
   }
 
   /** 打开模型选择弹窗。 */
@@ -849,8 +854,14 @@ export class ChatView extends ItemView {
     this.attachBtn.classList.toggle("is-active", s.attachments.length > 0);
     this.skillBtn.classList.toggle("is-active", s.skills.length > 0);
 
+    // 全局关闭「启用文件选择功能」时隐藏附件按钮，开启时才显示
+    this.attachBtn.classList.toggle("is-hidden", !this.plugin.settings.fileSelectionEnabled);
+
     // 全局关闭「启用技能」时隐藏 Skill 按钮，开启时才显示
     this.skillBtn.classList.toggle("is-hidden", !this.plugin.settings.skillsEnabled);
+
+    // 全局关闭「启用角色功能」时隐藏角色按钮，开启时才显示
+    this.roleBtn.classList.toggle("is-hidden", !this.plugin.settings.rolesEnabled);
 
     const globallyEnabled = this.plugin.settings.webSearchEnabled;
     // 全局关闭时隐藏 🌐 按钮，开启时才显示
@@ -924,7 +935,7 @@ export class ChatView extends ItemView {
     const content = bubble.createEl("div", { cls: "ana-chat-text" });
 
     // 助手消息：在气泡外顶部展示「头像 + 角色名 + 默认徽标」（方案 A）
-    if (role === "assistant") {
+    if (role === "assistant" && this.plugin.settings.rolesEnabled) {
       const roleInfo = this.resolveRole(roleId);
       if (roleInfo) {
         // 角色存在：头像 + 名 + （若它是全局默认角色）默认徽标
