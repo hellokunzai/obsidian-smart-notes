@@ -32,7 +32,7 @@ import {
   type SessionMessage,
 } from "../utils/aiFolder";
 import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex } from "../context/knowledge";
-import { buildSkillContext, listSkills, type SkillEntry } from "../skills/skills";
+import { buildSkillContent, buildSkillIndex, listSkills, type SkillEntry } from "../skills/skills";
 import { WebSearchService, type SearchProviderConfig } from "../search/search";
 import { buildWebSearchContext } from "../search/prompt";
 import { getProfileMemoryContext } from "../memory/profileMemory";
@@ -83,6 +83,16 @@ export class ChatView extends ItemView {
 
   private isStreaming = false;
   private sidebarCollapsed = true;
+
+  /**
+   * 重入时临时注入的 skill 路径。
+   * AI 在回复中声明 `@use-skill` 后，插件自动把这些 skill 的完整内容注入下一轮请求的
+   * system prompt，从而实现「一句话直接执行」；这些路径**只用于单次重入**，不写入
+   * `session.skills`，后续轮次也不持久生效。每轮 handleSend 结束后清空。
+   */
+  private transientSkillPaths: string[] = [];
+  /** 当前轮次用户发送的原始文本，供 runTurn 重入时复用（构建附件上下文 / 联网搜索）。 */
+  private lastUserText = "";
 
   // 流式渲染状态
   private pendingRender = false;
@@ -164,10 +174,7 @@ export class ChatView extends ItemView {
 
     // 兼容：没有任何会话时创建一个空白会话（继承全局默认 skill）
     if (this.sessions.length === 0) {
-      const s = createSession(
-        t("view.defaultTitle"),
-        this.plugin.settings.defaultSkills
-      );
+      const s = createSession(t("view.defaultTitle"));
       this.sessions.push(s);
       this.activeId = s.id;
       this.loadedIds.add(s.id);
@@ -466,10 +473,7 @@ export class ChatView extends ItemView {
   // ================= 会话操作 =================
 
   private async newSession(): Promise<void> {
-    const s = createSession(
-      t("view.defaultTitle"),
-      this.plugin.settings.defaultSkills
-    );
+    const s = createSession(t("view.defaultTitle"));
     this.sessions.push(s);
     this.activeId = s.id;
     this.loadedIds.add(s.id);
@@ -548,10 +552,7 @@ export class ChatView extends ItemView {
           if (next) {
             this.activeId = next.id;
           } else {
-            const fresh = createSession(
-              t("view.defaultTitle"),
-              this.plugin.settings.defaultSkills
-            );
+            const fresh = createSession(t("view.defaultTitle"));
             this.sessions.push(fresh);
             this.activeId = fresh.id;
           }
@@ -734,6 +735,32 @@ export class ChatView extends ItemView {
       s.skills,
       (paths) => void this.addSkills(paths)
     ).open();
+  }
+
+  /**
+   * 解析助手回复中的 `@use-skill: <path>` 标记。
+   * 仅找出被 AI 声明调用、且确实存在于 skills/ 目录中的 skill 路径；**不**写入
+   * `session.skills`（调用只触发一次临时重入，不持久生效）。同时从可见文本中剥离标记。
+   * 返回的 `detected` 即为需要临时注入并重入执行的 skill 路径集合。
+   */
+  private async applySkillInvocations(
+    reply: string
+  ): Promise<{ cleaned: string; detected: string[] }> {
+    const re = /^[ \t]*@use-skill:[ \t]*(\S+)[ \t]*$/gm;
+    const rawPaths: string[] = [];
+    const cleaned = reply
+      .replace(re, (_m, p) => {
+        rawPaths.push(String(p).trim());
+        return "";
+      })
+      .replace(/\n{3,}/g, "\n\n");
+    if (rawPaths.length === 0) return { cleaned, detected: [] };
+    if (!this.plugin.settings.skillsEnabled) return { cleaned, detected: [] };
+    const valid = new Set(
+      (await listSkills(this.plugin, this.app)).map((e) => e.path)
+    );
+    const detected = rawPaths.filter((p) => valid.has(p));
+    return { cleaned, detected };
   }
 
   // ================= 模型选择 =================
@@ -1273,6 +1300,7 @@ export class ChatView extends ItemView {
   private async handleSend(): Promise<void> {
     const text = this.inputEl.value.trim();
     if (!text || this.isStreaming) return;
+    this.lastUserText = text;
     let s = this.activeSession;
     if (!s) {
       await this.newSession();
@@ -1285,12 +1313,52 @@ export class ChatView extends ItemView {
     s.messages.push({ role: "user", content: text });
     s.updatedAt = Date.now();
 
+    // 执行首轮：system prompt 仅含启用 skill 的索引（不注入内容）。
+    // 若 AI 在回复中声明 `@use-skill`，则临时把这些 skill 的完整内容注入并自动重入一次
+    // 直接执行；被调用的 skill 不写入 session.skills，仅单次重入生效。
+    const r0 = await this.runTurn(0);
+    if (r0.needsReenter) {
+      // 移除首轮的中间态气泡（仅「我要调用 XX skill」声明），以及 session 中对应的
+      // 中间 assistant 消息，避免污染历史。
+      r0.assistantRowEl?.remove();
+      const sess = this.activeSession;
+      if (sess) {
+        const last = sess.messages[sess.messages.length - 1];
+        if (last && last.role === "assistant") sess.messages.pop();
+      }
+      this.transientSkillPaths.push(...r0.reenterPaths);
+      new Notice(t("view.skillReenter", { count: r0.reenterPaths.length }));
+      await this.runTurn(1);
+      this.transientSkillPaths = [];
+    }
+  }
+
+  /**
+   * 执行一轮模型请求（构造 system + 消息、流式渲染、持久化）。
+   * @param depth 重入深度：0 = 首轮；1 = 自动重入（已达上限，不再二次重入）。
+   * @returns
+   * - needsReenter：本轮 AI 声明调用 skill，且 depth < 1，需要调用方临时注入后重入
+   * - reenterPaths：被声明调用的、已校验存在的 skill 路径（供临时注入）
+   * - assistantRowEl：本轮助手气泡的行元素，重入前用于移除中间态气泡
+   */
+  private async runTurn(
+    depth: number
+  ): Promise<{
+    needsReenter: boolean;
+    reenterPaths: string[];
+    assistantRowEl?: HTMLElement;
+  }> {
+    const s = this.activeSession;
+    if (!s) {
+      return { needsReenter: false, reenterPaths: [], assistantRowEl: undefined };
+    }
+
     const system = await this.buildSystem();
     // 仅按用户显式附加的附件 + 消息中点名的文件读取内容（不自动加载任何文件）
     const noteContext = await buildAttachmentContext(
       this.plugin.app,
       s.attachments,
-      text,
+      this.lastUserText,
       this.plugin.settings.chatContextMaxChars
     );
 
@@ -1300,7 +1368,7 @@ export class ChatView extends ItemView {
       try {
         const svc = new WebSearchService(this.buildSearchConfig());
         if (svc.hasCredentials()) {
-          const results = await svc.search(text);
+          const results = await svc.search(this.lastUserText);
           webContext = buildWebSearchContext(
             results,
             this.plugin.settings.webSearchShowCitations
@@ -1316,6 +1384,7 @@ export class ChatView extends ItemView {
       }
     }
 
+    const text = this.lastUserText;
     const extra = [noteContext, webContext].filter((x) => x).join("\n\n");
     const currentUser: ChatMessage = {
       role: "user",
@@ -1344,6 +1413,7 @@ export class ChatView extends ItemView {
     messages.push(...recent, currentUser);
 
     const assistantContentEl = this.addAssistantMessage("", undefined, this.selectedRoleId);
+    const assistantRowEl = assistantContentEl.closest(".ana-chat-message") as HTMLElement;
     this.isStreaming = true;
     this.setInputDisabled(true);
     // 显示加载动画（打字指示器）
@@ -1412,7 +1482,17 @@ export class ChatView extends ItemView {
         this.streamingReasoningEl.addClass("is-collapsed");
       }
       const reply = result.content;
-      await this.renderMarkdown(this.streamingContentEl!, reply);
+
+      // 解析 AI 的 @use-skill 标记：仅检测被调用的 skill 路径，不写入 session。
+      const { cleaned, detected } = await this.applySkillInvocations(reply);
+      // 始终渲染剥离标记后的干净文本。
+      await this.renderMarkdown(this.streamingContentEl!, cleaned);
+      const needsReenter = detected.length > 0 && depth < 1;
+      if (detected.length > 0 && !needsReenter) {
+        // 已达重入上限（depth>=1）仍声明调用：提示用户手动添加，不自动重入。
+        this.renderChips();
+        new Notice(t("view.skillAutoLoaded", { count: detected.length }));
+      }
 
       // 若接口未返回 usage，按字符粗略估算
       let usage = result.usage;
@@ -1434,26 +1514,27 @@ export class ChatView extends ItemView {
       }
 
       // 首条助手回复后，用首句 user 消息命名会话（仅当仍为默认标题）
-      const isFirstAssistant = !s!.messages.some((m) => m.role === "assistant");
+      const isFirstAssistant = !s.messages.some((m) => m.role === "assistant");
       const assistantMsg: SessionMessage = {
         role: "assistant",
-        content: reply,
+        content: cleaned,
         usage,
       };
       if (result.reasoning) assistantMsg.reasoningContent = result.reasoning;
       if (this.selectedRoleId) assistantMsg.roleId = this.selectedRoleId;
-      s!.messages.push(assistantMsg);
-      s!.updatedAt = Date.now();
-      if (isFirstAssistant && (s!.title === t("view.defaultTitle") || !s!.title)) {
-        const firstUser = s!.messages.find((m) => m.role === "user");
+      s.messages.push(assistantMsg);
+      s.updatedAt = Date.now();
+      if (isFirstAssistant && (s.title === t("view.defaultTitle") || !s.title)) {
+        const firstUser = s.messages.find((m) => m.role === "user");
         if (firstUser) {
-          s!.title =
+          s.title =
             firstUser.content.slice(0, 30).replace(/\s+/g, " ").trim() ||
             t("view.defaultTitle");
         }
       }
       await this.persist();
       this.renderSessionList();
+      return { needsReenter, reenterPaths: detected, assistantRowEl };
     } catch (e) {
       this.clearStreamingState();
       const bubble = assistantContentEl.closest(".ana-chat-bubble") as HTMLElement;
@@ -1461,8 +1542,9 @@ export class ChatView extends ItemView {
       assistantContentEl.empty();
       assistantContentEl.setText(t("view.error", { error: (e as Error).message }));
       // 出错时回滚刚加入的用户消息，避免污染历史
-      s!.messages.pop();
-      s!.updatedAt = Date.now();
+      s.messages.pop();
+      s.updatedAt = Date.now();
+      return { needsReenter: false, reenterPaths: [], assistantRowEl };
     } finally {
       this.isStreaming = false;
       this.clearStreamingState();
@@ -1596,15 +1678,27 @@ export class ChatView extends ItemView {
       if (fmIndex) parts.push(fmIndex);
     }
 
-    // skill 上下文（索引 + 启用内容）
+    // skill 上下文：索引块（设置启用的 skill，仅名称+简介，不注入内容）
+    // + 内容块（会话内已加载的 skill 完整内容，含用户手动选择或 AI 触发）
     const s = this.activeSession;
-    const skillContext = await buildSkillContext(
+    if (this.plugin.settings.skillsEnabled) {
+      const indexBlock = await buildSkillIndex(
+        this.plugin,
+        this.plugin.app,
+        this.plugin.settings.defaultSkills
+      );
+      if (indexBlock) parts.push(indexBlock);
+    }
+    const skillPaths = s
+      ? Array.from(new Set([...s.skills, ...this.transientSkillPaths]))
+      : this.transientSkillPaths;
+    const skillContent = await buildSkillContent(
       this.plugin,
       this.plugin.app,
-      s ? s.skills : [],
+      skillPaths,
       this.plugin.settings.chatContextMaxChars
     );
-    if (skillContext) parts.push(skillContext);
+    if (skillContent) parts.push(skillContent);
 
     // 长期画像记忆：让 AI 了解用户背景与偏好
     const profileContext = await getProfileMemoryContext(this.plugin);

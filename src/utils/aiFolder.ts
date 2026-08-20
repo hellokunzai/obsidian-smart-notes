@@ -513,8 +513,14 @@ function migrateLegacy(data: unknown): LegacySessionsFile {
   return { version: SESSIONS_VERSION, activeSessionId: null, sessions: [] };
 }
 
-/** 新建一个空白会话。 */
-export function createSession(title = "新对话", defaultSkills: string[] = []): Session {
+/**
+ * 新建一个空白会话。
+ *
+ * 注意：新会话的 `skills` 始终为空数组。在「Skill 技能」设置页勾选的 skill
+ * 不再默认塞进对话框选择框，而是作为「可用索引」注入 system prompt；
+ * 用户仍可在对话框手动通过 Skill 按钮添加要注入内容的 skill。
+ */
+export function createSession(title = "新对话"): Session {
   const now = Date.now();
   return {
     id: crypto.randomUUID(),
@@ -523,7 +529,7 @@ export function createSession(title = "新对话", defaultSkills: string[] = [])
     updatedAt: now,
     messages: [],
     attachments: [],
-    skills: [...defaultSkills],
+    skills: [],
     webSearch: false,
   };
 }
