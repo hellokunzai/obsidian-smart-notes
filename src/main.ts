@@ -352,7 +352,16 @@ export default class AiNoteAgentPlugin extends Plugin {
     const hasDelimiters = yaml.startsWith("---") && yaml.includes("\n---");
     const yamlBlock = hasDelimiters ? yaml : `---\n${yaml}\n---`;
 
-    await this.app.vault.modify(file, `${yamlBlock}\n${body}`);
+    // 兜底：强制将 date 字段设为今天（AI 可能按笔记内容生成历史日期）
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    let finalYaml = yamlBlock;
+    if (/^date:\s*.+$/m.test(finalYaml)) {
+      finalYaml = finalYaml.replace(/^date:\s*.+$/m, `date: ${today}`);
+    } else {
+      finalYaml = finalYaml.replace(/^---\n/, `---\ndate: ${today}\n`);
+    }
+
+    await this.app.vault.modify(file, `${finalYaml}\n${body}`);
   }
 
 }

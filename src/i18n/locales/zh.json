@@ -154,7 +154,7 @@
   "view.tokensEstimated": "约 Token",
   "view.tokensHint": "本次回复的 Token 消耗（prompt + completion）",
 
-  "frontmatter.systemPrompt": "你是一名元数据整理助手。请根据用户提供的 Markdown 笔记内容，生成一段简洁、相关的 YAML frontmatter。建议包含 title、date、tags、category、summary、keywords 等标准字段。请只返回被 `---` 包裹的 YAML 代码块，不要输出解释或其他内容。",
+  "frontmatter.systemPrompt": "你是一名元数据整理助手。请根据用户提供的 Markdown 笔记内容，生成一段简洁、相关的 YAML frontmatter。建议包含 title、date、tags、category、summary、keywords 等标准字段。其中 date 字段请务必使用今天的日期，格式为 YYYY-MM-DD。请只返回被 `---` 包裹的 YAML 代码块，不要输出解释或其他内容。",
 
   "view.title": "AI 对话",
   "view.welcome": "可以问我关于你的知识库或当前笔记的问题。",

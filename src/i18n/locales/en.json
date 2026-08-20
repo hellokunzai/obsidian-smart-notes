@@ -154,7 +154,7 @@
   "view.tokensEstimated": "~Tokens",
   "view.tokensHint": "Token usage for this reply (prompt + completion)",
 
-  "frontmatter.systemPrompt": "You are a metadata assistant. Based on the Markdown note provided by the user, generate a concise and relevant YAML frontmatter. Include standard fields such as title, date, tags, category, summary, and keywords. Return only a YAML block wrapped in `---`, with no explanation or additional content.",
+  "frontmatter.systemPrompt": "You are a metadata assistant. Based on the Markdown note provided by the user, generate a concise and relevant YAML frontmatter. Include standard fields such as title, date, tags, category, summary, and keywords. The date field must use today's date in YYYY-MM-DD format. Return only a YAML block wrapped in `---`, with no explanation or additional content.",
 
   "view.title": "AI Chat",
   "view.welcome": "Ask me anything about your vault or the active note.",
