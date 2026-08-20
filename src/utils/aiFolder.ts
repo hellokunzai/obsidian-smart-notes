@@ -56,6 +56,12 @@ export type SessionMessage = {
   reasoningContent?: string;
   /** 可选：生成该助手消息时使用的角色 id（发送时快照）。无角色或旧会话无此字段。 */
   roleId?: string;
+  /** 可选：该消息的发送时间戳（本地展示发送时间用）。 */
+  createdAt?: number;
+  /** 可选：发送该消息时附加的 skill 路径快照（气泡内展示，不持久生效）。 */
+  skills?: string[];
+  /** 可选：发送该消息时附加的附件快照（气泡内展示）。 */
+  attachments?: AttachmentRef[];
 };
 
 /** 附件引用：用户显式附加到会话的文件或文件夹（仅此部分内容会被读取并注入上下文）。 */

@@ -738,6 +738,28 @@ button.ana-settings-tab.is-active {
   display: none;
 }
 
+/* 用户消息底部：发送时间 + 本次选用的 skill / 附件标签（只读） */
+.ana-chat-msg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--background-modifier-border);
+  font-size: var(--font-smallest);
+  color: var(--text-faint);
+}
+
+.ana-chat-msg-time {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ana-chat-msg-meta .ana-chat-chip {
+  cursor: default;
+}
+
 .ana-chat-footer {
   display: flex;
   flex-direction: column;

@@ -10,6 +10,7 @@ import {
   setIcon,
   MarkdownRenderer,
   Component,
+  moment,
 } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { t } from "../i18n";
@@ -93,6 +94,13 @@ export class ChatView extends ItemView {
   private transientSkillPaths: string[] = [];
   /** 当前轮次用户发送的原始文本，供 runTurn 重入时复用（构建附件上下文 / 联网搜索）。 */
   private lastUserText = "";
+  /**
+   * 当前发送轮次生效的 skill / 附件快照。
+   * 发送瞬间即把 `session.skills` / `session.attachments` 清空（输入框 chip 立即消失），
+   * 但本轮请求仍需这些上下文来注入 skill 内容与读取附件正文，因此暂存于此；
+   * handleSend 全流程（含可能的重入）结束后再清空。
+   */
+  private activeTurnContext: { skills: string[]; attachments: AttachmentRef[] } | null = null;
 
   // 流式渲染状态
   private pendingRender = false;
@@ -940,7 +948,11 @@ export class ChatView extends ItemView {
       return;
     }
     for (const m of s.messages) {
-      this.addMessage(m.role, m.content, m.usage, m.reasoningContent, m.roleId);
+      this.addMessage(m.role, m.content, m.usage, m.reasoningContent, m.roleId, {
+        createdAt: m.createdAt,
+        skills: m.skills,
+        attachments: m.attachments,
+      });
     }
   }
 
@@ -949,7 +961,12 @@ export class ChatView extends ItemView {
     text: string,
     usage?: import("../ai/provider").TokenUsage,
     reasoning?: string,
-    roleId?: string
+    roleId?: string,
+    meta?: {
+      createdAt?: number;
+      skills?: string[];
+      attachments?: AttachmentRef[];
+    }
   ): { contentEl: HTMLElement; bubbleEl: HTMLElement; rowEl: HTMLElement } {
     const row = this.messagesEl.createEl("div", {
       cls: `ana-chat-message ana-chat-message-${role}`,
@@ -1009,6 +1026,10 @@ export class ChatView extends ItemView {
       }
     } else {
       content.setText(text);
+      // 用户消息底部附加：本次选用的 skill / 附件标签 + 发送时间（居右）
+      if (meta && (meta.createdAt || (meta.skills && meta.skills.length) || (meta.attachments && meta.attachments.length))) {
+        this.renderUserMeta(bubble, meta);
+      }
     }
 
     this.scrollToBottom();
@@ -1053,8 +1074,59 @@ export class ChatView extends ItemView {
     return role ?? null;
   }
 
-  private addUserMessage(text: string): void {
-    this.addMessage("user", text);
+  private addUserMessage(
+    text: string,
+    meta?: {
+      createdAt?: number;
+      skills?: string[];
+      attachments?: AttachmentRef[];
+    }
+  ): void {
+    this.addMessage("user", text, undefined, undefined, undefined, meta);
+  }
+
+  /** 在用户气泡底部渲染 skill / 附件标签 + 发送时间（时间居右，只读）。 */
+  private renderUserMeta(
+    bubble: HTMLElement,
+    meta: { createdAt?: number; skills?: string[]; attachments?: AttachmentRef[] }
+  ): void {
+    const footer = bubble.createDiv({ cls: "ana-chat-msg-meta" });
+    for (const p of meta.skills ?? []) {
+      const chip = footer.createEl("div", {
+        cls: "ana-chat-chip ana-chat-chip-skill",
+      });
+      const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
+      setIcon(iconSpan, "puzzle");
+      chip.createSpan({ text: this.skillDisplayName(p), cls: "ana-chat-chip-label" });
+    }
+    for (const ref of meta.attachments ?? []) {
+      const chip = footer.createEl("div", { cls: "ana-chat-chip" });
+      const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
+      setIcon(iconSpan, ref.type === "folder" ? "folder" : "file-text");
+      chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
+    }
+    if (meta.createdAt) {
+      footer.createSpan({
+        cls: "ana-chat-msg-time",
+        text: this.formatMessageTime(meta.createdAt),
+      });
+    }
+  }
+
+  /** 发送时间格式化：当天仅显示 HH:mm，否则显示 YYYY-MM-DD HH:mm。 */
+  private formatMessageTime(ts: number): string {
+    const d = moment(ts);
+    if (d.isSame(moment(), "day")) {
+      return d.format("HH:mm");
+    }
+    return d.format("YYYY-MM-DD HH:mm");
+  }
+
+  /** 从 skill 路径推导展示名（取 SKILL.md 所在文件夹名）。 */
+  private skillDisplayName(path: string): string {
+    const m = path.match(/(?:^|\/)([^/]+)\/SKILL\.md$/i);
+    if (m) return m[1];
+    return path.replace(/\.md$/i, "").split("/").pop() ?? path;
   }
 
   private addAssistantMessage(
@@ -1067,6 +1139,24 @@ export class ChatView extends ItemView {
 
   private scrollToBottom(): void {
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+  }
+
+  /**
+   * 当前轮次生效的 skill 路径集合：
+   * 发送后 session.skills 已被清空，因此本轮注入以 activeTurnContext 快照为准，
+   * 叠加 AI 触发的临时重入路径（transientSkillPaths）。
+   */
+  private effectiveSkills(): string[] {
+    const base = this.activeTurnContext
+      ? this.activeTurnContext.skills
+      : this.activeSession?.skills ?? [];
+    return Array.from(new Set([...base, ...this.transientSkillPaths]));
+  }
+
+  /** 当前轮次生效的附件集合：发送后 session.attachments 已清空，以 activeTurnContext 快照为准。 */
+  private effectiveAttachments(): AttachmentRef[] {
+    if (this.activeTurnContext) return this.activeTurnContext.attachments;
+    return this.activeSession?.attachments ?? [];
   }
 
   /**
@@ -1309,9 +1399,30 @@ export class ChatView extends ItemView {
     }
 
     this.inputEl.value = "";
-    this.addUserMessage(text);
-    s.messages.push({ role: "user", content: text });
-    s.updatedAt = Date.now();
+    // 发送瞬间抓取本次选用的 skill / 附件快照（用于气泡内展示与本轮注入）
+    const sentAt = Date.now();
+    const sentSkills = [...s.skills];
+    const sentAttachments = [...s.attachments];
+    this.addUserMessage(text, {
+      createdAt: sentAt,
+      skills: sentSkills,
+      attachments: sentAttachments,
+    });
+    s.messages.push({
+      role: "user",
+      content: text,
+      createdAt: sentAt,
+      skills: sentSkills,
+      attachments: sentAttachments,
+    });
+    s.updatedAt = sentAt;
+
+    // 发送后立即清空输入框里的 skill / 附件选择（chip 立即消失），
+    // 本轮所需上下文暂存到 activeTurnContext 供 runTurn 注入使用。
+    s.skills = [];
+    s.attachments = [];
+    this.renderChips();
+    this.activeTurnContext = { skills: sentSkills, attachments: sentAttachments };
 
     // 执行首轮：system prompt 仅含启用 skill 的索引（不注入内容）。
     // 若 AI 在回复中声明 `@use-skill`，则临时把这些 skill 的完整内容注入并自动重入一次
@@ -1331,6 +1442,7 @@ export class ChatView extends ItemView {
       await this.runTurn(1);
       this.transientSkillPaths = [];
     }
+    this.activeTurnContext = null;
   }
 
   /**
@@ -1357,7 +1469,7 @@ export class ChatView extends ItemView {
     // 仅按用户显式附加的附件 + 消息中点名的文件读取内容（不自动加载任何文件）
     const noteContext = await buildAttachmentContext(
       this.plugin.app,
-      s.attachments,
+      this.effectiveAttachments(),
       this.lastUserText,
       this.plugin.settings.chatContextMaxChars
     );
@@ -1689,9 +1801,7 @@ export class ChatView extends ItemView {
       );
       if (indexBlock) parts.push(indexBlock);
     }
-    const skillPaths = s
-      ? Array.from(new Set([...s.skills, ...this.transientSkillPaths]))
-      : this.transientSkillPaths;
+    const skillPaths = this.effectiveSkills();
     const skillContent = await buildSkillContent(
       this.plugin,
       this.plugin.app,
