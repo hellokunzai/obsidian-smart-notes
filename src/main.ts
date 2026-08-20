@@ -11,7 +11,6 @@ import {
   DEFAULT_SETTINGS,
   AiNoteAgentSettingTab,
   type AiNoteAgentSettings,
-  genId,
 } from "./settings";
 import {
   createProvider,
@@ -30,6 +29,17 @@ import { initI18n, t } from "./i18n";
 import { CHAT_VIEW_TYPE, ChatView } from "./view/chatView";
 import { ensureAiFolder } from "./utils/aiFolder";
 import { rebuildProfileMemory } from "./memory/profileMemory";
+import { migrateSettings } from "./migrate";
+
+/**
+ * 斜杠命令触发文本清理。两处用途语义不同，故保留为两个具名常量集中管理：
+ *  - SLASH_TRIGGER_LINE：匹配「行首以斜杠命令起始」的整行（可能带参数/正文），
+ *    用于编辑器内定位并删除残留触发文本（如 /sm）。
+ *  - SLASH_TRIGGER_STANDALONE：匹配「整行仅为一个斜杠命令、无参数无正文」的行，
+ *    用于从请求正文兜底清除，避免被送入 AI。
+ */
+const SLASH_TRIGGER_LINE = /^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/;
+const SLASH_TRIGGER_STANDALONE = /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm;
 
 const ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg>`;
 
@@ -183,71 +193,8 @@ export default class AiNoteAgentPlugin extends Plugin {
     // loadData() returns null when data.json doesn't exist (first install)
     const loaded = ((await this.loadData()) as Record<string, any>) || {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
-
-    // 迁移：旧的单一 provider 扁平配置 → 单条模型链接
-    if (!this.settings.modelLinks || this.settings.modelLinks.length === 0) {
-      const hasLegacy =
-        loaded.provider ||
-        loaded.openaiApiKey ||
-        loaded.openaiBaseUrl ||
-        loaded.ollamaBaseUrl ||
-        loaded.openaiModel ||
-        loaded.ollamaModel;
-      if (hasLegacy) {
-        const isOllama = loaded.provider === "ollama";
-        const modelId = isOllama ? loaded.ollamaModel : loaded.openaiModel;
-        const link = {
-          id: genId(),
-          name: t("settings.modelLinks.legacyName"),
-          type: (isOllama ? "ollama" : "openai") as "openai" | "ollama",
-          baseUrl: isOllama
-            ? loaded.ollamaBaseUrl || DEFAULT_SETTINGS.ollamaBaseUrl
-            : loaded.openaiBaseUrl || DEFAULT_SETTINGS.openaiBaseUrl,
-          apiKey: loaded.openaiApiKey || "",
-          models: modelId ? [modelId] : [],
-        };
-        this.settings.modelLinks = [link];
-        this.settings.defaultModelLinkId = link.id;
-      } else {
-        this.settings.modelLinks = [];
-        this.settings.defaultModelLinkId = "";
-      }
-    }
-
-    // 兜底：defaultModelLinkId 指向不存在的链接时，回退到列表第一个
-    if (
-      this.settings.modelLinks.length > 0 &&
-      !this.settings.modelLinks.some(
-        (l) => l.id === this.settings.defaultModelLinkId
-      )
-    ) {
-      this.settings.defaultModelLinkId = this.settings.modelLinks[0].id;
-    }
-
-    // 迁移：旧的单一 customInstructions（系统指令）→ 单条「默认角色」
-    if (!this.settings.roles || this.settings.roles.length === 0) {
-      const legacy = loaded.customInstructions;
-      if (legacy && legacy.trim()) {
-        const role = {
-          id: genId(),
-          name: t("settings.roles.legacyName"),
-          prompt: legacy.trim(),
-        };
-        this.settings.roles = [role];
-        this.settings.defaultRoleId = role.id;
-      } else {
-        this.settings.roles = [];
-        this.settings.defaultRoleId = "";
-      }
-    }
-
-    // 兜底：defaultRoleId 指向不存在的角色时，回退到列表第一个
-    if (
-      this.settings.roles.length > 0 &&
-      !this.settings.roles.some((r) => r.id === this.settings.defaultRoleId)
-    ) {
-      this.settings.defaultRoleId = this.settings.roles[0].id;
-    }
+    // 迁移旧版扁平字段 → modelLinks / roles，并做 defaultId 兜底
+    migrateSettings(loaded, this.settings);
   }
 
   async saveSettings() {
@@ -304,7 +251,7 @@ export default class AiNoteAgentPlugin extends Plugin {
       const pos = editor.getCursor();
       const lineContent = editor.getLine(pos.line);
       // 匹配行首斜杠命令：/ 后跟字母/数字/汉字（Obsidian slash command 触发模式）
-      const match = lineContent.match(/^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/);
+      const match = lineContent.match(SLASH_TRIGGER_LINE);
       if (match) {
         editor.replaceRange(
           "",
@@ -317,10 +264,7 @@ export default class AiNoteAgentPlugin extends Plugin {
     }
 
     // 兜底：清除正文中任何残留的斜杠命令触发（如 /sm），确保不会被送入 AI
-    content = content.replace(
-      /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm,
-      ""
-    );
+    content = content.replace(SLASH_TRIGGER_STANDALONE, "");
 
     const body = content.replace(
       /^---\s*[\r\n]+[\s\S]*?[\r\n]+---\s*[\r\n]*/,

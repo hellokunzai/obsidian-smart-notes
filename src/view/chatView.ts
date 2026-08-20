@@ -14,7 +14,7 @@ import {
 } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { t } from "../i18n";
-import { ChatMessage } from "../ai/provider";
+import { ChatMessage, type TokenUsage } from "../ai/provider";
 import { buildSystemPrompt } from "../ai/prompt";
 import { getActiveRolePrompt, type RoleInfo } from "../settings";
 import { renderAvatar } from "../avatar";
@@ -207,7 +207,10 @@ export class ChatView extends ItemView {
 
     // 设置变更时刷新底部工具栏（如 🌐 按钮的启用/禁用态）
     this.registerEvent(
-      this.plugin.settingsEvents.on("settings-changed", () => this.renderActions())
+      this.plugin.settingsEvents.on("settings-changed", () => {
+        this.invalidateContextCache();
+        this.renderActions();
+      })
     );
 
     if (this.sessions.length > 0) {
@@ -959,7 +962,7 @@ export class ChatView extends ItemView {
   private addMessage(
     role: "user" | "assistant",
     text: string,
-    usage?: import("../ai/provider").TokenUsage,
+    usage?: TokenUsage,
     reasoning?: string,
     roleId?: string,
     meta?: {
@@ -1131,7 +1134,7 @@ export class ChatView extends ItemView {
 
   private addAssistantMessage(
     text: string,
-    usage?: import("../ai/provider").TokenUsage,
+    usage?: TokenUsage,
     roleId?: string
   ): HTMLElement {
     return this.addMessage("assistant", text, usage, undefined, roleId).contentEl;
@@ -1221,7 +1224,7 @@ export class ChatView extends ItemView {
   /** 在气泡底部渲染 token 消耗信息。 */
   private renderTokenUsage(
     bubbleEl: HTMLElement,
-    usage: import("../ai/provider").TokenUsage
+    usage: TokenUsage
   ): void {
     const existing = bubbleEl.querySelector(".ana-chat-token-usage");
     if (existing) existing.remove();
@@ -1234,7 +1237,7 @@ export class ChatView extends ItemView {
   }
 
   private formatTokenUsage(
-    usage: import("../ai/provider").TokenUsage
+    usage: TokenUsage
   ): string {
     const isEstimate =
       usage.promptTokens === 0 &&
@@ -1737,6 +1740,58 @@ export class ChatView extends ItemView {
     }
   }
 
+  /**
+   * 缓存「仅依赖 settings」的索引类上下文（vault 索引 / frontmatter 索引 / skill 索引），
+   * 避免每次发消息都全库扫描。settings 或其派生项变更时通过 invalidateContextCache() 失效。
+   * 注意：长期画像记忆与「当前会话已加载 skill 内容」不缓存（依赖磁盘文件内容与每轮选择）。
+   */
+  private ctxCacheSig = "";
+  private ctxCacheKnowledge?: string;
+  private ctxCacheFrontmatter?: string;
+  private ctxCacheSkillIndex?: string;
+
+  private invalidateContextCache(): void {
+    this.ctxCacheSig = "";
+  }
+
+  /** 按 settings 指纹重算（仅在签名变化时）三个仅依赖设置的开销型索引。 */
+  private async refreshContextIndexes(): Promise<void> {
+    const st = this.plugin.settings;
+    const sig = JSON.stringify([
+      st.includeVaultIndex,
+      st.vaultIndexMaxFiles,
+      st.includeFrontmatterIndex,
+      st.frontmatterIndexKeys,
+      st.frontmatterIndexMaxChars,
+      st.frontmatterIndexMaxFiles,
+      st.defaultSkills,
+      st.aiFolderName,
+      st.skillsEnabled,
+    ]);
+    if (sig === this.ctxCacheSig) return;
+    this.ctxCacheSig = sig;
+
+    this.ctxCacheKnowledge = st.includeVaultIndex
+      ? buildKnowledgeIndex(
+          this.plugin.app,
+          st.includeVaultIndex,
+          st.vaultIndexMaxFiles
+        ) ?? undefined
+      : undefined;
+    this.ctxCacheFrontmatter = st.includeFrontmatterIndex
+      ? buildFrontmatterIndex(
+          this.plugin.app,
+          st.includeFrontmatterIndex,
+          st.frontmatterIndexKeys,
+          st.frontmatterIndexMaxChars,
+          st.frontmatterIndexMaxFiles
+        ) ?? undefined
+      : undefined;
+    this.ctxCacheSkillIndex = st.skillsEnabled
+      ? (await buildSkillIndex(this.plugin, this.plugin.app, st.defaultSkills)) ?? undefined
+      : undefined;
+  }
+
   /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。 */
   private async buildSystem(): Promise<string> {
     const settings = this.plugin.settings;
@@ -1769,38 +1824,12 @@ export class ChatView extends ItemView {
     );
     const parts: string[] = [sys];
 
-    if (this.plugin.settings.includeVaultIndex) {
-      const index = buildKnowledgeIndex(
-        this.plugin.app,
-        this.plugin.settings.includeVaultIndex,
-        this.plugin.settings.vaultIndexMaxFiles
-      );
-      if (index) parts.push(index);
-    }
+    // 仅依赖 settings 的索引类上下文（缓存，避免每次发消息全库扫描）
+    await this.refreshContextIndexes();
+    if (this.ctxCacheKnowledge) parts.push(this.ctxCacheKnowledge);
+    if (this.ctxCacheFrontmatter) parts.push(this.ctxCacheFrontmatter);
+    if (this.ctxCacheSkillIndex) parts.push(this.ctxCacheSkillIndex);
 
-    // Frontmatter 索引（仅元数据，不含正文），与知识库索引触发方式一致
-    if (this.plugin.settings.includeFrontmatterIndex) {
-      const fmIndex = buildFrontmatterIndex(
-        this.plugin.app,
-        this.plugin.settings.includeFrontmatterIndex,
-        this.plugin.settings.frontmatterIndexKeys,
-        this.plugin.settings.frontmatterIndexMaxChars,
-        this.plugin.settings.frontmatterIndexMaxFiles
-      );
-      if (fmIndex) parts.push(fmIndex);
-    }
-
-    // skill 上下文：索引块（设置启用的 skill，仅名称+简介，不注入内容）
-    // + 内容块（会话内已加载的 skill 完整内容，含用户手动选择或 AI 触发）
-    const s = this.activeSession;
-    if (this.plugin.settings.skillsEnabled) {
-      const indexBlock = await buildSkillIndex(
-        this.plugin,
-        this.plugin.app,
-        this.plugin.settings.defaultSkills
-      );
-      if (indexBlock) parts.push(indexBlock);
-    }
     const skillPaths = this.effectiveSkills();
     const skillContent = await buildSkillContent(
       this.plugin,
@@ -1810,7 +1839,7 @@ export class ChatView extends ItemView {
     );
     if (skillContent) parts.push(skillContent);
 
-    // 长期画像记忆：让 AI 了解用户背景与偏好
+    // 长期画像记忆：让 AI 了解用户背景与偏好（不缓存，依赖磁盘文件内容）
     const profileContext = await getProfileMemoryContext(this.plugin);
     if (profileContext) parts.push(profileContext);
 
@@ -1818,10 +1847,6 @@ export class ChatView extends ItemView {
   }
 }
 
-/**
- * 附件选择器：展示库内所有文件夹与 Markdown 文件，支持搜索与多选。
- * 确认后将选中的 file/folder 引用回传给回调。
- */
 /**
  * 附件选择器（树形结构）：展示库内文件夹与 Markdown 文件的树，支持折叠展开、
  * 三态复选框（文件夹 ☑ 全选 / ⊟ 半选 / ☐ 未选）、搜索（命中父链自动展开、不命中隐藏、
@@ -2175,16 +2200,116 @@ class AttachmentPickerModal extends Modal {
 }
 
 /**
+ * 列表型选择器基类：统一处理 Modal 脚手架（标题/描述/搜索框/列表容器/按钮）、
+ * 搜索过滤、空态渲染、Escape 关闭、onClose 清理。
+ * 子类实现 getItems / getItemFilterText / renderRow 等抽象方法即可。
+ * AttachmentPickerModal（树形结构）不适用此基类，保持独立。
+ */
+abstract class BaseListPickerModal<T> extends Modal {
+  protected searchEl!: HTMLInputElement;
+  protected listEl!: HTMLElement;
+
+  protected abstract getModalTitle(): string;
+  protected abstract getModalDesc(): string;
+  protected abstract getSearchPlaceholder(): string;
+  protected abstract getEmptyText(): string;
+  protected abstract getItems(): T[];
+  protected abstract getItemFilterText(item: T): string;
+  protected abstract renderRow(item: T, listEl: HTMLElement): void;
+
+  /** 是否显示确认按钮（多选模式）。默认 false（单选：选中即关闭）。 */
+  protected hasConfirmButton(): boolean {
+    return false;
+  }
+  protected getConfirmButtonText(): string {
+    return "";
+  }
+  protected onConfirm(): void {}
+  /** 搜索无结果时的提示文本；默认复用 getEmptyText()。 */
+  protected getNoResultsText(): string {
+    return this.getEmptyText();
+  }
+  /** 异步初始化钩子（子类可 override 加载数据）；默认空操作。 */
+  protected async loadItems(): Promise<void> {}
+
+  async onOpen(): Promise<void> {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("ana-picker");
+    this.titleEl.setText(this.getModalTitle());
+
+    contentEl.createEl("p", {
+      text: this.getModalDesc(),
+      cls: "ana-picker-desc",
+    });
+
+    this.searchEl = contentEl.createEl("input", {
+      cls: "ana-picker-search",
+      attr: { type: "text", placeholder: this.getSearchPlaceholder() },
+    });
+    this.searchEl.addEventListener("input", () => this.renderList());
+
+    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+
+    await this.loadItems();
+    this.renderList();
+
+    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new ButtonComponent(btns)
+      .setButtonText(t("modal.cancel"))
+      .onClick(() => this.close());
+    if (this.hasConfirmButton()) {
+      new ButtonComponent(btns)
+        .setButtonText(this.getConfirmButtonText())
+        .setCta()
+        .onClick(() => {
+          this.onConfirm();
+          this.close();
+        });
+    }
+
+    this.scope.register([], "Escape", () => this.close());
+  }
+
+  protected renderList(): void {
+    this.listEl.empty();
+    const all = this.getItems();
+    if (all.length === 0) {
+      this.listEl.createEl("div", {
+        text: this.getEmptyText(),
+        cls: "ana-picker-empty",
+      });
+      return;
+    }
+    const q = this.searchEl.value.trim().toLowerCase();
+    const filtered = q
+      ? all.filter((item) => this.getItemFilterText(item).includes(q))
+      : all;
+    if (filtered.length === 0) {
+      this.listEl.createEl("div", {
+        text: this.getNoResultsText(),
+        cls: "ana-picker-empty",
+      });
+      return;
+    }
+    for (const item of filtered) {
+      this.renderRow(item, this.listEl);
+    }
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+}
+
+/**
  * Skill 选择器：列出 skills/ 下所有 skill，支持搜索与多选。
  * 勾选的 skill 路径回传给回调。可预先勾选当前已启用的 skill。
  */
-class SkillPickerModal extends Modal {
+class SkillPickerModal extends BaseListPickerModal<SkillEntry> {
   private plugin: AiNoteAgentPlugin;
-  private initialSelected: string[];
   private onSubmit: (paths: string[]) => void;
   private selected = new Set<string>();
-  private listEl!: HTMLElement;
-  private searchEl!: HTMLInputElement;
   private all: SkillEntry[] = [];
 
   constructor(
@@ -2195,89 +2320,54 @@ class SkillPickerModal extends Modal {
   ) {
     super(app);
     this.plugin = plugin;
-    this.initialSelected = initialSelected;
     this.onSubmit = onSubmit;
     this.selected = new Set(initialSelected);
   }
 
-  async onOpen(): Promise<void> {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("ana-picker");
-    this.titleEl.setText(t("view.skillPicker.title"));
-
-    contentEl.createEl("p", {
-      text: t("view.skillPicker.desc"),
-      cls: "ana-picker-desc",
-    });
-
-    this.searchEl = contentEl.createEl("input", {
-      cls: "ana-picker-search",
-      attr: { type: "text", placeholder: t("view.skillPicker.searchPlaceholder") },
-    });
-    this.searchEl.addEventListener("input", () => this.renderList());
-
-    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
-
+  protected getModalTitle() {
+    return t("view.skillPicker.title");
+  }
+  protected getModalDesc() {
+    return t("view.skillPicker.desc");
+  }
+  protected getSearchPlaceholder() {
+    return t("view.skillPicker.searchPlaceholder");
+  }
+  protected getEmptyText() {
+    return t("view.skillPicker.empty");
+  }
+  protected getItems() {
+    return this.all;
+  }
+  protected getItemFilterText(e: SkillEntry) {
+    return `${e.name} ${e.path}`.toLowerCase();
+  }
+  protected hasConfirmButton() {
+    return true;
+  }
+  protected getConfirmButtonText() {
+    return t("view.skillPicker.confirm");
+  }
+  protected onConfirm() {
+    this.onSubmit(Array.from(this.selected));
+  }
+  protected async loadItems() {
     try {
       this.all = await listSkills(this.plugin, this.app);
     } catch {
       this.all = [];
     }
-    this.renderList();
-
-    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new ButtonComponent(btns)
-      .setButtonText(t("modal.cancel"))
-      .onClick(() => this.close());
-    new ButtonComponent(btns)
-      .setButtonText(t("view.skillPicker.confirm"))
-      .setCta()
-      .onClick(() => {
-        const paths = Array.from(this.selected);
-        this.close();
-        this.onSubmit(paths);
-      });
-
-    this.scope.register([], "Escape", () => this.close());
   }
-
-  private renderList(): void {
-    this.listEl.empty();
-    const q = this.searchEl.value.trim().toLowerCase();
-    const filtered = q
-      ? this.all.filter(
-          (e) => e.name.toLowerCase().includes(q) || e.path.toLowerCase().includes(q)
-        )
-      : this.all;
-
-    if (filtered.length === 0) {
-      this.listEl.createEl("div", {
-        text: t("view.skillPicker.empty"),
-        cls: "ana-picker-empty",
-      });
-      return;
-    }
-
-    for (const e of filtered) {
-      const row = this.listEl.createEl("label", { cls: "ana-picker-row" });
-      const cb = row.createEl("input", { attr: { type: "checkbox" } });
-      cb.checked = this.selected.has(e.path);
-      cb.addEventListener("change", () => {
-        if (cb.checked) this.selected.add(e.path);
-        else this.selected.delete(e.path);
-      });
-      row.createSpan({ text: `🧩 ${e.name}`, cls: "ana-picker-name" });
-      const pathSpan = row.createEl("span", {
-        text: e.path,
-        cls: "ana-picker-path",
-      });
-      void pathSpan;
-    }
-  }
-
-  onClose(): void {
-    this.contentEl.empty();
+  protected renderRow(e: SkillEntry, listEl: HTMLElement): void {
+    const row = listEl.createEl("label", { cls: "ana-picker-row" });
+    const cb = row.createEl("input", { attr: { type: "checkbox" } });
+    cb.checked = this.selected.has(e.path);
+    cb.addEventListener("change", () => {
+      if (cb.checked) this.selected.add(e.path);
+      else this.selected.delete(e.path);
+    });
+    row.createSpan({ text: `🧩 ${e.name}`, cls: "ana-picker-name" });
+    row.createEl("span", { text: e.path, cls: "ana-picker-path" });
   }
 }
 
@@ -2285,12 +2375,15 @@ class SkillPickerModal extends Modal {
  * 模型选择器：按链接分组展示所有可用模型，支持搜索与单选。
  * 选中后回传 value（格式 linkId|modelName）。
  */
-class ModelPickerModal extends Modal {
+class ModelPickerModal extends BaseListPickerModal<{
+  value: string;
+  label: string;
+  linkName: string;
+  modelName: string;
+}> {
   private plugin: AiNoteAgentPlugin;
   private currentValue: string;
   private onSelect: (value: string) => void;
-  private listEl!: HTMLElement;
-  private searchEl!: HTMLInputElement;
 
   constructor(
     app: import("obsidian").App,
@@ -2304,38 +2397,25 @@ class ModelPickerModal extends Modal {
     this.onSelect = onSelect;
   }
 
-  onOpen(): void {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("ana-picker");
-    this.titleEl.setText(t("view.modelPicker.title"));
-
-    contentEl.createEl("p", {
-      text: t("view.modelPicker.desc"),
-      cls: "ana-picker-desc",
-    });
-
-    this.searchEl = contentEl.createEl("input", {
-      cls: "ana-picker-search",
-      attr: { type: "text", placeholder: t("view.modelPicker.searchPlaceholder") },
-    });
-    this.searchEl.addEventListener("input", () => this.renderList());
-
-    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
-    this.renderList();
-
-    // 操作按钮
-    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new ButtonComponent(btns)
-      .setButtonText(t("modal.cancel"))
-      .onClick(() => this.close());
-
-    this.scope.register([], "Escape", () => this.close());
+  protected getModalTitle() {
+    return t("view.modelPicker.title");
   }
-
-  /** 收集所有链接的模型为扁平列表。 */
-  private getItems(): { value: string; label: string; linkName: string; modelName: string }[] {
-    const items: { value: string; label: string; linkName: string; modelName: string }[] = [];
+  protected getModalDesc() {
+    return t("view.modelPicker.desc");
+  }
+  protected getSearchPlaceholder() {
+    return t("view.modelPicker.searchPlaceholder");
+  }
+  protected getEmptyText() {
+    return t("view.modelPicker.empty");
+  }
+  protected getItems() {
+    const items: {
+      value: string;
+      label: string;
+      linkName: string;
+      modelName: string;
+    }[] = [];
     for (const link of this.plugin.settings.modelLinks) {
       for (const m of link.models) {
         items.push({
@@ -2348,49 +2428,34 @@ class ModelPickerModal extends Modal {
     }
     return items;
   }
-
-  private renderList(): void {
-    this.listEl.empty();
-    const all = this.getItems();
-    if (all.length === 0) {
-      this.listEl.createEl("div", {
-        text: t("view.modelPicker.empty"),
-        cls: "ana-picker-empty",
-      });
-      return;
-    }
-    const q = this.searchEl.value.trim().toLowerCase();
-    const filtered = q ? all.filter((i) => i.label.toLowerCase().includes(q)) : all;
-
-    for (const item of filtered) {
-      const isSelected = item.value === this.currentValue;
-      const row = this.listEl.createEl("div", {
-        cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
-      });
-
-      // 左侧：图标 + 链接名/模型名
-      const nameEl = row.createSpan({
-        text: `✨ ${item.label}`,
-        cls: "ana-picker-name",
-      });
-      void nameEl;
-
-      // 右侧：链接名（灰色路径风格）
-      const pathEl = row.createEl("span", {
-        text: item.linkName,
-        cls: "ana-picker-path",
-      });
-      void pathEl;
-
-      row.addEventListener("click", () => {
-        this.onSelect(item.value);
-        this.close();
-      });
-    }
+  protected getItemFilterText(i: {
+    value: string;
+    label: string;
+    linkName: string;
+    modelName: string;
+  }) {
+    return i.label.toLowerCase();
   }
-
-  onClose(): void {
-    this.contentEl.empty();
+  protected renderRow(
+    item: { value: string; label: string; linkName: string; modelName: string },
+    listEl: HTMLElement
+  ): void {
+    const isSelected = item.value === this.currentValue;
+    const row = listEl.createEl("div", {
+      cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
+    });
+    row.createSpan({
+      text: `✨ ${item.label}`,
+      cls: "ana-picker-name",
+    });
+    row.createEl("span", {
+      text: item.linkName,
+      cls: "ana-picker-path",
+    });
+    row.addEventListener("click", () => {
+      this.onSelect(item.value);
+      this.close();
+    });
   }
 }
 
@@ -2398,12 +2463,10 @@ class ModelPickerModal extends Modal {
  * 角色选择器：列出所有角色，支持搜索与单选。
  * 选中后仅更新当前对话的角色（selectedRoleId），不写全局默认。
  */
-class RolePickerModal extends Modal {
+class RolePickerModal extends BaseListPickerModal<RoleInfo> {
   private plugin: AiNoteAgentPlugin;
   private currentId: string;
   private onSelect: (roleId: string) => void;
-  private listEl!: HTMLElement;
-  private searchEl!: HTMLInputElement;
 
   constructor(
     app: import("obsidian").App,
@@ -2417,87 +2480,45 @@ class RolePickerModal extends Modal {
     this.onSelect = onSelect;
   }
 
-  onOpen(): void {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.addClass("ana-picker");
-    this.titleEl.setText(t("view.rolePicker.title"));
-
-    contentEl.createEl("p", {
-      text: t("view.rolePicker.desc"),
-      cls: "ana-picker-desc",
-    });
-
-    this.searchEl = contentEl.createEl("input", {
-      cls: "ana-picker-search",
-      attr: { type: "text", placeholder: t("view.rolePicker.searchPlaceholder") },
-    });
-    this.searchEl.addEventListener("input", () => this.renderList());
-
-    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
-    this.renderList();
-
-    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new ButtonComponent(btns)
-      .setButtonText(t("modal.cancel"))
-      .onClick(() => this.close());
-
-    this.scope.register([], "Escape", () => this.close());
+  protected getModalTitle() {
+    return t("view.rolePicker.title");
   }
-
-  private renderList(): void {
-    this.listEl.empty();
-    const roles = this.plugin.settings.roles;
-    const currentId = this.currentId;
-
-    if (roles.length === 0) {
-      this.listEl.createEl("div", {
-        text: t("view.rolePicker.empty"),
-        cls: "ana-picker-empty",
-      });
-      return;
-    }
-
-    const q = this.searchEl.value.trim().toLowerCase();
-    const filtered = q
-      ? roles.filter((r) => r.name.toLowerCase().includes(q))
-      : roles;
-
-    if (filtered.length === 0) {
-      this.listEl.createEl("div", {
-        text: t("view.rolePicker.noResults"),
-        cls: "ana-picker-empty",
-      });
-      return;
-    }
-
-    for (const role of filtered) {
-      const isSelected = role.id === currentId;
-      const row = this.listEl.createEl("div", {
-        cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
-      });
-
-      // 头像（32px）
-      renderAvatar(
-        this.app,
-        row.createSpan({ cls: "ana-role-picker-avatar" }),
-        role,
-        32
-      );
-
-      row.createSpan({
-        text: role.name,
-        cls: "ana-picker-name",
-      });
-
-      row.addEventListener("click", () => {
-        this.onSelect(role.id);
-        this.close();
-      });
-    }
+  protected getModalDesc() {
+    return t("view.rolePicker.desc");
   }
-
-  onClose(): void {
-    this.contentEl.empty();
+  protected getSearchPlaceholder() {
+    return t("view.rolePicker.searchPlaceholder");
+  }
+  protected getEmptyText() {
+    return t("view.rolePicker.empty");
+  }
+  protected getNoResultsText() {
+    return t("view.rolePicker.noResults");
+  }
+  protected getItems() {
+    return this.plugin.settings.roles;
+  }
+  protected getItemFilterText(r: RoleInfo) {
+    return r.name.toLowerCase();
+  }
+  protected renderRow(role: RoleInfo, listEl: HTMLElement): void {
+    const isSelected = role.id === this.currentId;
+    const row = listEl.createEl("div", {
+      cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
+    });
+    renderAvatar(
+      this.app,
+      row.createSpan({ cls: "ana-role-picker-avatar" }),
+      role,
+      32
+    );
+    row.createSpan({
+      text: role.name,
+      cls: "ana-picker-name",
+    });
+    row.addEventListener("click", () => {
+      this.onSelect(role.id);
+      this.close();
+    });
   }
 }

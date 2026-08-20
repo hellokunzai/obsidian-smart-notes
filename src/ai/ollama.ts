@@ -5,9 +5,50 @@ import {
   CompletionOptions,
   CompletionResult,
   StreamChunk,
-  TokenUsage,
 } from "./provider";
+import { readStreamLines, isFetchAvailable, type ParsedLine } from "./stream";
 import { t } from "../i18n";
+
+/** 解析 Ollama NDJSON 行：裸 JSON，提取 message.content / thinking / usage。 */
+function parseNDJSONLine(line: string): ParsedLine | null {
+  if (!line.trim()) return null;
+  try {
+    const json = JSON.parse(line);
+    const msg = json.message ?? {};
+    // Ollama 本地推理模型（qwq / deepseek-r1 蒸馏等）用 thinking 字段，
+    // 部分兼容实现用 reasoning_content。
+    const thinking = msg.thinking ?? msg.reasoning_content;
+    const delta = msg.content;
+    const result: ParsedLine = {};
+    if (typeof thinking === "string" && thinking.length > 0)
+      result.reasoning = thinking;
+    if (typeof delta === "string" && delta.length > 0)
+      result.content = delta;
+    if (json.done) {
+      let promptTokens = 0;
+      let completionTokens = 0;
+      let gotUsage = false;
+      if (typeof json.prompt_eval_count === "number") {
+        promptTokens = json.prompt_eval_count;
+        gotUsage = true;
+      }
+      if (typeof json.eval_count === "number") {
+        completionTokens = json.eval_count;
+        gotUsage = true;
+      }
+      if (gotUsage) {
+        result.usage = {
+          promptTokens,
+          completionTokens,
+          totalTokens: promptTokens + completionTokens,
+        };
+      }
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  } catch {
+    return null;
+  }
+}
 
 export class OllamaProvider implements AIProvider {
   id = "ollama";
@@ -52,8 +93,7 @@ export class OllamaProvider implements AIProvider {
     opts: CompletionOptions,
     onChunk: (chunk: StreamChunk) => void
   ): Promise<CompletionResult> {
-    if (typeof fetch === "undefined") {
-      // 当前环境不支持 fetch 流式读取，回退到普通请求
+    if (!isFetchAvailable()) {
       const content = await this.complete(messages, opts);
       return { content };
     }
@@ -93,63 +133,6 @@ export class OllamaProvider implements AIProvider {
       throw new Error(t("error.streamingNotSupported"));
     }
 
-    const reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let fullContent = "";
-    let fullReasoning = "";
-    let promptTokens = 0;
-    let completionTokens = 0;
-    let gotUsage = false;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
-          if (!line.trim()) continue;
-          try {
-            const json = JSON.parse(line);
-            const msg = json.message ?? {};
-            // Ollama 本地推理模型（qwq / deepseek-r1 蒸馏等）用 thinking 字段，
-            // 部分兼容实现用 reasoning_content。
-            const thinking = msg.thinking ?? msg.reasoning_content;
-            const delta = msg.content;
-            if (typeof thinking === "string" && thinking.length > 0) {
-              fullReasoning += thinking;
-              onChunk({ reasoning: thinking, done: false });
-            }
-            if (typeof delta === "string" && delta.length > 0) {
-              fullContent += delta;
-              onChunk({ content: delta, done: false });
-            }
-            if (json.done) {
-              if (typeof json.prompt_eval_count === "number") {
-                promptTokens = json.prompt_eval_count;
-                gotUsage = true;
-              }
-              if (typeof json.eval_count === "number") {
-                completionTokens = json.eval_count;
-                gotUsage = true;
-              }
-            }
-          } catch {
-            // 忽略无法解析的 NDJSON 片段
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    const usage: TokenUsage | undefined = gotUsage
-      ? {
-          promptTokens,
-          completionTokens,
-          totalTokens: promptTokens + completionTokens,
-        }
-      : undefined;
-
-    return { content: fullContent, reasoning: fullReasoning || undefined, usage };
+    return readStreamLines(resp.body, onChunk, parseNDJSONLine);
   }
 }

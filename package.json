@@ -1,5 +1,5 @@
 {
-  "name": "vault-mind",
+  "name": "smart-notes",
   "version": "0.17.3",
   "description": "Vault Mind - an Obsidian plugin that analyzes your vault with AI.",
   "main": "main.js",
