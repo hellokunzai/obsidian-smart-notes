@@ -268,11 +268,13 @@
   "settings.section.skills.desc": "Manage AI skills enabled by default for new chats.",
   "settings.skillsEnabled.name": "Enable skills",
   "settings.skillsEnabled.desc": "Show the \"Skill\" button in the chat panel and allow skill content injection. When off, the button is hidden and the list below becomes view-only.",
+  "settings.skills.upload.name": "Upload skill",
+  "settings.skills.upload.desc": "Select a .zip downloaded from skillhub to extract into the skills/ folder.",
+  "settings.skills.upload.button": "Choose zip file",
   "settings.defaultSkills.desc": "Skills are .md files under the AI folder's skills/ directory (instructions, templates, or reference material). Toggle which skills are enabled by default for new chats. Only enabled skills' content is sent to the AI; inactive ones appear as a name-only index.",
   "settings.defaultSkills.loading": "Loading skills…",
   "settings.defaultSkills.empty": "No skills found. Add .md files under the AI folder's skills/ directory (README.md is ignored).",
   "settings.defaultSkills.pathHint": "Current skill scan directory: {path}",
-  "settings.defaultSkills.refresh.name": "Skill refresh",
   "settings.defaultSkills.refresh.tooltip": "Rescan the skills/ directory and refresh the list",
   "settings.defaultSkills.search.name": "Skill search",
   "settings.defaultSkills.search.desc": "Filter the skill list below by name or path in real time.",
@@ -352,5 +354,13 @@
   "view.rolePicker.searchPlaceholder": "Search roles…",
   "view.rolePicker.empty": "No roles added yet. Please add one in Settings.",
   "view.rolePicker.noResults": "No matching roles.",
-  "view.reasoning.title": "Reasoning"
+  "view.reasoning.title": "Reasoning",
+
+  "notice.skillUpload.invalidFormat": "Smart Notes: please select a .zip skill package.",
+  "notice.skillUpload.extractFailed": "Smart Notes: extraction failed — {error}",
+  "notice.skillUpload.empty": "Smart Notes: the zip archive is empty.",
+  "notice.skillUpload.tooManyEntries": "Smart Notes: too many entries in the zip (limit {count}).",
+  "notice.skillUpload.unsafePath": "Smart Notes: unsafe path detected in the zip; upload rejected.",
+  "notice.skillUpload.mkdirFailed": "Smart Notes: failed to create directory — {error}",
+  "notice.skillUpload.success": "Smart Notes: upload successful, {count} files written."
 }

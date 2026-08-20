@@ -270,11 +270,13 @@
   "settings.section.skills.desc": "管理新对话默认启用的 AI skill。",
   "settings.skillsEnabled.name": "启用技能",
   "settings.skillsEnabled.desc": "在 AI 对话框显示「Skill 技能」按钮并允许注入 skill 内容。关闭后按钮隐藏，且下方列表仅可查看、不可勾选。",
+  "settings.skills.upload.name": "上传 Skill",
+  "settings.skills.upload.desc": "选择从 skillhub 下载的 .zip 包，自动解压到 skills/ 目录。",
+  "settings.skills.upload.button": "选择 zip 文件",
   "settings.defaultSkills.desc": "Skill 是 AI 文件夹 skills/ 目录下的 .md 文件（指令、模板或参考资料）。在此勾选新对话默认启用的 skill。只有启用的 skill 内容才会发给 AI；未启用的仅以名字索引形式列出。",
   "settings.defaultSkills.loading": "正在加载 skill……",
   "settings.defaultSkills.empty": "未找到任何 skill。请在 AI 文件夹的 skills/ 目录下添加 .md 文件（README.md 会被忽略）。",
   "settings.defaultSkills.pathHint": "当前 skill 扫描目录：{path}",
-  "settings.defaultSkills.refresh.name": "Skill技能刷新",
   "settings.defaultSkills.refresh.tooltip": "重新扫描 skills/ 目录并刷新列表",
   "settings.defaultSkills.search.name": "Skill 搜索",
   "settings.defaultSkills.search.desc": "按名称或路径实时筛选下方 skill 列表。",
@@ -352,5 +354,13 @@
   "view.rolePicker.searchPlaceholder": "搜索角色……",
   "view.rolePicker.empty": "尚未添加任何角色，请到设置中添加。",
   "view.rolePicker.noResults": "没有匹配的角色。",
-  "view.reasoning.title": "思考过程"
+  "view.reasoning.title": "思考过程",
+
+  "notice.skillUpload.invalidFormat": "Smart Notes：请选择 .zip 格式的 skill 包。",
+  "notice.skillUpload.extractFailed": "Smart Notes：解压失败 — {error}",
+  "notice.skillUpload.empty": "Smart Notes：该 zip 包为空。",
+  "notice.skillUpload.tooManyEntries": "Smart Notes：zip 包内文件过多（上限 {count} 个）。",
+  "notice.skillUpload.unsafePath": "Smart Notes：zip 包包含不安全路径，已拒绝。",
+  "notice.skillUpload.mkdirFailed": "Smart Notes：创建目录失败 — {error}",
+  "notice.skillUpload.success": "Smart Notes：上传成功，已写入 {count} 个文件。"
 }

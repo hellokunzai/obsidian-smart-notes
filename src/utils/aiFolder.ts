@@ -137,7 +137,7 @@ export function getMemoryDir(plugin: AiNoteAgentPlugin): string {
  * 「.」开头的隐藏文件夹（如 .smartnotes），导致 getAbstractFileByPath 对
  * 其内部文件/目录返回 undefined；adapter 走底层文件系统，可正常访问。
  */
-async function ensureFolder(vault: Vault, path: string): Promise<void> {
+export async function ensureFolder(vault: Vault, path: string): Promise<void> {
   try {
     if (await vault.adapter.exists(path)) return;
     await vault.adapter.mkdir(path);

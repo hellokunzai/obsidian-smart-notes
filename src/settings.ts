@@ -14,6 +14,7 @@ import { RoleInfoModal } from "./roleInfoModal";
 import { loadMemoryFile, saveMemoryFile, rebuildProfileMemory } from "./memory/profileMemory";
 import { WebSearchService } from "./search/search";
 import { listSkills, type SkillEntry } from "./skills/skills";
+import { uploadSkillFromZip } from "./skills/uploadSkill";
 import { renderAvatar } from "./avatar";
 import { getSkillsDir } from "./utils/aiFolder";
 
@@ -1310,12 +1311,32 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    // 顶层：刷新
+    // 顶层：上传 skill zip（同时放置刷新按钮）
     new Setting(bodyEl)
-      .setName(t("settings.defaultSkills.refresh.name"))
+      .setName(t("settings.skills.upload.name"))
       .setDesc(
-        t("settings.defaultSkills.pathHint", { path: getSkillsDir(plugin) })
+        t("settings.skills.upload.desc") +
+          " " +
+          t("settings.defaultSkills.pathHint", { path: getSkillsDir(plugin) })
       )
+      .addButton((btn) => {
+        btn.setButtonText(t("settings.skills.upload.button"));
+        btn.onClick(() => {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = ".zip,application/zip,application/x-zip-compressed";
+          input.addEventListener("change", async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            const result = await uploadSkillFromZip(plugin, file);
+            new Notice(result.message);
+            if (result.success) {
+              void renderSkillsList();
+            }
+          });
+          input.click();
+        });
+      })
       .addButton((btn) => {
         btn.setIcon("refresh-cw");
         btn.setTooltip(t("settings.defaultSkills.refresh.tooltip"));
