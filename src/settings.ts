@@ -907,7 +907,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     // --- AI 对话面板 ---
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.chat");
 
-    let addCurrentNoteSetting: Setting | undefined;
     new Setting(bodyEl)
       .setName(t("settings.chatPanel.name"))
       .setDesc(t("settings.chatPanel.desc"))
@@ -917,8 +916,9 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           .onChange(async (v) => {
             try {
               this.plugin.settings.chatPanelEnabled = v;
-              addCurrentNoteSetting?.setDisabled(!v);
               await this.plugin.saveSettings();
+              // 同步三类入口：ribbon 图标、命令面板命令、已打开的 ChatView
+              this.plugin.refreshChatPanelAccess();
             } catch (e) {
               console.error("[Smart Notes] failed to save chatPanelEnabled:", e);
               new Notice(t("settings.saveError"));
@@ -926,7 +926,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    addCurrentNoteSetting = new Setting(bodyEl)
+    // 「是否把当前笔记添加到对话框」与父 toggle 解耦：
+    // 父开关 chatPanelEnabled 关闭时，子开关的 input 曾被 setDisabled(true)，
+    // 导致磁盘值 addCurrentNoteToChat=true 时用户点击无反应（HTML disabled 原生屏蔽 click），
+    // 表现为"按钮无法关闭"。子开关的运行时行为已在 main.ts 用
+    // `if (this.settings.chatPanelEnabled && this.settings.addCurrentNoteToChat)` 守护，
+    // 父子 toggle 各自独立管理即可。
+    new Setting(bodyEl)
       .setName(t("settings.addCurrentNoteToChat.name"))
       .setDesc(t("settings.addCurrentNoteToChat.desc"))
       .addToggle((t2) =>
@@ -941,8 +947,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
               new Notice(t("settings.saveError"));
             }
           })
-      )
-      .setDisabled(!this.plugin.settings.chatPanelEnabled);
+      );
 
     new Setting(bodyEl)
       .setName(t("settings.showReasoning.name"))

@@ -211,6 +211,11 @@ export class ChatView extends ItemView {
         try {
           this.invalidateContextCache();
           this.renderActions();
+          // showReasoning 等开关变化时重渲染消息列表，让已显示的历史思考块立即跟随开关状态；
+          // 流式响应中跳过，避免打断正在渲染的气泡。
+          if (!this.isStreaming) {
+            this.renderMessages();
+          }
         } catch (e) {
           console.error("[Smart Notes] settings-changed handler failed:", e);
         }
@@ -1577,7 +1582,7 @@ export class ChatView extends ItemView {
             temperature: params.temperature,
           },
           (chunk) => {
-            if (chunk.reasoning) {
+            if (chunk.reasoning && this.plugin.settings.showReasoning) {
               this.streamingRawReasoning += chunk.reasoning;
               this.ensureReasoningBlock();
               if (this.streamingReasoningBodyEl) {

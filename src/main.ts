@@ -49,6 +49,71 @@ export default class AiNoteAgentPlugin extends Plugin {
   settingsEvents = new Events();
   private provider!: AIProvider;
   private memoryRebuildTimeout?: number;
+  /**
+   * Ribbon 图标 DOM 引用，用于在关闭 chatPanelEnabled 时移除。
+   * null 表示尚未添加或已主动 remove。
+   */
+  private ribbonEl: HTMLElement | null = null;
+
+  /**
+   * 同步「打开 AI 对话面板」入口的总开关。
+   * 同时管理：左栏 ribbon 图标、命令面板命令、已打开的 ChatView。
+   * 仅靠 addCommand + checkCallback 不能解决「命令面板全部命令视图下 checkCallback 不会被求值」的问题；
+   * 而且用户期望 toggle off 后不应有任何入口（包括已打开的视图）。
+   * public 是给 settings.ts 中 chatPanelEnabled.onChange 调用以同步 UI 状态。
+   */
+  refreshChatPanelAccess(): void {
+    const enabled = !!this.settings.chatPanelEnabled;
+    const fullCmdId = `${this.manifest.id}:open-chat`;
+
+    // 1) 命令面板命令：总是先移除再按开关决定是否重新注册（幂等）
+    try {
+      ((this.app as any).commands as {
+        removeCommand(id: string): void;
+      }).removeCommand(fullCmdId);
+    } catch {
+      // 重复移除或尚未注册时静默忽略
+    }
+
+    // 2) Ribbon 图标：先 remove 旧 DOM 再决定是否重新创建
+    if (this.ribbonEl) {
+      try {
+        this.ribbonEl.remove();
+      } catch {
+        // ignore
+      }
+      this.ribbonEl = null;
+    }
+
+    // 3) 已打开的 ChatView：toggle off → 强制 detach 所有 chat view leaves
+    if (!enabled) {
+      const leaves = this.app.workspace.getLeavesOfType(CHAT_VIEW_TYPE);
+      for (const leaf of leaves) {
+        // detach 不会调用 view 的 onClose 之外的清理，足够满足"关闭入口"诉求
+        leaf.detach();
+      }
+    }
+
+    // 重新注册入口
+    if (!enabled) return;
+    this.ribbonEl = this.addRibbonIcon("vault-mind", t("plugin.name"), () => {
+      void this.openChatView();
+    });
+    this.addCommand({
+      id: "open-chat",
+      name: t("cmd.openChat"),
+      checkCallback: (checking) => {
+        if (!this.settings.chatPanelEnabled) return false;
+        if (!checking) {
+          const active = this.app.workspace.getActiveFile();
+          void this.openChatView(
+            active instanceof TFile ? active : undefined
+          );
+        }
+        return true;
+      },
+    });
+  }
 
   async onload() {
     await this.loadSettings();
@@ -68,14 +133,14 @@ export default class AiNoteAgentPlugin extends Plugin {
 
     this.addSettingTab(new AiNoteAgentSettingTab(this.app, this));
 
+    // 视图类型始终注册，否则 toggle off → on 后无法再次打开 ChatView
     this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
 
     // Realtime inline autoprompt editor extension
     this.registerEditorExtension(createRealtimeExtension(this));
 
-    this.addRibbonIcon("vault-mind", t("plugin.name"), () => {
-      void this.openChatView();
-    });
+    // ribbon / open-chat 命令入口由 refreshChatPanelAccess 统一管控（toggle off 时不创建）
+    this.refreshChatPanelAccess();
 
     this.addCommand({
       id: "optimize-current",
@@ -111,21 +176,6 @@ export default class AiNoteAgentPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: "open-chat",
-      name: t("cmd.openChat"),
-      checkCallback: (checking) => {
-        if (!this.settings.chatPanelEnabled) return false;
-        if (!checking) {
-          const active = this.app.workspace.getActiveFile();
-          void this.openChatView(
-            active instanceof TFile ? active : undefined
-          );
-        }
-        return true;
-      },
-    });
-
-    this.addCommand({
       id: "generate-frontmatter",
       name: t("cmd.generateFrontmatter"),
       checkCallback: (checking) => {
@@ -143,6 +193,11 @@ export default class AiNoteAgentPlugin extends Plugin {
   }
 
   private async openChatView(file?: TFile): Promise<void> {
+    // 若开关关闭，禁止通过任何遗留入口打开
+    if (!this.settings.chatPanelEnabled) {
+      new Notice(t("settings.chatPanel.desc"));
+      return;
+    }
     const { workspace } = this.app;
 
     // If the view already exists in the workspace, reveal it.
