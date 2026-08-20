@@ -208,8 +208,12 @@ export class ChatView extends ItemView {
     // 设置变更时刷新底部工具栏（如 🌐 按钮的启用/禁用态）
     this.registerEvent(
       this.plugin.settingsEvents.on("settings-changed", () => {
-        this.invalidateContextCache();
-        this.renderActions();
+        try {
+          this.invalidateContextCache();
+          this.renderActions();
+        } catch (e) {
+          console.error("[Smart Notes] settings-changed handler failed:", e);
+        }
       })
     );
 

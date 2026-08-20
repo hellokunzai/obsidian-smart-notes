@@ -201,7 +201,11 @@ export default class AiNoteAgentPlugin extends Plugin {
     await this.saveData(this.settings);
     this.provider = createProvider(this.settings);
     // 通知已打开的视图（如对话面板）刷新依赖设置的 UI
-    this.settingsEvents.trigger("settings-changed");
+    try {
+      this.settingsEvents.trigger("settings-changed");
+    } catch (e) {
+      console.error("[Smart Notes] settings-changed listener failed:", e);
+    }
   }
 
   private async runWithNotice(msg: string, fn: () => Promise<void>) {

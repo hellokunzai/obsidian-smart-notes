@@ -1853,6 +1853,17 @@ button.ana-settings-tab.is-active {
   color: var(--text-normal);
 }
 
+/* 设置页 toggle：防止 Obsidian 1.13+ .modal input 全局规则拉伸 checkbox 导致点击失效 */
+.ana-settings-panel-body .setting-item-control .checkbox-container {
+  flex: 0 0 auto;
+}
+.ana-settings-panel-body .setting-item-control .checkbox-container input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: auto;
+  margin: 0;
+}
+
 /* ============================================================
  * 兼容性补丁（Obsidian 1.13+）
  * Obsidian 1.13 对 .modal 内的 button / input 增加了全局样式

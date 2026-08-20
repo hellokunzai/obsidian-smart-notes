@@ -132,6 +132,7 @@
   "settings.addCurrentNoteToChat.desc": "When opening the AI chat panel, automatically attach the active Markdown note as context. Off by default (attach manually to save tokens).",
   "settings.showReasoning.name": "Show AI reasoning",
   "settings.showReasoning.desc": "Display the model's reasoning (thinking) process above its reply. Only applies when the model returns reasoning_content (e.g. DeepSeek-R1, OpenAI o1 and other reasoning models).",
+  "settings.saveError": "Failed to save settings. Please check the console logs.",
   "settings.frontmatterGeneration.name": "Auto-generate frontmatter",
   "settings.frontmatterGeneration.desc": "Enable the \"Generate frontmatter\" command in the command palette. Reads the current Markdown note and asks AI to produce YAML frontmatter.",
   "settings.frontmatterTemplate.name": "Frontmatter template",

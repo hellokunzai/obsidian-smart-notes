@@ -132,6 +132,7 @@
   "settings.addCurrentNoteToChat.desc": "打开 AI 对话面板时，自动把当前 Markdown 笔记作为上下文附件加入。默认关闭（仅手动附加更省 token）。",
   "settings.showReasoning.name": "显示 AI 思考过程",
   "settings.showReasoning.desc": "在 AI 回复上方展示模型的推理（思考）过程。仅当模型返回 reasoning_content 时生效（如 DeepSeek-R1、OpenAI o1 等推理模型）。",
+  "settings.saveError": "设置保存失败，请查看控制台日志。",
   "settings.frontmatterGeneration.name": "Frontmatter 自动生成",
   "settings.frontmatterGeneration.desc": "在命令面板启用「生成 Frontmatter」，读取当前 Markdown 笔记内容并由 AI 生成 YAML 前置元数据。",
   "settings.frontmatterTemplate.name": "Frontmatter 模版",

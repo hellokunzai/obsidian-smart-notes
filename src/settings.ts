@@ -915,9 +915,14 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         t2
           .setValue(this.plugin.settings.chatPanelEnabled)
           .onChange(async (v) => {
-            this.plugin.settings.chatPanelEnabled = v;
-            addCurrentNoteSetting?.setDisabled(!v);
-            await this.plugin.saveSettings();
+            try {
+              this.plugin.settings.chatPanelEnabled = v;
+              addCurrentNoteSetting?.setDisabled(!v);
+              await this.plugin.saveSettings();
+            } catch (e) {
+              console.error("[Smart Notes] failed to save chatPanelEnabled:", e);
+              new Notice(t("settings.saveError"));
+            }
           })
       );
 
@@ -928,8 +933,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         t2
           .setValue(this.plugin.settings.addCurrentNoteToChat)
           .onChange(async (v) => {
-            this.plugin.settings.addCurrentNoteToChat = v;
-            await this.plugin.saveSettings();
+            try {
+              this.plugin.settings.addCurrentNoteToChat = v;
+              await this.plugin.saveSettings();
+            } catch (e) {
+              console.error("[Smart Notes] failed to save addCurrentNoteToChat:", e);
+              new Notice(t("settings.saveError"));
+            }
           })
       )
       .setDisabled(!this.plugin.settings.chatPanelEnabled);
@@ -941,8 +951,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         t2
           .setValue(this.plugin.settings.showReasoning)
           .onChange(async (v) => {
-            this.plugin.settings.showReasoning = v;
-            await this.plugin.saveSettings();
+            try {
+              this.plugin.settings.showReasoning = v;
+              await this.plugin.saveSettings();
+            } catch (e) {
+              console.error("[Smart Notes] failed to save showReasoning:", e);
+              new Notice(t("settings.saveError"));
+            }
           })
       );
 
