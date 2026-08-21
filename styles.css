@@ -2260,11 +2260,15 @@ button.ana-settings-tab.is-active {
   text-align: left;
 }
 
-/* 密钥选择器：内联添加表单显隐 */
-.ana-add-form-visible {
+/* 密钥选择器：内联添加表单显隐
+ * 必须挂在 .ana-secret-picker-modal 下，specificity 提升到 0,2,0，
+ * 才能压过 .ana-secret-picker-modal .ana-secret-picker-add-form { display: none }
+ * 否则 showAddSecret() 加 visible 类后表单永远不展开（用户感知「添加密钥按钮失效」）。
+ */
+.ana-secret-picker-modal .ana-add-form-visible {
   display: flex;
 }
-.ana-add-form-hidden {
+.ana-secret-picker-modal .ana-add-form-hidden {
   display: none;
 }
 
