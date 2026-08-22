@@ -50,7 +50,11 @@ const options = {
   sourcemap: prod ? false : "inline",
   treeShaking: true,
   outfile: "main.js",
-  minify: prod,
+  // 生产环境关闭 minify：Obsidian 自动审核 bot 对高度压缩后"超长单行"的
+  // bundle 容易触发正则灾难性回溯/内存耗尽（"automated review could not be
+  // completed"）。展开后行数从 ~125 行增至数千行、单行长度降至数百字节，
+  // 显著降低扫描器压力。体积增大可接受（不影响运行）。
+  minify: false,
 };
 
 if (prod) {
