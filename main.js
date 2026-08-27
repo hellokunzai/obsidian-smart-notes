@@ -265,17 +265,17 @@ var en_default = {
   "settings.memoryFile.desc": "View and edit the AI-curated long-term profile memory. Changes are auto-saved to memory/MEMORY.md in the AI folder 0.5 seconds after you stop typing.",
   "settings.memoryFile.placeholder": "Memory content will load here. If nothing appears yet, background organization may still be running.",
   "settings.includeVaultIndex.name": "Enable file index",
-  "settings.includeVaultIndex.desc": "Add a list of all Markdown file paths to the system prompt so the AI knows what's in your vault. Contents are NOT loaded unless attached or referenced. Off by default; enable only when needed.",
+  "settings.includeVaultIndex.desc": "The AI can search file paths on demand via the search_vault_paths tool.",
   "settings.chatContextMaxChars.name": "Max chars per attached file",
   "settings.chatContextMaxChars.desc": "Truncate each attached file's content to this many characters before sending to the AI.",
   "settings.historyMaxMessages.name": "History window",
   "settings.historyMaxMessages.desc": "Only send the most recent N history messages to the model; earlier turns are compressed into a summary and injected. Set to 0 to disable (send full history, token usage grows linearly with conversation length).",
   "settings.includeFrontmatterIndex.name": "Enable property index",
-  "settings.includeFrontmatterIndex.desc": "Inject a list of each Markdown file's Frontmatter properties (YAML metadata) into the system prompt, so the AI understands your vault's structure via tags, category, summary, etc. Only metadata is included \u2014 file contents are NOT loaded; contents still require explicit attach or reference. Off by default.",
+  "settings.includeFrontmatterIndex.desc": "When enabled, the AI can search Frontmatter metadata (tags, category, summary, etc.) on demand via the search_vault_frontmatter tool instead of having all metadata injected into the system prompt. Only metadata is searched \u2014 file contents are NOT loaded; contents still require explicit attach or reference. Off by default.",
   "settings.vaultIndexMaxFiles.name": "Max files in file index",
-  "settings.vaultIndexMaxFiles.desc": "When Enable file index is on, inject at most this many file paths (0 = unlimited). Prevents huge vaults from blowing the token budget.",
+  "settings.vaultIndexMaxFiles.desc": "When Enable file index is on, the search tool returns at most this many file paths (0 = unlimited). Prevents huge vaults from returning too many results.",
   "settings.frontmatterIndexMaxFiles.name": "Max files in Frontmatter index",
-  "settings.frontmatterIndexMaxFiles.desc": "When Enable property index is on, inject at most this many files' metadata (0 = unlimited).",
+  "settings.frontmatterIndexMaxFiles.desc": "When Enable property index is on, the search tool returns at most this many files' metadata (0 = unlimited).",
   "settings.profileMemoryMaxChars.name": "Profile memory char cap",
   "settings.profileMemoryMaxChars.desc": "Before injecting MEMORY.md into the system prompt, truncate it to this many characters so long-term memory cannot grow unbounded and blow the token budget.",
   "settings.frontmatterIndexKeys.name": "Properties to index",
@@ -613,17 +613,17 @@ var zh_default = {
   "settings.aiFolderName.name": "\u6570\u636E\u5B58\u50A8\u8DEF\u5F84",
   "settings.aiFolderName.desc": "Vault \u6839\u76EE\u5F55\u4E0B\u7528\u4E8E\u5B58\u653E\u8BB0\u5FC6\u4E0E skill \u7684\u6570\u636E\u6587\u4EF6\u5939\u540D\u79F0\u3002\u4FEE\u6539\u8DEF\u5F84\u4E0D\u4F1A\u81EA\u52A8\u8FC1\u79FB\u65E7\u76EE\u5F55\u7684\u6570\u636E\u3002",
   "settings.includeVaultIndex.name": "\u542F\u7528\u6587\u4EF6\u7D22\u5F15",
-  "settings.includeVaultIndex.desc": "\u5C06\u6240\u6709 Markdown \u6587\u4EF6\u8DEF\u5F84\u6E05\u5355\u6CE8\u5165 system prompt\uFF0C\u8BA9 AI \u77E5\u9053\u5E93\u91CC\u6709\u54EA\u4E9B\u6587\u4EF6\u3002\u6587\u4EF6\u5185\u5BB9\u4E0D\u4F1A\u81EA\u52A8\u52A0\u8F7D\uFF0C\u53EA\u6709\u5728\u88AB\u9644\u52A0\u6216\u88AB\u6D88\u606F\u70B9\u540D\u65F6\u624D\u4F1A\u53D1\u9001\u3002\u9ED8\u8BA4\u5173\u95ED\uFF0C\u4EC5\u5728\u9700\u8981\u65F6\u5F00\u542F\u3002",
+  "settings.includeVaultIndex.desc": "AI \u53EF\u901A\u8FC7 search_vault_paths \u5DE5\u5177\u6309\u9700\u641C\u7D22\u6587\u4EF6\u8DEF\u5F84\u3002",
   "settings.chatContextMaxChars.name": "\u5355\u6587\u4EF6\u6CE8\u5165\u5B57\u7B26\u4E0A\u9650",
   "settings.chatContextMaxChars.desc": "\u53D1\u9001\u524D\u5C06\u6BCF\u4E2A\u9644\u52A0\u6587\u4EF6\u7684\u5185\u5BB9\u622A\u65AD\u5230\u6B64\u957F\u5EA6\uFF0C\u907F\u514D\u8D85\u5927\u6587\u4EF6\u6491\u7206 token\u3002",
   "settings.historyMaxMessages.name": "\u5386\u53F2\u6D88\u606F\u7A97\u53E3",
   "settings.historyMaxMessages.desc": "\u53EA\u53D1\u9001\u6700\u8FD1 N \u6761\u5386\u53F2\u6D88\u606F\u7ED9\u6A21\u578B\uFF0C\u66F4\u65E9\u7684\u5BF9\u8BDD\u4F1A\u88AB\u538B\u7F29\u6210\u6458\u8981\u6CE8\u5165\u3002\u8BBE\u4E3A 0 \u8868\u793A\u4E0D\u9650\u5236\uFF08\u53D1\u9001\u5168\u90E8\u5386\u53F2\uFF0Ctoken \u6D88\u8017\u968F\u5BF9\u8BDD\u53D8\u957F\u7EBF\u6027\u589E\u957F\uFF09\u3002",
   "settings.includeFrontmatterIndex.name": "\u542F\u7528\u5C5E\u6027\u7D22\u5F15",
-  "settings.includeFrontmatterIndex.desc": "\u5C06\u5E93\u5185 Markdown \u6587\u4EF6\u7684 Frontmatter \u5C5E\u6027\uFF08YAML \u524D\u7F6E\u5143\u6570\u636E\uFF09\u6E05\u5355\u6CE8\u5165 system prompt\uFF0C\u8BA9 AI \u901A\u8FC7 tags\u3001category\u3001summary \u7B49\u5C5E\u6027\u4E86\u89E3\u5E93\u5185\u7ED3\u6784\u3002\u4EC5\u6CE8\u5165\u5143\u6570\u636E\uFF0C\u4E0D\u52A0\u8F7D\u6B63\u6587\uFF1B\u6B63\u6587\u4ECD\u9700\u901A\u8FC7\u9644\u52A0\u6216\u70B9\u540D\u53D1\u9001\u3002\u9ED8\u8BA4\u5173\u95ED\u3002",
+  "settings.includeFrontmatterIndex.desc": "\u542F\u7528\u540E\uFF0CAI \u53EF\u901A\u8FC7 search_vault_frontmatter \u5DE5\u5177\u6309\u9700\u641C\u7D22 Frontmatter \u5143\u6570\u636E\uFF08tags\u3001category\u3001summary \u7B49\uFF09\uFF0C\u4E0D\u518D\u81EA\u52A8\u5C06\u5168\u90E8\u5143\u6570\u636E\u6CE8\u5165 system prompt\u3002\u4EC5\u641C\u7D22\u5143\u6570\u636E\uFF0C\u4E0D\u52A0\u8F7D\u6B63\u6587\uFF1B\u6B63\u6587\u4ECD\u9700\u901A\u8FC7\u9644\u52A0\u6216\u70B9\u540D\u53D1\u9001\u3002\u9ED8\u8BA4\u5173\u95ED\u3002",
   "settings.vaultIndexMaxFiles.name": "\u6587\u4EF6\u7D22\u5F15\u6700\u591A\u6587\u4EF6\u6570",
-  "settings.vaultIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u6587\u4EF6\u7D22\u5F15\u300D\u540E\uFF0C\u6700\u591A\u6CE8\u5165\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u8DEF\u5F84\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002\u9632\u6B62\u5927\u5E93\u6491\u7206 token\u3002",
+  "settings.vaultIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u6587\u4EF6\u7D22\u5F15\u300D\u540E\uFF0CAI \u8C03\u7528\u641C\u7D22\u5DE5\u5177\u65F6\u6700\u591A\u8FD4\u56DE\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u8DEF\u5F84\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002\u9632\u6B62\u5927\u5E93\u8FD4\u56DE\u7ED3\u679C\u8FC7\u591A\u3002",
   "settings.frontmatterIndexMaxFiles.name": "Frontmatter \u7D22\u5F15\u6700\u591A\u6587\u4EF6\u6570",
-  "settings.frontmatterIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u5C5E\u6027\u7D22\u5F15\u300D\u540E\uFF0C\u6700\u591A\u6CE8\u5165\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u7684\u5143\u6570\u636E\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002",
+  "settings.frontmatterIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u5C5E\u6027\u7D22\u5F15\u300D\u540E\uFF0CAI \u8C03\u7528\u641C\u7D22\u5DE5\u5177\u65F6\u6700\u591A\u8FD4\u56DE\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u7684\u5143\u6570\u636E\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002",
   "settings.profileMemoryMaxChars.name": "\u753B\u50CF\u8BB0\u5FC6\u6CE8\u5165\u5B57\u7B26\u4E0A\u9650",
   "settings.profileMemoryMaxChars.desc": "\u6CE8\u5165 system prompt \u524D\uFF0C\u628A MEMORY.md \u622A\u65AD\u5230\u6B64\u5B57\u7B26\u6570\uFF0C\u9632\u6B62\u957F\u671F\u8BB0\u5FC6\u65E0\u9650\u81A8\u80C0\u6491\u7206 token\u3002",
   "settings.frontmatterIndexKeys.name": "\u8981\u7D22\u5F15\u7684\u5C5E\u6027",
@@ -5362,14 +5362,18 @@ function createVaultToolDefinitions() {
     }
   ];
 }
-function createVaultToolHandlers(app) {
+function createVaultToolHandlers(app, settings) {
   const handlers = {};
   handlers["search_vault_paths"] = {
     name: "search_vault_paths",
     definition: createVaultToolDefinitions()[0],
     async execute(args) {
       const keywordsRaw = String(args.keywords || "");
-      const maxResults = Math.max(1, Math.min(100, Number(args.maxResults) || 20));
+      const settingsMax = settings && settings.vaultIndexMaxFiles > 0 ? settings.vaultIndexMaxFiles : 20;
+      const maxResults = Math.max(
+        1,
+        Math.min(100, Number(args.maxResults) || settingsMax)
+      );
       const keywords = extractQueryKeywords(keywordsRaw);
       const mdFiles = app.vault.getMarkdownFiles();
       let paths = mdFiles.map((f) => f.path);
@@ -5394,21 +5398,30 @@ function createVaultToolHandlers(app) {
     name: "search_vault_frontmatter",
     definition: createVaultToolDefinitions()[1],
     async execute(args) {
-      var _a2;
+      var _a2, _b2;
       const keywordsRaw = String(args.keywords || "");
-      const maxResults = Math.max(1, Math.min(100, Number(args.maxResults) || 20));
+      const settingsMax = settings && settings.frontmatterIndexMaxFiles > 0 ? settings.frontmatterIndexMaxFiles : 20;
+      const maxResults = Math.max(
+        1,
+        Math.min(100, Number(args.maxResults) || settingsMax)
+      );
       const keywords = extractQueryKeywords(keywordsRaw);
+      const keysRaw = (_a2 = settings == null ? void 0 : settings.frontmatterIndexKeys) != null ? _a2 : "";
+      const keys = parseKeyWhitelist2(keysRaw);
+      const maxChars = Math.max(1, (settings == null ? void 0 : settings.frontmatterIndexMaxChars) || 500);
       const mdFiles = app.vault.getMarkdownFiles();
       const lines = [];
       for (const f of mdFiles) {
-        const fm = (_a2 = app.metadataCache.getFileCache(f)) == null ? void 0 : _a2.frontmatter;
+        const fm = (_b2 = app.metadataCache.getFileCache(f)) == null ? void 0 : _b2.frontmatter;
         if (!fm || Object.keys(fm).length === 0)
           continue;
         const pairs = [];
         for (const [k, v] of Object.entries(fm)) {
           if (k === "position")
             continue;
-          const formatted = formatFrontmatterValue2(v, 200);
+          if (keys.length > 0 && !keys.includes(k.toLowerCase()))
+            continue;
+          const formatted = formatFrontmatterValue2(v, maxChars);
           if (formatted === "")
             continue;
           pairs.push(`${k}=${formatted}`);
@@ -5440,7 +5453,11 @@ function createVaultToolHandlers(app) {
     async execute(args) {
       const keywordsRaw = String(args.keywords || "");
       const maxResults = Math.max(1, Math.min(50, Number(args.maxResults) || 5));
-      const maxCharsPerFile = Math.max(100, Math.min(5e3, Number(args.maxCharsPerFile) || 800));
+      const settingsMaxChars = settings && settings.chatContextMaxChars > 0 ? settings.chatContextMaxChars : 800;
+      const maxCharsPerFile = Math.max(
+        100,
+        Math.min(5e3, Number(args.maxCharsPerFile) || settingsMaxChars)
+      );
       const keywords = extractQueryKeywords(keywordsRaw);
       if (keywords.length === 0) {
         return "No valid keywords provided for content search.";
@@ -5523,8 +5540,8 @@ function formatFrontmatterValue2(value, maxChars) {
   }
   return str;
 }
-async function executeToolCalls(app, toolCalls) {
-  const handlers = createVaultToolHandlers(app);
+async function executeToolCalls(app, toolCalls, settings) {
+  const handlers = createVaultToolHandlers(app, settings);
   const results = [];
   for (const tc of toolCalls) {
     const handler = handlers[tc.function.name];
@@ -5554,6 +5571,9 @@ async function executeToolCalls(app, toolCalls) {
     }
   }
   return results;
+}
+function parseKeyWhitelist2(raw) {
+  return raw.split(/[\n,，]/).map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0);
 }
 
 // src/search/prompt.ts
@@ -6878,7 +6898,8 @@ ${extra}` : text
             this.showToolCallsNotice(assistantContentEl, toolCheck.toolCalls);
             const toolResults = await executeToolCalls(
               this.plugin.app,
-              toolCheck.toolCalls
+              toolCheck.toolCalls,
+              this.plugin.settings
             );
             messages.push({
               role: "assistant",

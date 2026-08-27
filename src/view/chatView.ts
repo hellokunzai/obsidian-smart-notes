@@ -1600,7 +1600,8 @@ export class ChatView extends ItemView {
             // 执行工具
             const toolResults = await executeToolCalls(
               this.plugin.app,
-              toolCheck.toolCalls
+              toolCheck.toolCalls,
+              this.plugin.settings
             );
             // 注入 assistant 消息（带 tool_calls）到对话历史
             messages.push({

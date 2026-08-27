@@ -1,6 +1,7 @@
 import { App, TFile } from "obsidian";
 import type { ToolDefinition, ToolHandler } from "../ai/tools";
 import { extractQueryKeywords, matchesKeywords } from "./knowledge";
+import type { AiNoteAgentSettings } from "../settings";
 
 /**
  * 知识库搜索工具集。
@@ -104,8 +105,12 @@ export function createVaultToolDefinitions(): ToolDefinition[] {
 /**
  * 创建知识库搜索工具的执行器集合。
  * @param app Obsidian App 实例
+ * @param settings 插件设置（用于读取 maxFiles / maxChars 等限制）
  */
-export function createVaultToolHandlers(app: App): Record<string, ToolHandler> {
+export function createVaultToolHandlers(
+  app: App,
+  settings?: AiNoteAgentSettings
+): Record<string, ToolHandler> {
   const handlers: Record<string, ToolHandler> = {};
 
   // Tool 1: search_vault_paths
@@ -114,7 +119,14 @@ export function createVaultToolHandlers(app: App): Record<string, ToolHandler> {
     definition: createVaultToolDefinitions()[0],
     async execute(args) {
       const keywordsRaw = String(args.keywords || "");
-      const maxResults = Math.max(1, Math.min(100, Number(args.maxResults) || 20));
+      // 优先使用 AI 传入的 maxResults，否则 fallback 到设置项 vaultIndexMaxFiles
+      const settingsMax = settings && settings.vaultIndexMaxFiles > 0
+        ? settings.vaultIndexMaxFiles
+        : 20;
+      const maxResults = Math.max(
+        1,
+        Math.min(100, Number(args.maxResults) || settingsMax)
+      );
       const keywords = extractQueryKeywords(keywordsRaw);
 
       const mdFiles = app.vault.getMarkdownFiles();
@@ -146,8 +158,19 @@ export function createVaultToolHandlers(app: App): Record<string, ToolHandler> {
     definition: createVaultToolDefinitions()[1],
     async execute(args) {
       const keywordsRaw = String(args.keywords || "");
-      const maxResults = Math.max(1, Math.min(100, Number(args.maxResults) || 20));
+      const settingsMax = settings && settings.frontmatterIndexMaxFiles > 0
+        ? settings.frontmatterIndexMaxFiles
+        : 20;
+      const maxResults = Math.max(
+        1,
+        Math.min(100, Number(args.maxResults) || settingsMax)
+      );
       const keywords = extractQueryKeywords(keywordsRaw);
+
+      // 属性白名单和单属性字符上限从设置读取
+      const keysRaw = settings?.frontmatterIndexKeys ?? "";
+      const keys = parseKeyWhitelist(keysRaw);
+      const maxChars = Math.max(1, settings?.frontmatterIndexMaxChars || 500);
 
       const mdFiles = app.vault.getMarkdownFiles();
       const lines: string[] = [];
@@ -159,7 +182,8 @@ export function createVaultToolHandlers(app: App): Record<string, ToolHandler> {
         const pairs: string[] = [];
         for (const [k, v] of Object.entries(fm)) {
           if (k === "position") continue;
-          const formatted = formatFrontmatterValue(v, 200);
+          if (keys.length > 0 && !keys.includes(k.toLowerCase())) continue;
+          const formatted = formatFrontmatterValue(v, maxChars);
           if (formatted === "") continue;
           pairs.push(`${k}=${formatted}`);
         }
@@ -194,7 +218,14 @@ export function createVaultToolHandlers(app: App): Record<string, ToolHandler> {
     async execute(args) {
       const keywordsRaw = String(args.keywords || "");
       const maxResults = Math.max(1, Math.min(50, Number(args.maxResults) || 5));
-      const maxCharsPerFile = Math.max(100, Math.min(5000, Number(args.maxCharsPerFile) || 800));
+      // 单文件片段字符上限：优先使用设置项 chatContextMaxChars，否则 fallback 800
+      const settingsMaxChars = settings && settings.chatContextMaxChars > 0
+        ? settings.chatContextMaxChars
+        : 800;
+      const maxCharsPerFile = Math.max(
+        100,
+        Math.min(5000, Number(args.maxCharsPerFile) || settingsMaxChars)
+      );
       const keywords = extractQueryKeywords(keywordsRaw);
 
       if (keywords.length === 0) {
@@ -308,12 +339,16 @@ function formatFrontmatterValue(value: unknown, maxChars: number): string {
 
 /**
  * 执行一组 tool calls，返回 tool results。
+ * @param app Obsidian App 实例
+ * @param toolCalls 模型返回的 tool_calls
+ * @param settings 可选，插件设置（用于读取搜索限制参数）
  */
 export async function executeToolCalls(
   app: App,
-  toolCalls: { id: string; function: { name: string; arguments: string } }[]
+  toolCalls: { id: string; function: { name: string; arguments: string } }[],
+  settings?: AiNoteAgentSettings
 ): Promise<{ toolCallId: string; name: string; content: string }[]> {
-  const handlers = createVaultToolHandlers(app);
+  const handlers = createVaultToolHandlers(app, settings);
   const results: { toolCallId: string; name: string; content: string }[] = [];
 
   for (const tc of toolCalls) {
@@ -349,4 +384,12 @@ export async function executeToolCalls(
   }
 
   return results;
+}
+
+/** 解析属性白名单：按换行 / 逗号 / 中文逗号拆分，去空并转小写。空数组表示索引全部。 */
+function parseKeyWhitelist(raw: string): string[] {
+  return raw
+    .split(/[\n,，]/)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0);
 }
