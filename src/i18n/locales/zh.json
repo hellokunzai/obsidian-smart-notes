@@ -161,6 +161,8 @@
   "view.placeholder": "输入消息……（按 Enter 发送，Shift+Enter 换行）",
   "view.send": "发送",
   "view.thinking": "思考中……",
+  "view.stop": "停止",
+  "view.stopped": "已停止",
   "view.clear": "清空",
   "view.clearCurrent": "清空当前",
   "view.toggleSidebar": "折叠/展开会话历史",

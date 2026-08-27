@@ -69,6 +69,8 @@ export class ChatView extends ItemView {
   private messagesEl!: HTMLElement;
   private inputEl!: HTMLTextAreaElement;
   private sendBtn!: HTMLButtonElement;
+  /** 停止按钮（仅在 AI 流式输出时显示，与 sendBtn 互斥）。 */
+  private stopBtn!: HTMLButtonElement;
   private inputWrapEl!: HTMLElement;
   private chipsEl!: HTMLElement;
   private resizeHandleEl!: HTMLElement;
@@ -87,6 +89,8 @@ export class ChatView extends ItemView {
   private selectedRoleId = "";
 
   private isStreaming = false;
+  /** 当前流式请求的 AbortController，用于用户点击「停止」时中断请求。 */
+  private abortCtrl: AbortController | null = null;
   private sidebarCollapsed = true;
 
   /**
@@ -377,6 +381,15 @@ export class ChatView extends ItemView {
     });
     setIcon(this.sendBtn, "send");
     this.sendBtn.addEventListener("click", () => void this.handleSend());
+
+    // 停止按钮：与发送按钮同位置，仅在流式输出时显示
+    this.stopBtn = rightActions.createEl("button", {
+      cls: "ana-chat-stop",
+      attr: { "aria-label": t("view.stop") },
+    });
+    setIcon(this.stopBtn, "square"); // Obsidian 内置 square 图标表示停止
+    this.stopBtn.addEventListener("click", () => this.handleStop());
+    this.stopBtn.style.display = "none"; // 默认隐藏
 
     this.renderChips();
     this.renderActions();
@@ -1626,27 +1639,9 @@ export class ChatView extends ItemView {
       }
 
       // 带超时的流式请求（默认 60 秒），避免不可达模型导致无限挂起
+      this.abortCtrl = new AbortController();
       const result = await this.withTimeout(
-        provider.stream(
-          messages,
-          {
-            maxTokens: params.maxTokens,
-            temperature: params.temperature,
-          },
-          (chunk) => {
-            if (chunk.reasoning && this.plugin.settings.showReasoning) {
-              this.streamingRawReasoning += chunk.reasoning;
-              this.ensureReasoningBlock();
-              if (this.streamingReasoningBodyEl) {
-                this.streamingReasoningBodyEl.setText(this.streamingRawReasoning);
-              }
-            }
-            if (chunk.content) {
-              this.streamingRawContent += chunk.content;
-              this.scheduleStreamingRender();
-            }
-          }
-        ),
+        this.streamWithAbort(provider, messages, params, this.abortCtrl.signal),
         60_000
       );
 
@@ -1741,6 +1736,29 @@ export class ChatView extends ItemView {
     this.sendBtn.disabled = disabled;
     this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
     setIcon(this.sendBtn, disabled ? "loader" : "send");
+    // 流式输出时隐藏发送按钮，显示停止按钮；反之亦然
+    this.sendBtn.style.display = disabled ? "none" : "inline-flex";
+    this.stopBtn.style.display = disabled ? "inline-flex" : "none";
+  }
+
+  /** 用户点击「停止」按钮：中断当前流式请求并在 UI 上标记为已停止。 */
+  private handleStop(): void {
+    if (this.abortCtrl) {
+      this.abortCtrl.abort();
+      this.abortCtrl = null;
+    }
+    this.isStreaming = false;
+    this.clearStreamingState();
+    this.removeStreamingCursor();
+    // 在助手消息末尾追加「已停止」提示（如果已有内容）
+    if (this.streamingContentEl && this.streamingRawContent) {
+      const stopEl = this.streamingContentEl.createEl("span", {
+        cls: "ana-chat-stopped-badge",
+        text: ` ${t("view.stopped")}`,
+      });
+    }
+    this.setInputDisabled(false);
+    this.scrollToBottom();
   }
 
   /** 给 Promise 添加超时限制，超时后 reject 以避免不可达模型导致 UI 无限挂起。 */
@@ -1753,6 +1771,67 @@ export class ChatView extends ItemView {
         (value) => { clearTimeout(timer); resolve(value); },
         (err) => { clearTimeout(timer); reject(err); }
       );
+    });
+  }
+
+  /**
+   * 包装 provider.stream，支持通过 AbortSignal 中断。
+   * 当 signal.aborted 时，立即停止累积并返回当前已收到的内容。
+   */
+  private async streamWithAbort(
+    provider: import("../ai/provider").AIProvider,
+    messages: import("../ai/provider").ChatMessage[],
+    params: { maxTokens: number; temperature: number },
+    signal: AbortSignal
+  ): Promise<import("../ai/provider").CompletionResult> {
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        resolve({
+          content: this.streamingRawContent,
+          reasoning: this.streamingRawReasoning || undefined,
+          usage: undefined,
+        });
+      };
+      signal.addEventListener("abort", onAbort);
+
+      provider
+        .stream(
+          messages,
+          {
+            maxTokens: params.maxTokens,
+            temperature: params.temperature,
+          },
+          (chunk) => {
+            if (signal.aborted) return;
+            if (chunk.reasoning && this.plugin.settings.showReasoning) {
+              this.streamingRawReasoning += chunk.reasoning;
+              this.ensureReasoningBlock();
+              if (this.streamingReasoningBodyEl) {
+                this.streamingReasoningBodyEl.setText(this.streamingRawReasoning);
+              }
+            }
+            if (chunk.content) {
+              this.streamingRawContent += chunk.content;
+              this.scheduleStreamingRender();
+            }
+          }
+        )
+        .then((result) => {
+          signal.removeEventListener("abort", onAbort);
+          if (signal.aborted) {
+            resolve({
+              content: this.streamingRawContent,
+              reasoning: this.streamingRawReasoning || undefined,
+              usage: undefined,
+            });
+          } else {
+            resolve(result);
+          }
+        })
+        .catch((err) => {
+          signal.removeEventListener("abort", onAbort);
+          reject(err);
+        });
     });
   }
 

@@ -992,6 +992,42 @@ button.ana-settings-tab.is-active {
   background: var(--background-modifier-hover);
 }
 
+/* 停止按钮：与发送按钮同位置，仅在流式输出时显示 */
+.ana-chat-stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-error);
+  cursor: pointer;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.ana-chat-stop svg,
+.ana-chat-stop .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
+}
+
+.ana-chat-stop:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 已停止标记：追加在助手消息末尾 */
+.ana-chat-stopped-badge {
+  color: var(--text-faint);
+  font-size: var(--font-smallest);
+  font-style: italic;
+  margin-left: 4px;
+}
+
 /* 已选 chips */
 .ana-chat-chip {
   display: inline-flex;

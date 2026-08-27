@@ -161,6 +161,8 @@
   "view.placeholder": "Type a message… (Enter to send, Shift+Enter for newline)",
   "view.send": "Send",
   "view.thinking": "Thinking…",
+  "view.stop": "Stop",
+  "view.stopped": "Stopped",
   "view.clear": "Clear",
   "view.clearCurrent": "Clear current",
   "view.toggleSidebar": "Collapse/expand session history",

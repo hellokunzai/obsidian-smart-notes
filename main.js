@@ -186,6 +186,8 @@ var en_default = {
   "view.placeholder": "Type a message\u2026 (Enter to send, Shift+Enter for newline)",
   "view.send": "Send",
   "view.thinking": "Thinking\u2026",
+  "view.stop": "Stop",
+  "view.stopped": "Stopped",
   "view.clear": "Clear",
   "view.clearCurrent": "Clear current",
   "view.toggleSidebar": "Collapse/expand session history",
@@ -532,6 +534,8 @@ var zh_default = {
   "view.placeholder": "\u8F93\u5165\u6D88\u606F\u2026\u2026\uFF08\u6309 Enter \u53D1\u9001\uFF0CShift+Enter \u6362\u884C\uFF09",
   "view.send": "\u53D1\u9001",
   "view.thinking": "\u601D\u8003\u4E2D\u2026\u2026",
+  "view.stop": "\u505C\u6B62",
+  "view.stopped": "\u5DF2\u505C\u6B62",
   "view.clear": "\u6E05\u7A7A",
   "view.clearCurrent": "\u6E05\u7A7A\u5F53\u524D",
   "view.toggleSidebar": "\u6298\u53E0/\u5C55\u5F00\u4F1A\u8BDD\u5386\u53F2",
@@ -5616,6 +5620,8 @@ var ChatView = class extends import_obsidian12.ItemView {
     /** 当前选中的角色 id（仅影响当前对话视图，不保存为全局默认） */
     this.selectedRoleId = "";
     this.isStreaming = false;
+    /** 当前流式请求的 AbortController，用于用户点击「停止」时中断请求。 */
+    this.abortCtrl = null;
     this.sidebarCollapsed = true;
     /**
      * 重入时临时注入的 skill 路径。
@@ -5848,6 +5854,13 @@ var ChatView = class extends import_obsidian12.ItemView {
     });
     (0, import_obsidian12.setIcon)(this.sendBtn, "send");
     this.sendBtn.addEventListener("click", () => void this.handleSend());
+    this.stopBtn = rightActions.createEl("button", {
+      cls: "ana-chat-stop",
+      attr: { "aria-label": t("view.stop") }
+    });
+    (0, import_obsidian12.setIcon)(this.stopBtn, "square");
+    this.stopBtn.addEventListener("click", () => this.handleStop());
+    this.stopBtn.style.display = "none";
     this.renderChips();
     this.renderActions();
     this.renderMessages();
@@ -6918,27 +6931,9 @@ ${extra}` : text
         } catch (e) {
         }
       }
+      this.abortCtrl = new AbortController();
       const result = await this.withTimeout(
-        provider.stream(
-          messages,
-          {
-            maxTokens: params.maxTokens,
-            temperature: params.temperature
-          },
-          (chunk) => {
-            if (chunk.reasoning && this.plugin.settings.showReasoning) {
-              this.streamingRawReasoning += chunk.reasoning;
-              this.ensureReasoningBlock();
-              if (this.streamingReasoningBodyEl) {
-                this.streamingReasoningBodyEl.setText(this.streamingRawReasoning);
-              }
-            }
-            if (chunk.content) {
-              this.streamingRawContent += chunk.content;
-              this.scheduleStreamingRender();
-            }
-          }
-        ),
+        this.streamWithAbort(provider, messages, params, this.abortCtrl.signal),
         6e4
       );
       this.clearStreamingRender();
@@ -7019,6 +7014,26 @@ ${extra}` : text
     this.sendBtn.disabled = disabled;
     this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
     (0, import_obsidian12.setIcon)(this.sendBtn, disabled ? "loader" : "send");
+    this.sendBtn.style.display = disabled ? "none" : "inline-flex";
+    this.stopBtn.style.display = disabled ? "inline-flex" : "none";
+  }
+  /** 用户点击「停止」按钮：中断当前流式请求并在 UI 上标记为已停止。 */
+  handleStop() {
+    if (this.abortCtrl) {
+      this.abortCtrl.abort();
+      this.abortCtrl = null;
+    }
+    this.isStreaming = false;
+    this.clearStreamingState();
+    this.removeStreamingCursor();
+    if (this.streamingContentEl && this.streamingRawContent) {
+      const stopEl = this.streamingContentEl.createEl("span", {
+        cls: "ana-chat-stopped-badge",
+        text: ` ${t("view.stopped")}`
+      });
+    }
+    this.setInputDisabled(false);
+    this.scrollToBottom();
   }
   /** 给 Promise 添加超时限制，超时后 reject 以避免不可达模型导致 UI 无限挂起。 */
   withTimeout(promise, ms) {
@@ -7036,6 +7051,58 @@ ${extra}` : text
           reject(err2);
         }
       );
+    });
+  }
+  /**
+   * 包装 provider.stream，支持通过 AbortSignal 中断。
+   * 当 signal.aborted 时，立即停止累积并返回当前已收到的内容。
+   */
+  async streamWithAbort(provider, messages, params, signal) {
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        resolve({
+          content: this.streamingRawContent,
+          reasoning: this.streamingRawReasoning || void 0,
+          usage: void 0
+        });
+      };
+      signal.addEventListener("abort", onAbort);
+      provider.stream(
+        messages,
+        {
+          maxTokens: params.maxTokens,
+          temperature: params.temperature
+        },
+        (chunk) => {
+          if (signal.aborted)
+            return;
+          if (chunk.reasoning && this.plugin.settings.showReasoning) {
+            this.streamingRawReasoning += chunk.reasoning;
+            this.ensureReasoningBlock();
+            if (this.streamingReasoningBodyEl) {
+              this.streamingReasoningBodyEl.setText(this.streamingRawReasoning);
+            }
+          }
+          if (chunk.content) {
+            this.streamingRawContent += chunk.content;
+            this.scheduleStreamingRender();
+          }
+        }
+      ).then((result) => {
+        signal.removeEventListener("abort", onAbort);
+        if (signal.aborted) {
+          resolve({
+            content: this.streamingRawContent,
+            reasoning: this.streamingRawReasoning || void 0,
+            usage: void 0
+          });
+        } else {
+          resolve(result);
+        }
+      }).catch((err2) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err2);
+      });
     });
   }
   /** 在助手消息气泡中显示「思考中」跳点动画。 */
