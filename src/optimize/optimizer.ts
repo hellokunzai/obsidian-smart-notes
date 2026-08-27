@@ -14,12 +14,12 @@ export async function optimizeNote(
   // 优化笔记通常需要较长输出：无限制（0）保持无限制，否则至少保证 2048。
   const maxTokens =
     params.maxTokens === 0 ? 0 : Math.max(params.maxTokens, 2048);
-  const raw = await provider.complete(
+  const raw = (await provider.complete(
     buildOptimizePrompt(content, linkFormat, linkType),
     {
       temperature: params.temperature,
       maxTokens,
     }
-  );
+  )).content;
   return raw.trim();
 }

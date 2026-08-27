@@ -339,10 +339,10 @@ export default class AiNoteAgentPlugin extends Plugin {
 
     const activeLink = getActiveModelLink(this.settings);
     const params = resolveLinkParams(activeLink, this.settings);
-    const response = await this.provider.complete(messages, {
+    const response = (await this.provider.complete(messages, {
       maxTokens: params.maxTokens,
       temperature: params.temperature,
-    });
+    })).content;
 
     let yaml = response.trim();
     if (yaml.startsWith("```")) {

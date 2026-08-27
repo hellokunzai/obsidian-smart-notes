@@ -5,6 +5,8 @@ import {
   CompletionOptions,
   CompletionResult,
   StreamChunk,
+  type TokenUsage,
+  type ToolCall,
 } from "./provider";
 import { readStreamLines, isFetchAvailable, type ParsedLine } from "./stream";
 import { t } from "../i18n";
@@ -46,6 +48,79 @@ function parseSSELine(line: string): ParsedLine | null {
   }
 }
 
+/**
+ * 把内部 ChatMessage 转换为 OpenAI API 格式。
+ * tool / tool_calls 需要特殊字段映射。
+ */
+function toOpenAIMessages(messages: ChatMessage[]): unknown[] {
+  return messages.map((m) => {
+    const base: Record<string, unknown> = {
+      role: m.role,
+      content: m.content,
+    };
+    if (m.role === "assistant" && m.toolCalls && m.toolCalls.length > 0) {
+      base.tool_calls = m.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: tc.type,
+        function: {
+          name: tc.function.name,
+          arguments: tc.function.arguments,
+        },
+      }));
+    }
+    if (m.role === "tool" && m.toolCallId) {
+      base.tool_call_id = m.toolCallId;
+    }
+    return base;
+  });
+}
+
+/**
+ * 从非流式 OpenAI 响应中解析 CompletionResult（含可能的 tool_calls）。
+ */
+function parseCompletionResponse(json: unknown): CompletionResult {
+  const j = json as Record<string, unknown>;
+  const choices = Array.isArray(j.choices) ? j.choices : [];
+  const message = (choices[0] as Record<string, unknown> | undefined)
+    ?.message as Record<string, unknown> | undefined;
+  const content = (message?.content as string) || "";
+
+  let toolCalls: ToolCall[] | undefined;
+  const rawToolCalls = message?.tool_calls;
+  if (Array.isArray(rawToolCalls) && rawToolCalls.length > 0) {
+    toolCalls = rawToolCalls
+      .map((tc: unknown) => {
+        const t = tc as Record<string, unknown>;
+        const fn = t.function as Record<string, unknown> | undefined;
+        if (!fn) return null;
+        return {
+          id: String(t.id ?? ""),
+          type: "function" as const,
+          function: {
+            name: String(fn.name ?? ""),
+            arguments: String(fn.arguments ?? "{}"),
+          },
+        };
+      })
+      .filter((tc): tc is NonNullable<typeof tc> => tc !== null);
+  }
+
+  let usage: TokenUsage | undefined;
+  const u = j.usage as Record<string, unknown> | undefined;
+  if (u) {
+    const details =
+      u.completion_tokens_details as Record<string, unknown> | undefined;
+    usage = {
+      promptTokens: (u.prompt_tokens as number) ?? 0,
+      completionTokens: (u.completion_tokens as number) ?? 0,
+      totalTokens: (u.total_tokens as number) ?? 0,
+      reasoningTokens: (details?.reasoning_tokens as number) ?? undefined,
+    };
+  }
+
+  return { content: content.trim(), usage, toolCalls };
+}
+
 export class OpenAIProvider implements AIProvider {
   id = "openai";
 
@@ -55,19 +130,25 @@ export class OpenAIProvider implements AIProvider {
     private model: string
   ) {}
 
-  async complete(messages: ChatMessage[], opts?: CompletionOptions): Promise<string> {
+  async complete(
+    messages: ChatMessage[],
+    opts?: CompletionOptions
+  ): Promise<CompletionResult> {
     if (!this.apiKey) {
       throw new Error(t("error.noApiKey"));
     }
     const url = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
     const body: Record<string, unknown> = {
       model: this.model,
-      messages,
+      messages: toOpenAIMessages(messages),
       temperature: opts?.temperature ?? 0.3,
       stream: false,
     };
     if (opts?.maxTokens) {
       body.max_tokens = opts.maxTokens;
+    }
+    if (opts?.tools && opts.tools.length > 0) {
+      body.tools = opts.tools;
     }
 
     const resp = await requestUrl({
@@ -87,8 +168,7 @@ export class OpenAIProvider implements AIProvider {
         })
       );
     }
-    const json = resp.json;
-    return json?.choices?.[0]?.message?.content?.trim() ?? "";
+    return parseCompletionResponse(resp.json);
   }
 
   async stream(
@@ -100,20 +180,22 @@ export class OpenAIProvider implements AIProvider {
       throw new Error(t("error.noApiKey"));
     }
     if (!isFetchAvailable()) {
-      const content = await this.complete(messages, opts);
-      return { content };
+      return this.complete(messages, opts);
     }
 
     const url = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
     const body: Record<string, unknown> = {
       model: this.model,
-      messages,
+      messages: toOpenAIMessages(messages),
       temperature: opts?.temperature ?? 0.3,
       stream: true,
       stream_options: { include_usage: true },
     };
     if (opts?.maxTokens) {
       body.max_tokens = opts.maxTokens;
+    }
+    if (opts?.tools && opts.tools.length > 0) {
+      body.tools = opts.tools;
     }
 
     const resp = await fetch(url, {

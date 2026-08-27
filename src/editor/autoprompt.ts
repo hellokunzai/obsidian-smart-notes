@@ -25,10 +25,10 @@ async function requestSuggestion(
     Math.min(state.doc.length, pos + 500)
   );
   try {
-    const raw = await provider.complete(buildAutopromptPrompt(before, after), {
+    const raw = (await provider.complete(buildAutopromptPrompt(before, after), {
       temperature: plugin.settings.temperature,
       maxTokens: 256,
-    });
+    })).content;
     const text = raw.trim();
     if (text && view.state.selection.main.head === pos) {
       view.dispatch({ effects: setSuggestion.of({ text, pos }) });
@@ -98,10 +98,10 @@ export async function autopromptAtCursor(
   const before = editor.getRange({ line: 0, ch: 0 }, pos);
   const end = editor.offsetToPos(editor.getValue().length);
   const after = editor.getRange(pos, end);
-  const raw = await provider.complete(buildAutopromptPrompt(before, after), {
+  const raw = (await provider.complete(buildAutopromptPrompt(before, after), {
     temperature: plugin.settings.temperature,
     maxTokens: 512,
-  });
+  })).content;
   const text = raw.trim();
   if (text) {
     editor.replaceSelection(text);

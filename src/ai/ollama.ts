@@ -5,6 +5,8 @@ import {
   CompletionOptions,
   CompletionResult,
   StreamChunk,
+  type TokenUsage,
+  type ToolCall,
 } from "./provider";
 import { readStreamLines, isFetchAvailable, type ParsedLine } from "./stream";
 import { t } from "../i18n";
@@ -50,12 +52,89 @@ function parseNDJSONLine(line: string): ParsedLine | null {
   }
 }
 
+/**
+ * 把内部 ChatMessage 转换为 Ollama /api/chat 格式。
+ */
+function toOllamaMessages(messages: ChatMessage[]): unknown[] {
+  return messages.map((m) => {
+    const base: Record<string, unknown> = {
+      role: m.role,
+      content: m.content,
+    };
+    if (m.role === "assistant" && m.toolCalls && m.toolCalls.length > 0) {
+      base.tool_calls = m.toolCalls.map((tc) => ({
+        function: {
+          name: tc.function.name,
+          arguments: JSON.parse(tc.function.arguments || "{}"),
+        },
+      }));
+    }
+    if (m.role === "tool" && m.toolCallId) {
+      // Ollama 的工具结果消息格式比较特殊，通常直接作为 user/assistant 消息传递
+      // 这里保留 tool_call_id 供后续处理
+      base.tool_call_id = m.toolCallId;
+    }
+    return base;
+  });
+}
+
+/**
+ * 从 Ollama 非流式响应中解析 CompletionResult（含可能的 tool_calls）。
+ */
+function parseCompletionResponse(json: unknown): CompletionResult {
+  const j = json as Record<string, unknown>;
+  const message = j.message as Record<string, unknown> | undefined;
+  const content = (message?.content as string) || "";
+
+  let toolCalls: ToolCall[] | undefined;
+  const rawToolCalls = message?.tool_calls;
+  if (Array.isArray(rawToolCalls) && rawToolCalls.length > 0) {
+    toolCalls = rawToolCalls
+      .map((tc: unknown, idx: number) => {
+        const t = tc as Record<string, unknown>;
+        const fn = t.function as Record<string, unknown> | undefined;
+        if (!fn) return null;
+        // Ollama 的 arguments 可能是对象，需要序列化为 JSON 字符串
+        const args = fn.arguments;
+        const argsStr =
+          typeof args === "string" ? args : JSON.stringify(args ?? {});
+        return {
+          id: String(t.id ?? `call_ollama_${idx}`),
+          type: "function" as const,
+          function: {
+            name: String(fn.name ?? ""),
+            arguments: argsStr,
+          },
+        };
+      })
+      .filter((tc): tc is NonNullable<typeof tc> => tc !== null);
+  }
+
+  let usage: TokenUsage | undefined;
+  const gotPrompt = typeof j.prompt_eval_count === "number";
+  const gotComplete = typeof j.eval_count === "number";
+  if (gotPrompt || gotComplete) {
+    usage = {
+      promptTokens: (j.prompt_eval_count as number) ?? 0,
+      completionTokens: (j.eval_count as number) ?? 0,
+      totalTokens:
+        ((j.prompt_eval_count as number) ?? 0) +
+        ((j.eval_count as number) ?? 0),
+    };
+  }
+
+  return { content: content.trim(), usage, toolCalls };
+}
+
 export class OllamaProvider implements AIProvider {
   id = "ollama";
 
   constructor(private baseUrl: string, private model: string) {}
 
-  async complete(messages: ChatMessage[], opts?: CompletionOptions): Promise<string> {
+  async complete(
+    messages: ChatMessage[],
+    opts?: CompletionOptions
+  ): Promise<CompletionResult> {
     const url = this.baseUrl.replace(/\/+$/, "") + "/api/chat";
     const options: Record<string, unknown> = {
       temperature: opts?.temperature ?? 0.3,
@@ -64,18 +143,23 @@ export class OllamaProvider implements AIProvider {
       options.num_predict = opts.maxTokens;
     }
 
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages: toOllamaMessages(messages),
+      stream: false,
+      options,
+    };
+    if (opts?.tools && opts.tools.length > 0) {
+      body.tools = opts.tools;
+    }
+
     const resp = await requestUrl({
       url,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        stream: false,
-        options,
-      }),
+      body: JSON.stringify(body),
     });
     if (resp.status !== 200) {
       throw new Error(
@@ -85,7 +169,7 @@ export class OllamaProvider implements AIProvider {
         })
       );
     }
-    return resp.json?.message?.content?.trim() ?? "";
+    return parseCompletionResponse(resp.json);
   }
 
   async stream(
@@ -94,8 +178,7 @@ export class OllamaProvider implements AIProvider {
     onChunk: (chunk: StreamChunk) => void
   ): Promise<CompletionResult> {
     if (!isFetchAvailable()) {
-      const content = await this.complete(messages, opts);
-      return { content };
+      return this.complete(messages, opts);
     }
 
     const url = this.baseUrl.replace(/\/+$/, "") + "/api/chat";
@@ -106,17 +189,22 @@ export class OllamaProvider implements AIProvider {
       options.num_predict = opts.maxTokens;
     }
 
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages: toOllamaMessages(messages),
+      stream: true,
+      options,
+    };
+    if (opts?.tools && opts.tools.length > 0) {
+      body.tools = opts.tools;
+    }
+
     const resp = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        stream: true,
-        options,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!resp.ok) {

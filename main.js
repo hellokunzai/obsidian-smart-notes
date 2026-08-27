@@ -831,6 +831,66 @@ function parseSSELine(line) {
     return null;
   }
 }
+function toOpenAIMessages(messages) {
+  return messages.map((m) => {
+    const base = {
+      role: m.role,
+      content: m.content
+    };
+    if (m.role === "assistant" && m.toolCalls && m.toolCalls.length > 0) {
+      base.tool_calls = m.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: tc.type,
+        function: {
+          name: tc.function.name,
+          arguments: tc.function.arguments
+        }
+      }));
+    }
+    if (m.role === "tool" && m.toolCallId) {
+      base.tool_call_id = m.toolCallId;
+    }
+    return base;
+  });
+}
+function parseCompletionResponse(json) {
+  var _a2, _b2, _c, _d, _e;
+  const j = json;
+  const choices = Array.isArray(j.choices) ? j.choices : [];
+  const message = (_a2 = choices[0]) == null ? void 0 : _a2.message;
+  const content = (message == null ? void 0 : message.content) || "";
+  let toolCalls;
+  const rawToolCalls = message == null ? void 0 : message.tool_calls;
+  if (Array.isArray(rawToolCalls) && rawToolCalls.length > 0) {
+    toolCalls = rawToolCalls.map((tc) => {
+      var _a3, _b3, _c2;
+      const t2 = tc;
+      const fn = t2.function;
+      if (!fn)
+        return null;
+      return {
+        id: String((_a3 = t2.id) != null ? _a3 : ""),
+        type: "function",
+        function: {
+          name: String((_b3 = fn.name) != null ? _b3 : ""),
+          arguments: String((_c2 = fn.arguments) != null ? _c2 : "{}")
+        }
+      };
+    }).filter((tc) => tc !== null);
+  }
+  let usage;
+  const u = j.usage;
+  if (u) {
+    const details = u.completion_tokens_details;
+    usage = {
+      promptTokens: (_b2 = u.prompt_tokens) != null ? _b2 : 0,
+      completionTokens: (_c = u.completion_tokens) != null ? _c : 0,
+      totalTokens: (_d = u.total_tokens) != null ? _d : 0,
+      reasoningTokens: (_e = details == null ? void 0 : details.reasoning_tokens) != null ? _e : void 0
+    };
+  }
+  return { content: content.trim(), usage, toolCalls };
+}
 var OpenAIProvider = class {
   constructor(baseUrl, apiKey, model) {
     this.baseUrl = baseUrl;
@@ -839,19 +899,22 @@ var OpenAIProvider = class {
     this.id = "openai";
   }
   async complete(messages, opts) {
-    var _a2, _b2, _c, _d, _e, _f;
+    var _a2;
     if (!this.apiKey) {
       throw new Error(t("error.noApiKey"));
     }
     const url = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
     const body = {
       model: this.model,
-      messages,
+      messages: toOpenAIMessages(messages),
       temperature: (_a2 = opts == null ? void 0 : opts.temperature) != null ? _a2 : 0.3,
       stream: false
     };
     if (opts == null ? void 0 : opts.maxTokens) {
       body.max_tokens = opts.maxTokens;
+    }
+    if ((opts == null ? void 0 : opts.tools) && opts.tools.length > 0) {
+      body.tools = opts.tools;
     }
     const resp = await (0, import_obsidian2.requestUrl)({
       url,
@@ -870,8 +933,7 @@ var OpenAIProvider = class {
         })
       );
     }
-    const json = resp.json;
-    return (_f = (_e = (_d = (_c = (_b2 = json == null ? void 0 : json.choices) == null ? void 0 : _b2[0]) == null ? void 0 : _c.message) == null ? void 0 : _d.content) == null ? void 0 : _e.trim()) != null ? _f : "";
+    return parseCompletionResponse(resp.json);
   }
   async stream(messages, opts, onChunk) {
     var _a2;
@@ -879,19 +941,21 @@ var OpenAIProvider = class {
       throw new Error(t("error.noApiKey"));
     }
     if (!isFetchAvailable()) {
-      const content = await this.complete(messages, opts);
-      return { content };
+      return this.complete(messages, opts);
     }
     const url = this.baseUrl.replace(/\/+$/, "") + "/chat/completions";
     const body = {
       model: this.model,
-      messages,
+      messages: toOpenAIMessages(messages),
       temperature: (_a2 = opts == null ? void 0 : opts.temperature) != null ? _a2 : 0.3,
       stream: true,
       stream_options: { include_usage: true }
     };
     if (opts == null ? void 0 : opts.maxTokens) {
       body.max_tokens = opts.maxTokens;
+    }
+    if ((opts == null ? void 0 : opts.tools) && opts.tools.length > 0) {
+      body.tools = opts.tools;
     }
     const resp = await fetch(url, {
       method: "POST",
@@ -958,6 +1022,64 @@ function parseNDJSONLine(line) {
     return null;
   }
 }
+function toOllamaMessages(messages) {
+  return messages.map((m) => {
+    const base = {
+      role: m.role,
+      content: m.content
+    };
+    if (m.role === "assistant" && m.toolCalls && m.toolCalls.length > 0) {
+      base.tool_calls = m.toolCalls.map((tc) => ({
+        function: {
+          name: tc.function.name,
+          arguments: JSON.parse(tc.function.arguments || "{}")
+        }
+      }));
+    }
+    if (m.role === "tool" && m.toolCallId) {
+      base.tool_call_id = m.toolCallId;
+    }
+    return base;
+  });
+}
+function parseCompletionResponse2(json) {
+  var _a2, _b2, _c, _d;
+  const j = json;
+  const message = j.message;
+  const content = (message == null ? void 0 : message.content) || "";
+  let toolCalls;
+  const rawToolCalls = message == null ? void 0 : message.tool_calls;
+  if (Array.isArray(rawToolCalls) && rawToolCalls.length > 0) {
+    toolCalls = rawToolCalls.map((tc, idx) => {
+      var _a3, _b3;
+      const t2 = tc;
+      const fn = t2.function;
+      if (!fn)
+        return null;
+      const args = fn.arguments;
+      const argsStr = typeof args === "string" ? args : JSON.stringify(args != null ? args : {});
+      return {
+        id: String((_a3 = t2.id) != null ? _a3 : `call_ollama_${idx}`),
+        type: "function",
+        function: {
+          name: String((_b3 = fn.name) != null ? _b3 : ""),
+          arguments: argsStr
+        }
+      };
+    }).filter((tc) => tc !== null);
+  }
+  let usage;
+  const gotPrompt = typeof j.prompt_eval_count === "number";
+  const gotComplete = typeof j.eval_count === "number";
+  if (gotPrompt || gotComplete) {
+    usage = {
+      promptTokens: (_a2 = j.prompt_eval_count) != null ? _a2 : 0,
+      completionTokens: (_b2 = j.eval_count) != null ? _b2 : 0,
+      totalTokens: ((_c = j.prompt_eval_count) != null ? _c : 0) + ((_d = j.eval_count) != null ? _d : 0)
+    };
+  }
+  return { content: content.trim(), usage, toolCalls };
+}
 var OllamaProvider = class {
   constructor(baseUrl, model) {
     this.baseUrl = baseUrl;
@@ -965,7 +1087,7 @@ var OllamaProvider = class {
     this.id = "ollama";
   }
   async complete(messages, opts) {
-    var _a2, _b2, _c, _d, _e;
+    var _a2;
     const url = this.baseUrl.replace(/\/+$/, "") + "/api/chat";
     const options = {
       temperature: (_a2 = opts == null ? void 0 : opts.temperature) != null ? _a2 : 0.3
@@ -973,18 +1095,22 @@ var OllamaProvider = class {
     if (opts == null ? void 0 : opts.maxTokens) {
       options.num_predict = opts.maxTokens;
     }
+    const body = {
+      model: this.model,
+      messages: toOllamaMessages(messages),
+      stream: false,
+      options
+    };
+    if ((opts == null ? void 0 : opts.tools) && opts.tools.length > 0) {
+      body.tools = opts.tools;
+    }
     const resp = await (0, import_obsidian3.requestUrl)({
       url,
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        stream: false,
-        options
-      })
+      body: JSON.stringify(body)
     });
     if (resp.status !== 200) {
       throw new Error(
@@ -994,13 +1120,12 @@ var OllamaProvider = class {
         })
       );
     }
-    return (_e = (_d = (_c = (_b2 = resp.json) == null ? void 0 : _b2.message) == null ? void 0 : _c.content) == null ? void 0 : _d.trim()) != null ? _e : "";
+    return parseCompletionResponse2(resp.json);
   }
   async stream(messages, opts, onChunk) {
     var _a2;
     if (!isFetchAvailable()) {
-      const content = await this.complete(messages, opts);
-      return { content };
+      return this.complete(messages, opts);
     }
     const url = this.baseUrl.replace(/\/+$/, "") + "/api/chat";
     const options = {
@@ -1009,17 +1134,21 @@ var OllamaProvider = class {
     if (opts == null ? void 0 : opts.maxTokens) {
       options.num_predict = opts.maxTokens;
     }
+    const body = {
+      model: this.model,
+      messages: toOllamaMessages(messages),
+      stream: true,
+      options
+    };
+    if ((opts == null ? void 0 : opts.tools) && opts.tools.length > 0) {
+      body.tools = opts.tools;
+    }
     const resp = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        stream: true,
-        options
-      })
+      body: JSON.stringify(body)
     });
     if (!resp.ok) {
       const text = await resp.text();
@@ -2384,10 +2513,10 @@ ${digest}`;
     { role: "user", content: user }
   ];
   try {
-    const raw = await provider.complete(messages, {
+    const raw = (await provider.complete(messages, {
       temperature: 0.2,
       maxTokens: 2048
-    });
+    })).content;
     const parsed = parseJsonFromLLM(raw);
     if (!parsed || !parsed.profile || !parsed.daily)
       return null;
@@ -4368,13 +4497,13 @@ async function optimizeNote(plugin, content, linkFormat, linkType) {
   const activeLink = getActiveModelLink(plugin.settings);
   const params = resolveLinkParams(activeLink, plugin.settings);
   const maxTokens = params.maxTokens === 0 ? 0 : Math.max(params.maxTokens, 2048);
-  const raw = await provider.complete(
+  const raw = (await provider.complete(
     buildOptimizePrompt(content, linkFormat, linkType),
     {
       temperature: params.temperature,
       maxTokens
     }
-  );
+  )).content;
   return raw.trim();
 }
 
@@ -4502,10 +4631,10 @@ async function requestSuggestion(plugin, view) {
     Math.min(state.doc.length, pos + 500)
   );
   try {
-    const raw = await provider.complete(buildAutopromptPrompt(before, after), {
+    const raw = (await provider.complete(buildAutopromptPrompt(before, after), {
       temperature: plugin.settings.temperature,
       maxTokens: 256
-    });
+    })).content;
     const text = raw.trim();
     if (text && view.state.selection.main.head === pos) {
       view.dispatch({ effects: setSuggestion.of({ text, pos }) });
@@ -4575,10 +4704,10 @@ async function autopromptAtCursor(plugin, editor) {
   const before = editor.getRange({ line: 0, ch: 0 }, pos);
   const end = editor.offsetToPos(editor.getValue().length);
   const after = editor.getRange(pos, end);
-  const raw = await provider.complete(buildAutopromptPrompt(before, after), {
+  const raw = (await provider.complete(buildAutopromptPrompt(before, after), {
     temperature: plugin.settings.temperature,
     maxTokens: 512
-  });
+  })).content;
   const text = raw.trim();
   if (text) {
     editor.replaceSelection(text);
@@ -4592,13 +4721,410 @@ var import_obsidian12 = require("obsidian");
 
 // src/context/knowledge.ts
 var import_obsidian11 = require("obsidian");
-function buildKnowledgeIndex(app, enabled, maxFiles = 0) {
+var STOP_WORDS = /* @__PURE__ */ new Set([
+  // 中文
+  "\u7684",
+  "\u4E86",
+  "\u662F",
+  "\u5728",
+  "\u6211",
+  "\u4F60",
+  "\u4ED6",
+  "\u5979",
+  "\u5B83",
+  "\u4EEC",
+  "\u8FD9",
+  "\u90A3",
+  "\u6709",
+  "\u548C",
+  "\u4E0E",
+  "\u6216",
+  "\u5C31",
+  "\u90FD",
+  "\u4E5F",
+  "\u8FD8",
+  "\u4F46",
+  "\u800C",
+  "\u4E3A",
+  "\u4EE5",
+  "\u53EF",
+  "\u80FD",
+  "\u4F1A",
+  "\u8981",
+  "\u60F3",
+  "\u770B",
+  "\u8BF4",
+  "\u505A",
+  "\u6765",
+  "\u53BB",
+  "\u4E0A",
+  "\u4E0B",
+  "\u91CC",
+  "\u5916",
+  "\u524D",
+  "\u540E",
+  "\u4E2D",
+  "\u5185",
+  "\u8FC7",
+  "\u7B49",
+  "\u88AB",
+  "\u8BA9",
+  "\u53EB",
+  "\u5F53",
+  "\u4E8E",
+  "\u4E4B",
+  "\u53CA",
+  "\u5C06",
+  "\u5DF2",
+  "\u53C8",
+  "\u518D",
+  "\u66F4",
+  "\u6700",
+  "\u5F88",
+  "\u975E\u5E38",
+  "\u6BD4\u8F83",
+  "\u4E00\u4E9B",
+  "\u4E00\u4E0B",
+  "\u4E00\u4E2A",
+  "\u4E00\u6B21",
+  "\u4E00\u76F4",
+  "\u603B\u662F",
+  "\u7ECF\u5E38",
+  "\u6709\u65F6",
+  "\u5076\u5C14",
+  "\u4ECE\u4E0D",
+  "\u5DF2\u7ECF",
+  "\u6B63\u5728",
+  "\u5C31\u8981",
+  "\u53EF\u80FD",
+  "\u5E94\u8BE5",
+  "\u4E00\u5B9A",
+  "\u5FC5\u987B",
+  "\u9700\u8981",
+  "\u53EF\u4EE5",
+  "\u4E0D\u80FD",
+  "\u4E0D\u8981",
+  "\u6CA1\u6709",
+  "\u5C31\u662F",
+  "\u8FD8\u662F",
+  "\u4F46\u662F",
+  "\u56E0\u4E3A",
+  "\u6240\u4EE5",
+  "\u867D\u7136",
+  "\u4E0D\u8FC7",
+  "\u7136\u540E",
+  "\u63A5\u7740",
+  "\u4E8E\u662F",
+  "\u800C\u4E14",
+  "\u5E76\u4E14",
+  "\u6216\u8005",
+  "\u8981\u4E48",
+  "\u5982\u679C",
+  "\u90A3\u4E48",
+  "\u53EA\u8981",
+  "\u53EA\u6709",
+  "\u9664\u975E",
+  "\u65E0\u8BBA",
+  "\u4E0D\u7BA1",
+  "\u4E0D\u8BBA",
+  "\u5C3D\u7BA1",
+  "\u5373\u4F7F",
+  "\u5C31\u7B97",
+  "\u54EA\u6015",
+  "\u4E0E\u5176",
+  "\u4E0D\u5982",
+  "\u4E0D\u4F46",
+  "\u4E0D\u4EC5",
+  "\u9664\u4E86",
+  "\u81F3\u4E8E",
+  "\u5173\u4E8E",
+  "\u5BF9\u4E8E",
+  "\u7531\u4E8E",
+  "\u6839\u636E",
+  "\u6309\u7167",
+  "\u901A\u8FC7",
+  "\u7ECF\u8FC7",
+  "\u968F\u7740",
+  "\u5411\u7740",
+  "\u6CBF\u7740",
+  "\u8D81\u7740",
+  "\u5F53\u7740",
+  "\u51ED\u7740",
+  "\u9664\u53BB",
+  "\u9664\u5F00",
+  // 英文
+  "the",
+  "a",
+  "an",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "shall",
+  "should",
+  "can",
+  "could",
+  "may",
+  "might",
+  "must",
+  "ought",
+  "need",
+  "dare",
+  "used",
+  "to",
+  "of",
+  "in",
+  "for",
+  "on",
+  "with",
+  "at",
+  "by",
+  "from",
+  "as",
+  "into",
+  "through",
+  "during",
+  "before",
+  "after",
+  "above",
+  "below",
+  "between",
+  "under",
+  "and",
+  "but",
+  "or",
+  "yet",
+  "so",
+  "if",
+  "because",
+  "although",
+  "though",
+  "while",
+  "where",
+  "when",
+  "that",
+  "which",
+  "who",
+  "whom",
+  "whose",
+  "what",
+  "this",
+  "these",
+  "those",
+  "i",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "me",
+  "him",
+  "her",
+  "us",
+  "them",
+  "my",
+  "your",
+  "his",
+  "its",
+  "our",
+  "their",
+  "mine",
+  "yours",
+  "hers",
+  "ours",
+  "theirs",
+  "myself",
+  "yourself",
+  "himself",
+  "herself",
+  "itself",
+  "ourselves",
+  "yourselves",
+  "themselves",
+  "am",
+  "done",
+  "get",
+  "got",
+  "gotten",
+  "make",
+  "made",
+  "take",
+  "took",
+  "taken",
+  "go",
+  "went",
+  "gone",
+  "come",
+  "came",
+  "know",
+  "knew",
+  "known",
+  "think",
+  "thought",
+  "see",
+  "saw",
+  "seen",
+  "want",
+  "wanted",
+  "give",
+  "gave",
+  "given",
+  "use",
+  "used",
+  "find",
+  "found",
+  "tell",
+  "told",
+  "ask",
+  "asked",
+  "work",
+  "worked",
+  "feel",
+  "felt",
+  "try",
+  "tried",
+  "leave",
+  "left",
+  "call",
+  "called",
+  "good",
+  "new",
+  "first",
+  "last",
+  "long",
+  "great",
+  "little",
+  "own",
+  "other",
+  "old",
+  "right",
+  "big",
+  "high",
+  "different",
+  "small",
+  "large",
+  "next",
+  "early",
+  "young",
+  "important",
+  "few",
+  "public",
+  "bad",
+  "same",
+  "able",
+  "please",
+  "help",
+  "thanks",
+  "thank",
+  "hi",
+  "hello",
+  "hey",
+  "how",
+  "where",
+  "why",
+  "who",
+  "which",
+  "whose",
+  "whatever",
+  "whoever",
+  "whomever",
+  "whichever",
+  "\u5E2E\u6211",
+  "\u7ED9\u6211",
+  "\u8BF7\u5E2E",
+  "\u4F60\u770B",
+  "\u770B\u4E0B",
+  "\u770B\u770B",
+  "\u4E00\u4E0B",
+  "\u603B\u7ED3",
+  "\u6574\u7406",
+  "\u5206\u6790",
+  "\u5217\u51FA",
+  "\u751F\u6210",
+  "\u521B\u5EFA",
+  "\u4FEE\u6539",
+  "\u7F16\u8F91",
+  "\u5220\u9664",
+  "\u6DFB\u52A0",
+  "\u63D2\u5165",
+  "\u66F4\u65B0",
+  "\u67E5\u8BE2",
+  "\u641C\u7D22",
+  "\u67E5\u627E",
+  "\u5B9A\u4F4D",
+  "\u6253\u5F00",
+  "\u5173\u95ED",
+  "\u4FDD\u5B58",
+  "\u53D1\u9001",
+  "\u56DE\u590D",
+  "\u56DE\u7B54",
+  "\u89E3\u91CA",
+  "\u8BF4\u660E",
+  "\u63CF\u8FF0",
+  "\u4ECB\u7ECD",
+  "\u63A8\u8350",
+  "\u5EFA\u8BAE",
+  "\u63D0\u793A",
+  "\u544A\u8BC9",
+  "\u901A\u77E5",
+  "\u63D0\u9192",
+  "\u8BB0\u5F55",
+  "\u5199\u4E00\u4E0B"
+]);
+function extractQueryKeywords(query) {
+  if (!query)
+    return [];
+  const cleaned = query.replace(/[，。？！；：""''（）【】《》…—·、,.?!;:'"()[\]{}…\-_/\\|~`@#$%^&*+=<>]/g, " ");
+  const tokens = cleaned.split(/\s+/).filter((s) => s.length > 0);
+  const keywords = [];
+  for (const token of tokens) {
+    if (/^[\u4e00-\u9fff]+$/.test(token)) {
+      if (token.length >= 2)
+        keywords.push(token);
+    } else if (/^[a-zA-Z0-9]+$/.test(token)) {
+      if (token.length >= 2)
+        keywords.push(token.toLowerCase());
+    } else {
+      const cn = token.match(/[\u4e00-\u9fff]{2,}/g) || [];
+      keywords.push(...cn);
+      const en = token.match(/[a-zA-Z]{2,}/g) || [];
+      keywords.push(...en.map((s) => s.toLowerCase()));
+    }
+  }
+  return [...new Set(keywords)].filter((s) => !STOP_WORDS.has(s));
+}
+function matchesKeywords(text, keywords) {
+  if (keywords.length === 0)
+    return true;
+  const lower = text.toLowerCase();
+  return keywords.some((k) => lower.includes(k.toLowerCase()));
+}
+function buildKnowledgeIndex(app, enabled, maxFiles = 0, query = "") {
   if (!enabled)
     return "";
   const mdFiles = app.vault.getMarkdownFiles();
   if (mdFiles.length === 0)
     return "";
   let lines = mdFiles.map((f) => `- ${f.path}`).sort();
+  const keywords = extractQueryKeywords(query);
+  if (keywords.length > 0) {
+    const filtered = lines.filter((line) => matchesKeywords(line, keywords));
+    if (filtered.length > 0) {
+      lines = filtered;
+    }
+  }
   if (maxFiles > 0 && lines.length > maxFiles) {
     lines = lines.slice(lines.length - maxFiles);
     lines.push(
@@ -4610,7 +5136,7 @@ function buildKnowledgeIndex(app, enabled, maxFiles = 0) {
     ...lines
   ].join("\n");
 }
-function buildFrontmatterIndex(app, enabled, keysRaw, maxChars, maxFiles = 0) {
+function buildFrontmatterIndex(app, enabled, keysRaw, maxChars, maxFiles = 0, query = "") {
   var _a2;
   if (!enabled)
     return "";
@@ -4619,6 +5145,7 @@ function buildFrontmatterIndex(app, enabled, keysRaw, maxChars, maxFiles = 0) {
   const mdFiles = app.vault.getMarkdownFiles();
   if (mdFiles.length === 0)
     return "";
+  const keywords = extractQueryKeywords(query);
   let lines = [];
   for (const f of mdFiles) {
     const fm = (_a2 = app.metadataCache.getFileCache(f)) == null ? void 0 : _a2.frontmatter;
@@ -4641,6 +5168,12 @@ function buildFrontmatterIndex(app, enabled, keysRaw, maxChars, maxFiles = 0) {
   }
   if (lines.length === 0)
     return "";
+  if (keywords.length > 0) {
+    const filtered = lines.filter((line) => matchesKeywords(line, keywords));
+    if (filtered.length > 0) {
+      lines = filtered;
+    }
+  }
   lines.sort();
   let truncatedNote = "";
   if (maxFiles > 0 && lines.length > maxFiles) {
@@ -4755,6 +5288,272 @@ async function buildAttachmentContext(app, attachments, message, maxChars) {
   if (blocks.length === 0)
     return "";
   return "--- Attached knowledge base content ---\n" + blocks.join("\n\n");
+}
+
+// src/context/tools.ts
+function createVaultToolDefinitions() {
+  return [
+    {
+      type: "function",
+      function: {
+        name: "search_vault_paths",
+        description: "Search for Markdown files in the vault by keywords. Returns matching file paths. Use this when you need to locate files related to a specific topic.",
+        parameters: {
+          type: "object",
+          properties: {
+            keywords: {
+              type: "string",
+              description: "Search keywords extracted from the user's question. Multiple keywords separated by spaces. Example: 'project management' or 'Java Spring'"
+            },
+            maxResults: {
+              type: "number",
+              description: "Maximum number of results to return (default 20)"
+            }
+          },
+          required: ["keywords"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "search_vault_frontmatter",
+        description: "Search for files by their Frontmatter (YAML metadata). Returns file paths along with matching metadata key-value pairs. Use this when you need to find files by tags, dates, categories, or other metadata.",
+        parameters: {
+          type: "object",
+          properties: {
+            keywords: {
+              type: "string",
+              description: "Search keywords extracted from the user's question. Multiple keywords separated by spaces."
+            },
+            maxResults: {
+              type: "number",
+              description: "Maximum number of results to return (default 20)"
+            }
+          },
+          required: ["keywords"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "search_vault_content",
+        description: "Search inside the actual content of Markdown files. Returns file paths and text snippets around matching lines. Use this when you need to find specific text, concepts, or notes that contain certain content.",
+        parameters: {
+          type: "object",
+          properties: {
+            keywords: {
+              type: "string",
+              description: "Search keywords extracted from the user's question. Multiple keywords separated by spaces."
+            },
+            maxResults: {
+              type: "number",
+              description: "Maximum number of files to return (default 5)"
+            },
+            maxCharsPerFile: {
+              type: "number",
+              description: "Maximum characters per file snippet (default 800)"
+            }
+          },
+          required: ["keywords"]
+        }
+      }
+    }
+  ];
+}
+function createVaultToolHandlers(app) {
+  const handlers = {};
+  handlers["search_vault_paths"] = {
+    name: "search_vault_paths",
+    definition: createVaultToolDefinitions()[0],
+    async execute(args) {
+      const keywordsRaw = String(args.keywords || "");
+      const maxResults = Math.max(1, Math.min(100, Number(args.maxResults) || 20));
+      const keywords = extractQueryKeywords(keywordsRaw);
+      const mdFiles = app.vault.getMarkdownFiles();
+      let paths = mdFiles.map((f) => f.path);
+      if (keywords.length > 0) {
+        paths = paths.filter((p) => matchesKeywords(p, keywords));
+      }
+      paths.sort();
+      const total = paths.length;
+      const sliced = paths.slice(0, maxResults);
+      if (sliced.length === 0) {
+        return "No matching files found.";
+      }
+      let result = sliced.map((p) => `- ${p}`).join("\n");
+      if (total > sliced.length) {
+        result += `
+... (${total - sliced.length} more files omitted)`;
+      }
+      return result;
+    }
+  };
+  handlers["search_vault_frontmatter"] = {
+    name: "search_vault_frontmatter",
+    definition: createVaultToolDefinitions()[1],
+    async execute(args) {
+      var _a2;
+      const keywordsRaw = String(args.keywords || "");
+      const maxResults = Math.max(1, Math.min(100, Number(args.maxResults) || 20));
+      const keywords = extractQueryKeywords(keywordsRaw);
+      const mdFiles = app.vault.getMarkdownFiles();
+      const lines = [];
+      for (const f of mdFiles) {
+        const fm = (_a2 = app.metadataCache.getFileCache(f)) == null ? void 0 : _a2.frontmatter;
+        if (!fm || Object.keys(fm).length === 0)
+          continue;
+        const pairs = [];
+        for (const [k, v] of Object.entries(fm)) {
+          if (k === "position")
+            continue;
+          const formatted = formatFrontmatterValue2(v, 200);
+          if (formatted === "")
+            continue;
+          pairs.push(`${k}=${formatted}`);
+        }
+        if (pairs.length === 0)
+          continue;
+        const line = `- ${f.path}: ${pairs.join("; ")}`;
+        if (keywords.length === 0 || matchesKeywords(line, keywords)) {
+          lines.push(line);
+        }
+      }
+      lines.sort();
+      const total = lines.length;
+      const sliced = lines.slice(0, maxResults);
+      if (sliced.length === 0) {
+        return "No matching files with Frontmatter found.";
+      }
+      let result = sliced.join("\n");
+      if (total > sliced.length) {
+        result += `
+... (${total - sliced.length} more files omitted)`;
+      }
+      return result;
+    }
+  };
+  handlers["search_vault_content"] = {
+    name: "search_vault_content",
+    definition: createVaultToolDefinitions()[2],
+    async execute(args) {
+      const keywordsRaw = String(args.keywords || "");
+      const maxResults = Math.max(1, Math.min(50, Number(args.maxResults) || 5));
+      const maxCharsPerFile = Math.max(100, Math.min(5e3, Number(args.maxCharsPerFile) || 800));
+      const keywords = extractQueryKeywords(keywordsRaw);
+      if (keywords.length === 0) {
+        return "No valid keywords provided for content search.";
+      }
+      const mdFiles = app.vault.getMarkdownFiles();
+      const results = [];
+      for (const f of mdFiles) {
+        if (results.length >= maxResults)
+          break;
+        try {
+          const content = await app.vault.cachedRead(f);
+          const snippet = findContentSnippet(content, keywords, maxCharsPerFile);
+          if (snippet) {
+            results.push({ path: f.path, snippet });
+          }
+        } catch (e) {
+        }
+      }
+      if (results.length === 0) {
+        return "No files found containing the specified keywords.";
+      }
+      return results.map((r) => `## ${r.path}
+
+${r.snippet}`).join("\n\n---\n\n");
+    }
+  };
+  return handlers;
+}
+function findContentSnippet(content, keywords, maxChars) {
+  const lower = content.toLowerCase();
+  let bestPos = -1;
+  for (const kw of keywords) {
+    const pos = lower.indexOf(kw.toLowerCase());
+    if (pos !== -1) {
+      bestPos = pos;
+      break;
+    }
+  }
+  if (bestPos === -1)
+    return null;
+  const contextHalf = Math.floor(maxChars / 2);
+  const start = Math.max(0, bestPos - contextHalf);
+  const end = Math.min(content.length, bestPos + contextHalf);
+  let snippet = content.slice(start, end);
+  if (start > 0) {
+    const firstNewline = snippet.indexOf("\n");
+    if (firstNewline !== -1 && firstNewline < 50) {
+      snippet = snippet.slice(firstNewline + 1);
+    }
+  }
+  if (end < content.length) {
+    const lastNewline = snippet.lastIndexOf("\n");
+    if (lastNewline !== -1 && lastNewline > snippet.length - 50) {
+      snippet = snippet.slice(0, lastNewline);
+    }
+  }
+  snippet = snippet.trim();
+  if (start > 0)
+    snippet = "..." + snippet;
+  if (end < content.length)
+    snippet = snippet + "...";
+  return snippet;
+}
+function formatFrontmatterValue2(value, maxChars) {
+  let str;
+  if (value === null || value === void 0)
+    return "";
+  if (typeof value === "string") {
+    str = value;
+  } else if (typeof value === "number" || typeof value === "boolean") {
+    str = String(value);
+  } else if (Array.isArray(value)) {
+    str = value.map((v) => typeof v === "string" ? v : JSON.stringify(v)).join(", ");
+  } else {
+    str = JSON.stringify(value);
+  }
+  str = str.replace(/\n/g, " ");
+  if (str.length > maxChars) {
+    str = str.slice(0, maxChars) + "\u2026";
+  }
+  return str;
+}
+async function executeToolCalls(app, toolCalls) {
+  const handlers = createVaultToolHandlers(app);
+  const results = [];
+  for (const tc of toolCalls) {
+    const handler = handlers[tc.function.name];
+    if (!handler) {
+      results.push({
+        toolCallId: tc.id,
+        name: tc.function.name,
+        content: `Error: Tool "${tc.function.name}" not found.`
+      });
+      continue;
+    }
+    try {
+      const args = JSON.parse(tc.function.arguments || "{}");
+      const content = await handler.execute(args);
+      results.push({
+        toolCallId: tc.id,
+        name: tc.function.name,
+        content
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      results.push({
+        toolCallId: tc.id,
+        name: tc.function.name,
+        content: `Error executing tool: ${msg.slice(0, 500)}`
+      });
+    }
+  }
+  return results;
 }
 
 // src/search/prompt.ts
@@ -5981,7 +6780,7 @@ var ChatView = class extends import_obsidian12.ItemView {
     if (!s) {
       return { needsReenter: false, reenterPaths: [], assistantRowEl: void 0 };
     }
-    const system = await this.buildSystem();
+    const system = await this.buildSystem(this.lastUserText);
     const noteContext = await buildAttachmentContext(
       this.plugin.app,
       this.effectiveAttachments(),
@@ -6019,7 +6818,7 @@ ${extra}` : text
     const tail = s.messages.slice(0, -1);
     const limit = this.plugin.settings.historyMaxMessages;
     const recent = limit > 0 ? tail.slice(Math.max(0, tail.length - limit)) : tail;
-    const messages = [{ role: "system", content: system }];
+    let messages = [{ role: "system", content: system }];
     if (limit > 0 && tail.length > limit) {
       const older = tail.slice(0, tail.length - limit);
       const summary = this.buildHistorySummary(older);
@@ -6060,6 +6859,44 @@ ${extra}` : text
       }
       const paramLink = (_a2 = selectedLink != null ? selectedLink : getActiveModelLink(this.plugin.settings)) != null ? _a2 : this.plugin.settings.modelLinks[0];
       const params = resolveLinkParams(paramLink, this.plugin.settings);
+      const st = this.plugin.settings;
+      const useTools = st.includeVaultIndex || st.includeFrontmatterIndex;
+      if (useTools) {
+        const vaultTools = createVaultToolDefinitions();
+        try {
+          const toolCheck = await this.withTimeout(
+            provider.complete(messages, {
+              maxTokens: Math.min(params.maxTokens || 1024, 2048),
+              temperature: 0.1,
+              // 低温度让模型更确定地判断
+              tools: vaultTools
+            }),
+            3e4
+          );
+          if (toolCheck.toolCalls && toolCheck.toolCalls.length > 0) {
+            this.hideTypingIndicator(assistantContentEl);
+            this.showToolCallsNotice(assistantContentEl, toolCheck.toolCalls);
+            const toolResults = await executeToolCalls(
+              this.plugin.app,
+              toolCheck.toolCalls
+            );
+            messages.push({
+              role: "assistant",
+              content: toolCheck.content || "",
+              toolCalls: toolCheck.toolCalls
+            });
+            for (const tr of toolResults) {
+              messages.push({
+                role: "tool",
+                content: tr.content,
+                toolCallId: tr.toolCallId
+              });
+            }
+            this.showTypingIndicator(assistantContentEl);
+          }
+        } catch (e) {
+        }
+      }
       const result = await this.withTimeout(
         provider.stream(
           messages,
@@ -6193,6 +7030,15 @@ ${extra}` : text
     contentEl.removeClass("ana-chat-typing");
     contentEl.empty();
   }
+  /** 在助手消息气泡中显示「正在调用工具」提示。 */
+  showToolCallsNotice(contentEl, toolCalls) {
+    contentEl.empty();
+    const names = toolCalls.map((tc) => tc.function.name).join(", ");
+    contentEl.createEl("div", {
+      cls: "ana-chat-tool-notice",
+      text: `\u{1F50D} Using tools: ${names}...`
+    });
+  }
   /** 持久化会话：始终写 index.json；仅写已加载会话的独立文件（未加载的不覆盖磁盘）。 */
   async persist() {
     try {
@@ -6225,8 +7071,9 @@ ${extra}` : text
   invalidateContextCache() {
     this.ctxCacheSig = "";
   }
-  /** 按 settings 指纹重算（仅在签名变化时）三个仅依赖设置的开销型索引。 */
-  async refreshContextIndexes() {
+  /** 按 settings + 当前 query 指纹重算三个开销型索引。
+   *  当用户消息变化时，若其中包含有效关键词，索引会自动过滤为相关条目，减少 token 消耗。 */
+  async refreshContextIndexes(query) {
     var _a2, _b2, _c;
     const st = this.plugin.settings;
     const sig = JSON.stringify([
@@ -6238,7 +7085,8 @@ ${extra}` : text
       st.frontmatterIndexMaxFiles,
       st.defaultSkills,
       st.aiFolderName,
-      st.skillsEnabled
+      st.skillsEnabled,
+      query
     ]);
     if (sig === this.ctxCacheSig)
       return;
@@ -6246,29 +7094,43 @@ ${extra}` : text
     this.ctxCacheKnowledge = st.includeVaultIndex ? (_a2 = buildKnowledgeIndex(
       this.plugin.app,
       st.includeVaultIndex,
-      st.vaultIndexMaxFiles
+      st.vaultIndexMaxFiles,
+      query
     )) != null ? _a2 : void 0 : void 0;
     this.ctxCacheFrontmatter = st.includeFrontmatterIndex ? (_b2 = buildFrontmatterIndex(
       this.plugin.app,
       st.includeFrontmatterIndex,
       st.frontmatterIndexKeys,
       st.frontmatterIndexMaxChars,
-      st.frontmatterIndexMaxFiles
+      st.frontmatterIndexMaxFiles,
+      query
     )) != null ? _b2 : void 0 : void 0;
     this.ctxCacheSkillIndex = st.skillsEnabled ? (_c = await buildSkillIndex(this.plugin, this.plugin.app, st.defaultSkills)) != null ? _c : void 0 : void 0;
   }
-  /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。 */
-  async buildSystem() {
+  /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。
+   *  @param query 当前用户消息文本，用于动态过滤索引条目以减少 token 消耗
+   */
+  async buildSystem(query) {
     const settings = this.plugin.settings;
     const hasVaultIndex = settings.includeVaultIndex;
     const hasFrontmatterIndex = settings.includeFrontmatterIndex;
     let base = "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise.";
-    if (hasVaultIndex && hasFrontmatterIndex) {
-      base += " Note: you can see all Markdown file paths via the knowledge base index, and Frontmatter metadata (including file paths) via the Frontmatter index. File contents are only provided when the user explicitly attaches them, references them, or activates them.";
-    } else if (hasVaultIndex) {
-      base += " Note: you can see all Markdown file paths via the knowledge base index, but file contents are only provided when the user explicitly attaches them, references them, or activates them.";
-    } else if (hasFrontmatterIndex) {
-      base += " Note: you can see file paths and Frontmatter metadata for notes that have Frontmatter, via the Frontmatter index. File contents are only provided when the user explicitly attaches them, references them, or activates them.";
+    if (hasVaultIndex || hasFrontmatterIndex) {
+      const tools = [];
+      if (hasVaultIndex) {
+        tools.push(
+          `- search_vault_paths: Search for files by path/name keywords. Returns matching file paths.`
+        );
+      }
+      if (hasFrontmatterIndex) {
+        tools.push(
+          `- search_vault_frontmatter: Search for files by their metadata (tags, dates, categories, etc.). Returns file paths with matching metadata.`
+        );
+      }
+      tools.push(
+        `- search_vault_content: Search inside the actual content of files. Returns file paths and relevant text snippets.`
+      );
+      base += " You have access to the following search tools to explore the vault on demand:\n" + tools.join("\n") + "\nWhen you need to find files or information in the vault, call the appropriate tool with relevant keywords extracted from the user's question. File contents are only provided when you explicitly search for them or when the user attaches files.";
     } else {
       base += " Note: you cannot see the vault's file list or file contents unless the user explicitly attaches files/folders or references a file in their message.";
     }
@@ -6278,11 +7140,7 @@ ${extra}` : text
       base
     );
     const parts = [sys];
-    await this.refreshContextIndexes();
-    if (this.ctxCacheKnowledge)
-      parts.push(this.ctxCacheKnowledge);
-    if (this.ctxCacheFrontmatter)
-      parts.push(this.ctxCacheFrontmatter);
+    await this.refreshContextIndexes(query);
     if (this.ctxCacheSkillIndex)
       parts.push(this.ctxCacheSkillIndex);
     const skillPaths = this.effectiveSkills();
@@ -7135,10 +7993,10 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
     ];
     const activeLink = getActiveModelLink(this.settings);
     const params = resolveLinkParams(activeLink, this.settings);
-    const response = await this.provider.complete(messages, {
+    const response = (await this.provider.complete(messages, {
       maxTokens: params.maxTokens,
       temperature: params.temperature
-    });
+    })).content;
     let yaml = response.trim();
     if (yaml.startsWith("```")) {
       yaml = yaml.replace(/^```[^\n]*\n?/, "").replace(/\n?```\s*$/, "");

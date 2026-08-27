@@ -2,15 +2,24 @@ import { OpenAIProvider } from "./openai";
 import { OllamaProvider } from "./ollama";
 import type { AiNoteAgentSettings, ModelLink } from "../settings";
 import { t } from "../i18n";
+import type { ToolDefinition, ToolCall } from "./tools";
+
+export type { ToolCall } from "./tools";
 
 export interface ChatMessage {
-  role: "system" | "user" | "assistant";
+  role: "system" | "user" | "assistant" | "tool";
   content: string;
+  /** assistant 消息的 tool_calls */
+  toolCalls?: ToolCall[];
+  /** tool 消息对应的 tool_call_id */
+  toolCallId?: string;
 }
 
 export interface CompletionOptions {
   temperature?: number;
   maxTokens?: number;
+  /** 可用的工具列表；提供时模型可决定调用工具。 */
+  tools?: ToolDefinition[];
 }
 
 export interface TokenUsage {
@@ -34,11 +43,16 @@ export interface CompletionResult {
   /** 完整推理（思考）内容，仅推理模型返回；普通模型为 undefined。 */
   reasoning?: string;
   usage?: TokenUsage;
+  /** 模型决定调用的工具列表（非流式 / 流式结束后汇总）。 */
+  toolCalls?: ToolCall[];
 }
 
 export interface AIProvider {
   id: string;
-  complete(messages: ChatMessage[], opts?: CompletionOptions): Promise<string>;
+  complete(
+    messages: ChatMessage[],
+    opts?: CompletionOptions
+  ): Promise<CompletionResult>;
   stream(
     messages: ChatMessage[],
     opts: CompletionOptions,
@@ -83,7 +97,7 @@ export function createProviderFromLink(link: ModelLink): AIProvider {
 /** 占位 provider：尚未配置任何链接时返回，调用即报错并提示去设置。 */
 class NoopProvider implements AIProvider {
   id = "noop";
-  async complete(): Promise<string> {
+  async complete(): Promise<CompletionResult> {
     throw new Error(t("error.noModelLink"));
   }
   async stream(): Promise<CompletionResult> {

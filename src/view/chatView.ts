@@ -34,6 +34,10 @@ import {
 } from "../utils/aiFolder";
 import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex } from "../context/knowledge";
 import { buildSkillContent, buildSkillIndex, listSkills, type SkillEntry } from "../skills/skills";
+import {
+  createVaultToolDefinitions,
+  executeToolCalls,
+} from "../context/tools";
 import { WebSearchService, type SearchProviderConfig } from "../search/search";
 import { buildWebSearchContext } from "../search/prompt";
 import { getProfileMemoryContext } from "../memory/profileMemory";
@@ -1477,7 +1481,7 @@ export class ChatView extends ItemView {
       return { needsReenter: false, reenterPaths: [], assistantRowEl: undefined };
     }
 
-    const system = await this.buildSystem();
+    const system = await this.buildSystem(this.lastUserText);
     // 仅按用户显式附加的附件 + 消息中点名的文件读取内容（不自动加载任何文件）
     const noteContext = await buildAttachmentContext(
       this.plugin.app,
@@ -1521,7 +1525,7 @@ export class ChatView extends ItemView {
     const limit = this.plugin.settings.historyMaxMessages;
     const recent =
       limit > 0 ? tail.slice(Math.max(0, tail.length - limit)) : tail;
-    const messages: ChatMessage[] = [{ role: "system", content: system }];
+    let messages: ChatMessage[] = [{ role: "system", content: system }];
     if (limit > 0 && tail.length > limit) {
       const older = tail.slice(0, tail.length - limit);
       const summary = this.buildHistorySummary(older);
@@ -1568,12 +1572,59 @@ export class ChatView extends ItemView {
         provider = this.plugin.getProvider();
       }
 
-      // 带超时的流式请求（默认 60 秒），避免不可达模型导致无限挂起
+      // 解析参数（提前到 tool calling 之前，供预检使用）
       const paramLink =
         selectedLink ??
         getActiveModelLink(this.plugin.settings) ??
         this.plugin.settings.modelLinks[0];
       const params = resolveLinkParams(paramLink, this.plugin.settings);
+
+      // Tool Calling 预检：若启用了索引设置，先让模型判断是否需要搜索知识库
+      const st = this.plugin.settings;
+      const useTools = st.includeVaultIndex || st.includeFrontmatterIndex;
+      if (useTools) {
+        const vaultTools = createVaultToolDefinitions();
+        try {
+          const toolCheck = await this.withTimeout(
+            provider.complete(messages, {
+              maxTokens: Math.min(params.maxTokens || 1024, 2048),
+              temperature: 0.1, // 低温度让模型更确定地判断
+              tools: vaultTools,
+            }),
+            30_000
+          );
+          if (toolCheck.toolCalls && toolCheck.toolCalls.length > 0) {
+            // 在 UI 上提示正在执行工具
+            this.hideTypingIndicator(assistantContentEl);
+            this.showToolCallsNotice(assistantContentEl, toolCheck.toolCalls);
+            // 执行工具
+            const toolResults = await executeToolCalls(
+              this.plugin.app,
+              toolCheck.toolCalls
+            );
+            // 注入 assistant 消息（带 tool_calls）到对话历史
+            messages.push({
+              role: "assistant",
+              content: toolCheck.content || "",
+              toolCalls: toolCheck.toolCalls,
+            });
+            // 注入 tool 结果消息
+            for (const tr of toolResults) {
+              messages.push({
+                role: "tool",
+                content: tr.content,
+                toolCallId: tr.toolCallId,
+              });
+            }
+            // 重新显示打字指示器，准备流式输出最终回复
+            this.showTypingIndicator(assistantContentEl);
+          }
+        } catch {
+          // 工具预检失败不阻断主流程，静默继续正常流式请求
+        }
+      }
+
+      // 带超时的流式请求（默认 60 秒），避免不可达模型导致无限挂起
       const result = await this.withTimeout(
         provider.stream(
           messages,
@@ -1718,6 +1769,19 @@ export class ChatView extends ItemView {
     contentEl.empty();
   }
 
+  /** 在助手消息气泡中显示「正在调用工具」提示。 */
+  private showToolCallsNotice(
+    contentEl: HTMLElement,
+    toolCalls: { function: { name: string } }[]
+  ): void {
+    contentEl.empty();
+    const names = toolCalls.map((tc) => tc.function.name).join(", ");
+    contentEl.createEl("div", {
+      cls: "ana-chat-tool-notice",
+      text: `\u{1F50D} Using tools: ${names}...`,
+    });
+  }
+
   /** 持久化会话：始终写 index.json；仅写已加载会话的独立文件（未加载的不覆盖磁盘）。 */
   private async persist(): Promise<void> {
     try {
@@ -1763,8 +1827,9 @@ export class ChatView extends ItemView {
     this.ctxCacheSig = "";
   }
 
-  /** 按 settings 指纹重算（仅在签名变化时）三个仅依赖设置的开销型索引。 */
-  private async refreshContextIndexes(): Promise<void> {
+  /** 按 settings + 当前 query 指纹重算三个开销型索引。
+   *  当用户消息变化时，若其中包含有效关键词，索引会自动过滤为相关条目，减少 token 消耗。 */
+  private async refreshContextIndexes(query?: string): Promise<void> {
     const st = this.plugin.settings;
     const sig = JSON.stringify([
       st.includeVaultIndex,
@@ -1776,6 +1841,7 @@ export class ChatView extends ItemView {
       st.defaultSkills,
       st.aiFolderName,
       st.skillsEnabled,
+      query,
     ]);
     if (sig === this.ctxCacheSig) return;
     this.ctxCacheSig = sig;
@@ -1784,7 +1850,8 @@ export class ChatView extends ItemView {
       ? buildKnowledgeIndex(
           this.plugin.app,
           st.includeVaultIndex,
-          st.vaultIndexMaxFiles
+          st.vaultIndexMaxFiles,
+          query
         ) ?? undefined
       : undefined;
     this.ctxCacheFrontmatter = st.includeFrontmatterIndex
@@ -1793,7 +1860,8 @@ export class ChatView extends ItemView {
           st.includeFrontmatterIndex,
           st.frontmatterIndexKeys,
           st.frontmatterIndexMaxChars,
-          st.frontmatterIndexMaxFiles
+          st.frontmatterIndexMaxFiles,
+          query
         ) ?? undefined
       : undefined;
     this.ctxCacheSkillIndex = st.skillsEnabled
@@ -1801,8 +1869,10 @@ export class ChatView extends ItemView {
       : undefined;
   }
 
-  /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。 */
-  private async buildSystem(): Promise<string> {
+  /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。
+   *  @param query 当前用户消息文本，用于动态过滤索引条目以减少 token 消耗
+   */
+  private async buildSystem(query?: string): Promise<string> {
     const settings = this.plugin.settings;
     const hasVaultIndex = settings.includeVaultIndex;
     const hasFrontmatterIndex = settings.includeFrontmatterIndex;
@@ -1810,15 +1880,25 @@ export class ChatView extends ItemView {
     let base =
       "You are an AI assistant embedded in Obsidian. Help the user with their notes and questions. Keep answers concise and actionable unless asked otherwise.";
 
-    if (hasVaultIndex && hasFrontmatterIndex) {
+    if (hasVaultIndex || hasFrontmatterIndex) {
+      const tools: string[] = [];
+      if (hasVaultIndex) {
+        tools.push(
+          `- search_vault_paths: Search for files by path/name keywords. Returns matching file paths.`
+        );
+      }
+      if (hasFrontmatterIndex) {
+        tools.push(
+          `- search_vault_frontmatter: Search for files by their metadata (tags, dates, categories, etc.). Returns file paths with matching metadata.`
+        );
+      }
+      tools.push(
+        `- search_vault_content: Search inside the actual content of files. Returns file paths and relevant text snippets.`
+      );
       base +=
-        " Note: you can see all Markdown file paths via the knowledge base index, and Frontmatter metadata (including file paths) via the Frontmatter index. File contents are only provided when the user explicitly attaches them, references them, or activates them.";
-    } else if (hasVaultIndex) {
-      base +=
-        " Note: you can see all Markdown file paths via the knowledge base index, but file contents are only provided when the user explicitly attaches them, references them, or activates them.";
-    } else if (hasFrontmatterIndex) {
-      base +=
-        " Note: you can see file paths and Frontmatter metadata for notes that have Frontmatter, via the Frontmatter index. File contents are only provided when the user explicitly attaches them, references them, or activates them.";
+        " You have access to the following search tools to explore the vault on demand:\n" +
+        tools.join("\n") +
+        "\nWhen you need to find files or information in the vault, call the appropriate tool with relevant keywords extracted from the user's question. File contents are only provided when you explicitly search for them or when the user attaches files.";
     } else {
       base +=
         " Note: you cannot see the vault's file list or file contents unless the user explicitly attaches files/folders or references a file in their message.";
@@ -1833,10 +1913,8 @@ export class ChatView extends ItemView {
     );
     const parts: string[] = [sys];
 
-    // 仅依赖 settings 的索引类上下文（缓存，避免每次发消息全库扫描）
-    await this.refreshContextIndexes();
-    if (this.ctxCacheKnowledge) parts.push(this.ctxCacheKnowledge);
-    if (this.ctxCacheFrontmatter) parts.push(this.ctxCacheFrontmatter);
+    // skill 索引和 skill 内容仍然直接注入（不属于文件索引）
+    await this.refreshContextIndexes(query);
     if (this.ctxCacheSkillIndex) parts.push(this.ctxCacheSkillIndex);
 
     const skillPaths = this.effectiveSkills();

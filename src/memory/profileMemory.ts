@@ -187,10 +187,10 @@ ${digest}`;
   ];
 
   try {
-    const raw = await provider.complete(messages, {
+    const raw = (await provider.complete(messages, {
       temperature: 0.2,
       maxTokens: 2048,
-    });
+    })).content;
     const parsed = parseJsonFromLLM<MemoryExtractionResult>(raw);
     if (!parsed || !parsed.profile || !parsed.daily) return null;
     return {
