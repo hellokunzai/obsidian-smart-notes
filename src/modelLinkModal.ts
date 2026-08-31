@@ -10,7 +10,7 @@ import {
 } from "obsidian";
 import type AiNoteAgentPlugin from "./main";
 import type { ModelLink, ProviderType } from "./settings";
-import { genId, migrateModelLinkApiKeyToKeychain, resolveModelLinkApiKey } from "./settings";
+import { genId, migrateModelLinkApiKeyToKeychain } from "./settings";
 import { createProviderFromLink } from "./ai/provider";
 import { t } from "./i18n";
 
@@ -218,12 +218,10 @@ export class ModelLinkModal extends Modal {
       });
       updateSelectBtnText();
       selectBtn.addEventListener("click", () => {
-        const currentKey = this.apiKeyRef
-          ? resolveModelLinkApiKey(this.app, { apiKeyRef: this.apiKeyRef } as ModelLink) ?? ""
-          : "";
+        // returnId 模式下 SecretPickerModal 按 secret ID 预选中，因此传入 apiKeyRef
         new SecretPickerModal(
           this.app,
-          currentKey,
+          this.apiKeyRef,
           (secretId) => {
             this.apiKeyRef = secretId;
             updateSelectBtnText();

@@ -1352,11 +1352,9 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
       });
       updateSelectBtnText();
       selectBtn.addEventListener("click", () => {
-        var _a2;
-        const currentKey = this.apiKeyRef ? (_a2 = resolveModelLinkApiKey(this.app, { apiKeyRef: this.apiKeyRef })) != null ? _a2 : "" : "";
         new SecretPickerModal(
           this.app,
-          currentKey,
+          this.apiKeyRef,
           (secretId) => {
             this.apiKeyRef = secretId;
             updateSelectBtnText();
