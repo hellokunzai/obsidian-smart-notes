@@ -5751,7 +5751,7 @@ var ChatView = class extends import_obsidian12.ItemView {
     return t("view.title");
   }
   getIcon() {
-    return "vault-mind";
+    return "smart-notes";
   }
   /** 当前会话（可能为 undefined，当无任何会话时由 ensureActiveSession 兜底创建）。 */
   get activeSession() {
@@ -8039,7 +8039,7 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
     }
     if (!enabled)
       return;
-    this.ribbonEl = this.addRibbonIcon("vault-mind", t("plugin.name"), () => {
+    this.ribbonEl = this.addRibbonIcon("smart-notes", t("plugin.name"), () => {
       void this.openChatView();
     });
     this.addCommand({
@@ -8062,7 +8062,7 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
     await this.loadSettings();
     this.provider = createProvider(this.app, this.settings);
     initI18n(this.app);
-    (0, import_obsidian13.addIcon)("vault-mind", ICON_SVG);
+    (0, import_obsidian13.addIcon)("smart-notes", ICON_SVG);
     void ensureAiFolder(this);
     this.memoryRebuildTimeout = window.setTimeout(
       () => void rebuildProfileMemory(this),

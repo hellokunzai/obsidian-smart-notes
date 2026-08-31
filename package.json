@@ -1,7 +1,7 @@
 {
   "name": "smart-notes",
-  "version": "0.18.2",
-  "description": "Vault Mind - an Obsidian plugin that analyzes your vault with AI.",
+  "version": "0.18.4",
+  "description": "Analyze your vault with AI to generate bidirectional links, enrich frontmatter properties, optimize notes, and provide in-editor autocompletion.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

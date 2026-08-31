@@ -96,7 +96,7 @@ export default class AiNoteAgentPlugin extends Plugin {
 
     // 重新注册入口
     if (!enabled) return;
-    this.ribbonEl = this.addRibbonIcon("vault-mind", t("plugin.name"), () => {
+    this.ribbonEl = this.addRibbonIcon("smart-notes", t("plugin.name"), () => {
       void this.openChatView();
     });
     this.addCommand({
@@ -120,7 +120,7 @@ export default class AiNoteAgentPlugin extends Plugin {
     this.provider = createProvider(this.app, this.settings);
     initI18n(this.app);
 
-    addIcon("vault-mind", ICON_SVG);
+    addIcon("smart-notes", ICON_SVG);
 
     // 自动在 vault 根目录生成 AI 数据文件夹（记忆 + skills）
     void ensureAiFolder(this);

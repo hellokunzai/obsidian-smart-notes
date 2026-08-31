@@ -139,7 +139,7 @@ export class ChatView extends ItemView {
   }
 
   getIcon(): string {
-    return "vault-mind";
+    return "smart-notes";
   }
 
   /** 当前会话（可能为 undefined，当无任何会话时由 ensureActiveSession 兜底创建）。 */
