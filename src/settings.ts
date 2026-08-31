@@ -930,25 +930,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    new Setting(bodyEl)
-      .setName(t("settings.chatActivityTimeout.name"))
-      .setDesc(t("settings.chatActivityTimeout.desc"))
-      .addText((t2) => {
-        t2.inputEl.type = "number";
-        t2.inputEl.min = "10";
-        t2.inputEl.step = "10";
-        t2.inputEl.inputMode = "numeric";
-        t2.setPlaceholder("60")
-          .setValue(String(this.plugin.settings.chatActivityTimeout))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n >= 10) {
-              this.plugin.settings.chatActivityTimeout = n;
-              await this.plugin.saveSettings();
-            }
-          });
-      });
-
     // 「是否把当前笔记添加到对话框」与父 toggle 解耦：
     // 父开关 chatPanelEnabled 关闭时，子开关的 input 曾被 setDisabled(true)，
     // 导致磁盘值 addCurrentNoteToChat=true 时用户点击无反应（HTML disabled 原生屏蔽 click），
@@ -1003,6 +984,25 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             const n = parseInt(v, 10);
             if (!isNaN(n) && n >= 0) {
               this.plugin.settings.historyMaxMessages = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
+
+    new Setting(bodyEl)
+      .setName(t("settings.chatActivityTimeout.name"))
+      .setDesc(t("settings.chatActivityTimeout.desc"))
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "10";
+        t2.inputEl.step = "10";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("60")
+          .setValue(String(this.plugin.settings.chatActivityTimeout))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n >= 10) {
+              this.plugin.settings.chatActivityTimeout = n;
               await this.plugin.saveSettings();
             }
           });

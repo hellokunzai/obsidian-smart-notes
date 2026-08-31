@@ -4148,19 +4148,6 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       })
     );
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.chatActivityTimeout.name")).setDesc(t("settings.chatActivityTimeout.desc")).addText((t2) => {
-      t2.inputEl.type = "number";
-      t2.inputEl.min = "10";
-      t2.inputEl.step = "10";
-      t2.inputEl.inputMode = "numeric";
-      t2.setPlaceholder("60").setValue(String(this.plugin.settings.chatActivityTimeout)).onChange(async (v) => {
-        const n = parseInt(v, 10);
-        if (!isNaN(n) && n >= 10) {
-          this.plugin.settings.chatActivityTimeout = n;
-          await this.plugin.saveSettings();
-        }
-      });
-    });
     new import_obsidian8.Setting(bodyEl).setName(t("settings.addCurrentNoteToChat.name")).setDesc(t("settings.addCurrentNoteToChat.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.addCurrentNoteToChat).onChange(async (v) => {
         try {
@@ -4192,6 +4179,19 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         const n = parseInt(v, 10);
         if (!isNaN(n) && n >= 0) {
           this.plugin.settings.historyMaxMessages = n;
+          await this.plugin.saveSettings();
+        }
+      });
+    });
+    new import_obsidian8.Setting(bodyEl).setName(t("settings.chatActivityTimeout.name")).setDesc(t("settings.chatActivityTimeout.desc")).addText((t2) => {
+      t2.inputEl.type = "number";
+      t2.inputEl.min = "10";
+      t2.inputEl.step = "10";
+      t2.inputEl.inputMode = "numeric";
+      t2.setPlaceholder("60").setValue(String(this.plugin.settings.chatActivityTimeout)).onChange(async (v) => {
+        const n = parseInt(v, 10);
+        if (!isNaN(n) && n >= 10) {
+          this.plugin.settings.chatActivityTimeout = n;
           await this.plugin.saveSettings();
         }
       });
