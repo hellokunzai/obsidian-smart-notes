@@ -158,6 +158,8 @@ var en_default = {
   "settings.linkType.absolute": "Absolute from vault root",
   "settings.chatPanel.name": "Open AI chat panel",
   "settings.chatPanel.desc": 'Enable the "Open AI chat panel" command in the command palette.',
+  "settings.chatActivityTimeout.name": "Activity timeout (seconds)",
+  "settings.chatActivityTimeout.desc": "How many seconds of no streamed data (content / reasoning) before treating the request as timed out. Increase this for reasoning models like DeepSeek-R1. Minimum 10 seconds.",
   "settings.addCurrentNoteToChat.name": "Attach current note to chat",
   "settings.addCurrentNoteToChat.desc": "When opening the AI chat panel, automatically attach the active Markdown note as context. Off by default (attach manually to save tokens).",
   "settings.showReasoning.name": "Show AI reasoning",
@@ -200,7 +202,8 @@ var en_default = {
   "view.deleteSession": "Delete session",
   "view.confirmDelete": 'Delete session "{title}"? This cannot be undone.',
   "view.error": "Error: {error}",
-  "view.timeout": "Request timed out (no response within 60s). Please check if the model configuration is correct and the network is reachable.",
+  "view.timeout": "Request overall timeout (no completion response within 10 minutes). Please check if the model configuration is correct and the network is reachable.",
+  "view.activityTimeout": 'Request activity timeout (no data for {seconds}s). Reasoning models like DeepSeek-R1 may need more time; increase "Activity timeout" in Settings \u2192 Smart Notes \u2192 Interaction \u2192 AI Chat Panel.',
   "view.openFailed": "Could not open AI chat panel.",
   "view.fileNotFound": "File not found: {path}",
   "view.sessionsLoaded": "Loaded {count} sessions from memory.",
@@ -506,6 +509,8 @@ var zh_default = {
   "settings.linkType.absolute": "\u57FA\u4E8E\u4ED3\u5E93\u6839\u76EE\u5F55\u7684\u7EDD\u5BF9\u8DEF\u5F84",
   "settings.chatPanel.name": "\u6253\u5F00AI\u5BF9\u8BDD\u9762\u677F",
   "settings.chatPanel.desc": "\u5728\u547D\u4EE4\u9762\u677F\u542F\u7528\u300C\u6253\u5F00 AI \u5BF9\u8BDD\u9762\u677F\u300D\u3002",
+  "settings.chatActivityTimeout.name": "\u6D3B\u52A8\u8D85\u65F6\uFF08\u79D2\uFF09",
+  "settings.chatActivityTimeout.desc": "\u6D41\u5F0F\u54CD\u5E94\u4E2D\uFF0C\u8FDE\u7EED\u591A\u5C11\u79D2\u672A\u6536\u5230\u4EFB\u4F55\u6570\u636E\uFF08content / reasoning\uFF09\u5373\u5224\u5B9A\u4E3A\u8D85\u65F6\u3002DeepSeek-R1 \u7B49\u63A8\u7406\u6A21\u578B\u601D\u8003\u65F6\u95F4\u957F\uFF0C\u53EF\u9002\u5F53\u8C03\u5927\uFF1B\u6700\u5C0F 10 \u79D2\u3002",
   "settings.addCurrentNoteToChat.name": "\u662F\u5426\u628A\u5F53\u524D\u7B14\u8BB0\u6DFB\u52A0\u5230\u5BF9\u8BDD\u6846",
   "settings.addCurrentNoteToChat.desc": "\u6253\u5F00 AI \u5BF9\u8BDD\u9762\u677F\u65F6\uFF0C\u81EA\u52A8\u628A\u5F53\u524D Markdown \u7B14\u8BB0\u4F5C\u4E3A\u4E0A\u4E0B\u6587\u9644\u4EF6\u52A0\u5165\u3002\u9ED8\u8BA4\u5173\u95ED\uFF08\u4EC5\u624B\u52A8\u9644\u52A0\u66F4\u7701 token\uFF09\u3002",
   "settings.showReasoning.name": "\u663E\u793A AI \u601D\u8003\u8FC7\u7A0B",
@@ -548,7 +553,8 @@ var zh_default = {
   "view.deleteSession": "\u5220\u9664\u4F1A\u8BDD",
   "view.confirmDelete": "\u786E\u5B9A\u5220\u9664\u4F1A\u8BDD\u300C{title}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
   "view.error": "\u51FA\u9519\uFF1A{error}",
-  "view.timeout": "\u8BF7\u6C42\u8D85\u65F6\uFF0860\u79D2\u5185\u65E0\u54CD\u5E94\uFF09\u3002\u8BF7\u68C0\u67E5\u6A21\u578B\u914D\u7F6E\u662F\u5426\u6B63\u786E\uFF0C\u6216\u7F51\u7EDC\u662F\u5426\u53EF\u8FBE\u3002",
+  "view.timeout": "\u8BF7\u6C42\u603B\u8D85\u65F6\uFF0810 \u5206\u949F\u5185\u65E0\u4EFB\u4F55\u5B8C\u6210\u54CD\u5E94\uFF09\u3002\u8BF7\u68C0\u67E5\u6A21\u578B\u914D\u7F6E\u662F\u5426\u6B63\u786E\uFF0C\u6216\u7F51\u7EDC\u662F\u5426\u53EF\u8FBE\u3002",
+  "view.activityTimeout": "\u8BF7\u6C42\u6D3B\u52A8\u8D85\u65F6\uFF08\u8FDE\u7EED {seconds} \u79D2\u65E0\u54CD\u5E94\uFF09\u3002DeepSeek-R1 \u7B49\u63A8\u7406\u6A21\u578B\u601D\u8003\u65F6\u95F4\u8F83\u957F\uFF0C\u53EF\u5728\u8BBE\u7F6E \u2192 Smart Notes \u2192 \u4EA4\u4E92\u8BBE\u7F6E \u2192 AI \u5BF9\u8BDD\u9762\u677F \u4E2D\u8C03\u5927\u300C\u6D3B\u52A8\u8D85\u65F6\u300D\u3002",
   "view.openFailed": "\u65E0\u6CD5\u6253\u5F00 AI \u5BF9\u8BDD\u9762\u677F\u3002",
   "view.fileNotFound": "\u672A\u627E\u5230\u6587\u4EF6\uFF1A{path}",
   "view.sessionsLoaded": "\u5DF2\u4ECE\u8BB0\u5FC6\u4E2D\u52A0\u8F7D {count} \u4E2A\u4F1A\u8BDD\u3002",
@@ -3613,6 +3619,7 @@ var DEFAULT_SETTINGS = {
   vaultIndexMaxFiles: 200,
   chatContextMaxChars: 8e3,
   historyMaxMessages: 20,
+  chatActivityTimeout: 60,
   includeFrontmatterIndex: false,
   frontmatterIndexMaxFiles: 200,
   frontmatterIndexKeys: "",
@@ -4141,6 +4148,19 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       })
     );
+    new import_obsidian8.Setting(bodyEl).setName(t("settings.chatActivityTimeout.name")).setDesc(t("settings.chatActivityTimeout.desc")).addText((t2) => {
+      t2.inputEl.type = "number";
+      t2.inputEl.min = "10";
+      t2.inputEl.step = "10";
+      t2.inputEl.inputMode = "numeric";
+      t2.setPlaceholder("60").setValue(String(this.plugin.settings.chatActivityTimeout)).onChange(async (v) => {
+        const n = parseInt(v, 10);
+        if (!isNaN(n) && n >= 10) {
+          this.plugin.settings.chatActivityTimeout = n;
+          await this.plugin.saveSettings();
+        }
+      });
+    });
     new import_obsidian8.Setting(bodyEl).setName(t("settings.addCurrentNoteToChat.name")).setDesc(t("settings.addCurrentNoteToChat.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.addCurrentNoteToChat).onChange(async (v) => {
         try {
@@ -6934,7 +6954,7 @@ ${extra}` : text
       this.abortCtrl = new AbortController();
       const result = await this.withTimeout(
         this.streamWithAbort(provider, messages, params, this.abortCtrl.signal),
-        6e4
+        10 * 60 * 1e3
       );
       this.clearStreamingRender();
       this.removeStreamingCursor();
@@ -7035,19 +7055,19 @@ ${extra}` : text
     this.setInputDisabled(false);
     this.scrollToBottom();
   }
-  /** 给 Promise 添加超时限制，超时后 reject 以避免不可达模型导致 UI 无限挂起。 */
+  /** 给 Promise 添加总超时限制，作为兜底防止完全不可达模型导致 UI 无限挂起。 */
   withTimeout(promise, ms) {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         reject(new Error(t("view.timeout")));
       }, ms);
       promise.then(
         (value) => {
-          clearTimeout(timer);
+          window.clearTimeout(timer);
           resolve(value);
         },
         (err2) => {
-          clearTimeout(timer);
+          window.clearTimeout(timer);
           reject(err2);
         }
       );
@@ -7056,16 +7076,53 @@ ${extra}` : text
   /**
    * 包装 provider.stream，支持通过 AbortSignal 中断。
    * 当 signal.aborted 时，立即停止累积并返回当前已收到的内容。
+   *
+   * 同时实现「活动超时」：只要收到任意 SSE chunk（content 或 reasoning）
+   * 就重置计时器，避免 DeepSeek-R1 等推理模型的长思考被固定总超时误杀。
    */
   async streamWithAbort(provider, messages, params, signal) {
     return new Promise((resolve, reject) => {
+      var _a2;
+      const activityTimeoutSec = Math.max(
+        10,
+        (_a2 = this.plugin.settings.chatActivityTimeout) != null ? _a2 : 60
+      );
+      const activityTimeoutMs = activityTimeoutSec * 1e3;
+      let lastActivityAt = Date.now();
+      let activityTimer = null;
+      const cleanup = () => {
+        if (activityTimer !== null) {
+          window.clearInterval(activityTimer);
+          activityTimer = null;
+        }
+      };
       const onAbort = () => {
+        cleanup();
         resolve({
           content: this.streamingRawContent,
           reasoning: this.streamingRawReasoning || void 0,
           usage: void 0
         });
       };
+      const checkActivity = () => {
+        var _a3;
+        if (signal.aborted) {
+          cleanup();
+          return;
+        }
+        if (Date.now() - lastActivityAt >= activityTimeoutMs) {
+          cleanup();
+          (_a3 = this.abortCtrl) == null ? void 0 : _a3.abort();
+          reject(
+            new Error(
+              t("view.activityTimeout", {
+                seconds: String(activityTimeoutSec)
+              })
+            )
+          );
+        }
+      };
+      activityTimer = window.setInterval(checkActivity, 1e3);
       signal.addEventListener("abort", onAbort);
       provider.stream(
         messages,
@@ -7076,6 +7133,7 @@ ${extra}` : text
         (chunk) => {
           if (signal.aborted)
             return;
+          lastActivityAt = Date.now();
           if (chunk.reasoning && this.plugin.settings.showReasoning) {
             this.streamingRawReasoning += chunk.reasoning;
             this.ensureReasoningBlock();
@@ -7090,6 +7148,7 @@ ${extra}` : text
         }
       ).then((result) => {
         signal.removeEventListener("abort", onAbort);
+        cleanup();
         if (signal.aborted) {
           resolve({
             content: this.streamingRawContent,
@@ -7101,6 +7160,7 @@ ${extra}` : text
         }
       }).catch((err2) => {
         signal.removeEventListener("abort", onAbort);
+        cleanup();
         reject(err2);
       });
     });

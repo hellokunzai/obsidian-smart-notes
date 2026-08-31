@@ -1638,11 +1638,12 @@ export class ChatView extends ItemView {
         }
       }
 
-      // 带超时的流式请求（默认 60 秒），避免不可达模型导致无限挂起
+      // 流式请求：使用「活动超时」检测（收到任意 chunk 即重置），
+      // 同时保留 10 分钟总超时兜底，避免模型完全不可达时无限挂起。
       this.abortCtrl = new AbortController();
       const result = await this.withTimeout(
         this.streamWithAbort(provider, messages, params, this.abortCtrl.signal),
-        60_000
+        10 * 60 * 1000
       );
 
       // 流式结束：最终渲染并显示 token 消耗
@@ -1761,15 +1762,15 @@ export class ChatView extends ItemView {
     this.scrollToBottom();
   }
 
-  /** 给 Promise 添加超时限制，超时后 reject 以避免不可达模型导致 UI 无限挂起。 */
+  /** 给 Promise 添加总超时限制，作为兜底防止完全不可达模型导致 UI 无限挂起。 */
   private withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         reject(new Error(t("view.timeout")));
       }, ms);
       promise.then(
-        (value) => { clearTimeout(timer); resolve(value); },
-        (err) => { clearTimeout(timer); reject(err); }
+        (value) => { window.clearTimeout(timer); resolve(value); },
+        (err) => { window.clearTimeout(timer); reject(err); }
       );
     });
   }
@@ -1777,6 +1778,9 @@ export class ChatView extends ItemView {
   /**
    * 包装 provider.stream，支持通过 AbortSignal 中断。
    * 当 signal.aborted 时，立即停止累积并返回当前已收到的内容。
+   *
+   * 同时实现「活动超时」：只要收到任意 SSE chunk（content 或 reasoning）
+   * 就重置计时器，避免 DeepSeek-R1 等推理模型的长思考被固定总超时误杀。
    */
   private async streamWithAbort(
     provider: import("../ai/provider").AIProvider,
@@ -1785,13 +1789,49 @@ export class ChatView extends ItemView {
     signal: AbortSignal
   ): Promise<import("../ai/provider").CompletionResult> {
     return new Promise((resolve, reject) => {
+      const activityTimeoutSec = Math.max(
+        10,
+        this.plugin.settings.chatActivityTimeout ?? 60
+      );
+      const activityTimeoutMs = activityTimeoutSec * 1000;
+      let lastActivityAt = Date.now();
+      let activityTimer: number | null = null;
+
+      const cleanup = () => {
+        if (activityTimer !== null) {
+          window.clearInterval(activityTimer);
+          activityTimer = null;
+        }
+      };
+
       const onAbort = () => {
+        cleanup();
         resolve({
           content: this.streamingRawContent,
           reasoning: this.streamingRawReasoning || undefined,
           usage: undefined,
         });
       };
+
+      const checkActivity = () => {
+        if (signal.aborted) {
+          cleanup();
+          return;
+        }
+        if (Date.now() - lastActivityAt >= activityTimeoutMs) {
+          cleanup();
+          this.abortCtrl?.abort();
+          reject(
+            new Error(
+              t("view.activityTimeout", {
+                seconds: String(activityTimeoutSec),
+              })
+            )
+          );
+        }
+      };
+
+      activityTimer = window.setInterval(checkActivity, 1000);
       signal.addEventListener("abort", onAbort);
 
       provider
@@ -1803,6 +1843,7 @@ export class ChatView extends ItemView {
           },
           (chunk) => {
             if (signal.aborted) return;
+            lastActivityAt = Date.now();
             if (chunk.reasoning && this.plugin.settings.showReasoning) {
               this.streamingRawReasoning += chunk.reasoning;
               this.ensureReasoningBlock();
@@ -1818,6 +1859,7 @@ export class ChatView extends ItemView {
         )
         .then((result) => {
           signal.removeEventListener("abort", onAbort);
+          cleanup();
           if (signal.aborted) {
             resolve({
               content: this.streamingRawContent,
@@ -1830,6 +1872,7 @@ export class ChatView extends ItemView {
         })
         .catch((err) => {
           signal.removeEventListener("abort", onAbort);
+          cleanup();
           reject(err);
         });
     });

@@ -125,6 +125,9 @@ export interface AiNoteAgentSettings {
   chatContextMaxChars: number;
   // 对话：历史消息窗口（仅发送最近 N 条历史；更早的压缩为摘要注入）。0 = 不限制（发送全部历史）
   historyMaxMessages: number;
+  // 对话：流式响应活动超时（秒）。只要收到任意 SSE chunk（content / reasoning）就重置计时器；
+  // 连续 N 秒无数据才判定为超时。默认 60 秒，最小 10 秒。
+  chatActivityTimeout: number;
   // 对话：是否启用 Frontmatter 索引（仅元数据，不含正文），让 AI 通过属性了解库内结构
   includeFrontmatterIndex: boolean;
   // 对话：Frontmatter 索引最多注入的文件数（防止大库撑爆 token）；0 = 不限制
@@ -192,6 +195,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   vaultIndexMaxFiles: 200,
   chatContextMaxChars: 8000,
   historyMaxMessages: 20,
+  chatActivityTimeout: 60,
   includeFrontmatterIndex: false,
   frontmatterIndexMaxFiles: 200,
   frontmatterIndexKeys: "",
@@ -925,6 +929,25 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       );
+
+    new Setting(bodyEl)
+      .setName(t("settings.chatActivityTimeout.name"))
+      .setDesc(t("settings.chatActivityTimeout.desc"))
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "10";
+        t2.inputEl.step = "10";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("60")
+          .setValue(String(this.plugin.settings.chatActivityTimeout))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n >= 10) {
+              this.plugin.settings.chatActivityTimeout = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
 
     // 「是否把当前笔记添加到对话框」与父 toggle 解耦：
     // 父开关 chatPanelEnabled 关闭时，子开关的 input 曾被 setDisabled(true)，
