@@ -5,8 +5,10 @@ import {
   type ModelLink,
   type ProviderType,
   type RoleInfo,
+  migrateModelLinkApiKeyToKeychain,
 } from "./settings";
 import { t } from "./i18n";
+import { App } from "obsidian";
 
 /**
  * 设置迁移：把旧版扁平字段（单一 provider / customInstructions）
@@ -24,7 +26,8 @@ import { t } from "./i18n";
  */
 export function migrateSettings(
   loaded: Record<string, any>,
-  settings: AiNoteAgentSettings
+  settings: AiNoteAgentSettings,
+  app: App
 ): void {
   // ── 迁移 1：旧版单一 provider 扁平配置 → 单条模型链接 ──
   if (!settings.modelLinks || settings.modelLinks.length === 0) {
@@ -38,7 +41,7 @@ export function migrateSettings(
     if (hasLegacy) {
       const isOllama = loaded.provider === "ollama";
       const modelId = isOllama ? loaded.ollamaModel : loaded.openaiModel;
-      const link: ModelLink = {
+      const link: ModelLink & { apiKey?: string } = {
         id: genId(),
         name: t("settings.modelLinks.legacyName"),
         type: (isOllama ? "ollama" : "openai") as ProviderType,
@@ -48,6 +51,9 @@ export function migrateSettings(
         apiKey: loaded.openaiApiKey || "",
         models: modelId ? [modelId] : [],
       };
+      // 旧版 openaiApiKey 从 data.json 迁移到 Obsidian keychain
+      migrateModelLinkApiKeyToKeychain(app, link);
+      delete (link as unknown as Record<string, unknown>).apiKey;
       settings.modelLinks = [link];
       settings.defaultModelLinkId = link.id;
     } else {
@@ -62,6 +68,14 @@ export function migrateSettings(
     !settings.modelLinks.some((l) => l.id === settings.defaultModelLinkId)
   ) {
     settings.defaultModelLinkId = settings.modelLinks[0].id;
+  }
+
+  // ── 迁移 1b：已有 modelLinks 中的明文 apiKey → Obsidian keychain ──
+  for (const link of settings.modelLinks) {
+    migrateModelLinkApiKeyToKeychain(
+      app,
+      link as ModelLink & { apiKey?: string }
+    );
   }
 
   // ── 迁移 2：旧版单一 customInstructions（系统指令）→ 单条「默认角色」──
@@ -88,4 +102,10 @@ export function migrateSettings(
   ) {
     settings.defaultRoleId = settings.roles[0].id;
   }
+
+  // ── 安全清理：旧版明文 openaiApiKey 已迁移到 keychain ──
+  // loadSettings 用 Object.assign 把旧 data.json 的明文 openaiApiKey 一并带入
+  // settings 对象；迁移后该值已写入 keychain，此处必须清空，否则下次 saveSettings
+  // 会把它重新写回 data.json，导致明文密钥泄露。
+  settings.openaiApiKey = "";
 }

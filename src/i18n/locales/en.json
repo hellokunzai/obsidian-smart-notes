@@ -38,7 +38,7 @@
   "settings.test.httpError": "HTTP status {status}",
 
   "settings.openaiKey.name": "API key",
-  "settings.openaiKey.desc": "Stored locally in plugin data. Sent only to the Base URL you configure.",
+  "settings.openaiKey.desc": "Select a secret from the Obsidian keychain; secrets are not stored in data.json. Sent only to the Base URL you configure.",
   "settings.openaiBaseUrl.name": "Base URL",
   "settings.openaiBaseUrl.desc": "Default: https://api.openai.com/v1",
   "settings.openaiModel.name": "Model name",

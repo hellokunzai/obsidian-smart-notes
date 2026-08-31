@@ -1,6 +1,8 @@
+import { App } from "obsidian";
 import { OpenAIProvider } from "./openai";
 import { OllamaProvider } from "./ollama";
 import type { AiNoteAgentSettings, ModelLink } from "../settings";
+import { resolveModelLinkApiKey } from "../settings";
 import { t } from "../i18n";
 import type { ToolDefinition, ToolCall } from "./tools";
 
@@ -87,11 +89,15 @@ export function resolveLinkParams(
 }
 
 /** 由单条模型链接构造 provider（运行时使用其第一个模型）。 */
-export function createProviderFromLink(link: ModelLink): AIProvider {
+export function createProviderFromLink(
+  app: App,
+  link: ModelLink
+): AIProvider {
   if (link.type === "ollama") {
     return new OllamaProvider(link.baseUrl, link.models[0] ?? "");
   }
-  return new OpenAIProvider(link.baseUrl, link.apiKey, link.models[0] ?? "");
+  const apiKey = resolveModelLinkApiKey(app, link) ?? "";
+  return new OpenAIProvider(link.baseUrl, apiKey, link.models[0] ?? "");
 }
 
 /** 占位 provider：尚未配置任何链接时返回，调用即报错并提示去设置。 */
@@ -105,10 +111,13 @@ class NoopProvider implements AIProvider {
   }
 }
 
-export function createProvider(settings: AiNoteAgentSettings): AIProvider {
+export function createProvider(
+  app: App,
+  settings: AiNoteAgentSettings
+): AIProvider {
   const link = getActiveModelLink(settings);
   if (!link) {
     return new NoopProvider();
   }
-  return createProviderFromLink(link);
+  return createProviderFromLink(app, link);
 }

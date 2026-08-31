@@ -1577,7 +1577,7 @@ export class ChatView extends ItemView {
         );
         if (selectedLink) {
           const linkWithModel = { ...selectedLink, models: [modelName] };
-          provider = createProviderFromLink(linkWithModel);
+          provider = createProviderFromLink(this.app, linkWithModel);
         } else {
           provider = this.plugin.getProvider();
         }

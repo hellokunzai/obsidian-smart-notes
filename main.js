@@ -71,7 +71,7 @@ var en_default = {
   "settings.test.noModel": 'Add at least one model in "Model names" before testing the connection.',
   "settings.test.httpError": "HTTP status {status}",
   "settings.openaiKey.name": "API key",
-  "settings.openaiKey.desc": "Stored locally in plugin data. Sent only to the Base URL you configure.",
+  "settings.openaiKey.desc": "Select a secret from the Obsidian keychain; secrets are not stored in data.json. Sent only to the Base URL you configure.",
   "settings.openaiBaseUrl.name": "Base URL",
   "settings.openaiBaseUrl.desc": "Default: https://api.openai.com/v1",
   "settings.openaiModel.name": "Model name",
@@ -422,7 +422,7 @@ var zh_default = {
   "settings.test.noModel": "\u8BF7\u5148\u5728\u300C\u6A21\u578B\u540D\u79F0\u300D\u4E2D\u81F3\u5C11\u6DFB\u52A0\u4E00\u4E2A\u6A21\u578B\uFF0C\u518D\u6D4B\u8BD5\u8FDE\u63A5\u3002",
   "settings.test.httpError": "HTTP \u72B6\u6001 {status}",
   "settings.openaiKey.name": "API Key",
-  "settings.openaiKey.desc": "\u4EC5\u4FDD\u5B58\u5728\u672C\u5730\u63D2\u4EF6\u6570\u636E\u4E2D\uFF0C\u53EA\u53D1\u9001\u7ED9\u4F60\u6240\u914D\u7F6E\u7684 Base URL\u3002",
+  "settings.openaiKey.desc": "\u4ECE Obsidian \u94A5\u5319\u4E32\u4E2D\u9009\u62E9\u5BC6\u94A5\uFF1B\u5BC6\u94A5\u4E0D\u4F1A\u4FDD\u5B58\u5230 data.json\uFF0C\u53EA\u53D1\u9001\u7ED9\u4F60\u6240\u914D\u7F6E\u7684 Base URL\u3002",
   "settings.openaiBaseUrl.name": "Base URL",
   "settings.openaiBaseUrl.desc": "\u9ED8\u8BA4\uFF1Ahttps://api.openai.com/v1",
   "settings.openaiModel.name": "\u6A21\u578B\u540D\u79F0",
@@ -1191,12 +1191,13 @@ function resolveLinkParams(link, settings) {
     temperature: (_a2 = link == null ? void 0 : link.temperature) != null ? _a2 : settings.temperature
   };
 }
-function createProviderFromLink(link) {
-  var _a2, _b2;
+function createProviderFromLink(app, link) {
+  var _a2, _b2, _c;
   if (link.type === "ollama") {
     return new OllamaProvider(link.baseUrl, (_a2 = link.models[0]) != null ? _a2 : "");
   }
-  return new OpenAIProvider(link.baseUrl, link.apiKey, (_b2 = link.models[0]) != null ? _b2 : "");
+  const apiKey = (_b2 = resolveModelLinkApiKey(app, link)) != null ? _b2 : "";
+  return new OpenAIProvider(link.baseUrl, apiKey, (_c = link.models[0]) != null ? _c : "");
 }
 var NoopProvider = class {
   constructor() {
@@ -1209,17 +1210,18 @@ var NoopProvider = class {
     throw new Error(t("error.noModelLink"));
   }
 };
-function createProvider(settings) {
+function createProvider(app, settings) {
   const link = getActiveModelLink(settings);
   if (!link) {
     return new NoopProvider();
   }
-  return createProviderFromLink(link);
+  return createProviderFromLink(app, link);
 }
 
 // src/modelLinkModal.ts
 var ModelLinkModal = class extends import_obsidian4.Modal {
   constructor(app, plugin, editing, onSaved) {
+    var _a2;
     super(app);
     this.plugin = plugin;
     this.editing = editing;
@@ -1227,7 +1229,8 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
     this.name = "";
     this.type = "openai";
     this.baseUrl = "";
-    this.apiKey = "";
+    /** 指向 Obsidian keychain 中 secret 的引用 ID。 */
+    this.apiKeyRef = "";
     this.models = [];
     this.maxTokens = "";
     this.temperature = "";
@@ -1235,7 +1238,8 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
       this.name = editing.name;
       this.type = editing.type;
       this.baseUrl = editing.baseUrl;
-      this.apiKey = editing.apiKey;
+      migrateModelLinkApiKeyToKeychain(this.app, editing);
+      this.apiKeyRef = (_a2 = editing.apiKeyRef) != null ? _a2 : "";
       this.models = editing.models.slice();
       this.maxTokens = editing.maxTokens != null ? String(editing.maxTokens) : "0";
       this.temperature = editing.temperature != null ? String(editing.temperature) : "0.3";
@@ -1341,20 +1345,23 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
         cls: "ana-model-link-key-btn-row"
       });
       const updateSelectBtnText = () => {
-        selectBtn.textContent = this.apiKey ? t("settings.modelLinks.modal.modifyKey") : t("settings.modelLinks.modal.selectKey");
+        selectBtn.textContent = this.apiKeyRef ? t("settings.modelLinks.modal.modifyKey") : t("settings.modelLinks.modal.selectKey");
       };
       const selectBtn = btnRow.createEl("button", {
         cls: "ana-model-link-btn"
       });
       updateSelectBtnText();
       selectBtn.addEventListener("click", () => {
+        var _a2;
+        const currentKey = this.apiKeyRef ? (_a2 = resolveModelLinkApiKey(this.app, { apiKeyRef: this.apiKeyRef })) != null ? _a2 : "" : "";
         new SecretPickerModal(
           this.app,
-          this.apiKey,
-          (secret) => {
-            this.apiKey = secret;
+          currentKey,
+          (secretId) => {
+            this.apiKeyRef = secretId;
             updateSelectBtnText();
-          }
+          },
+          { returnId: true }
         ).open();
       });
       const testBtn = btnRow.createEl("button", {
@@ -1370,7 +1377,7 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
         testBtn.textContent = t("settings.test.testing");
         try {
           const link = this.buildLink("");
-          const provider = createProviderFromLink(link);
+          const provider = createProviderFromLink(this.app, link);
           await provider.complete(
             [
               { role: "system", content: "You are a helpful assistant." },
@@ -1453,16 +1460,19 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
   /** 由当前草稿状态构造 ModelLink（name 缺省时用占位名）。 */
   buildLink(id) {
     const isOllama = this.type === "ollama";
-    return {
+    const link = {
       id,
       name: this.name.trim() || t("settings.modelLinks.modal.untitled"),
       type: this.type,
       baseUrl: this.baseUrl.trim() || (isOllama ? "http://localhost:11434" : "https://api.openai.com/v1"),
-      apiKey: this.apiKey.trim(),
       models: this.models.map((m) => m.trim()).filter(Boolean),
       maxTokens: this.maxTokens ? parseInt(this.maxTokens, 10) || 0 : void 0,
       temperature: this.temperature ? parseFloat(this.temperature) || void 0 : void 0
     };
+    if (this.apiKeyRef) {
+      link.apiKeyRef = this.apiKeyRef;
+    }
+    return link;
   }
   async save() {
     const name = this.name.trim();
@@ -1500,10 +1510,11 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
   }
 };
 var SecretPickerModal = class extends import_obsidian4.Modal {
-  constructor(app, currentKey, onConfirm) {
+  constructor(app, currentKey, onConfirm, options) {
     super(app);
     this.currentKey = currentKey;
     this.onConfirm = onConfirm;
+    this.options = options;
     this.selectedId = null;
     this.searchQuery = "";
     /** 当前展开查看的密钥 ID（null = 无展开） */
@@ -1569,9 +1580,14 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
     });
     this.saveBtnEl.disabled = !this.selectedId;
     this.saveBtnEl.addEventListener("click", () => {
+      var _a2;
       if (this.selectedId) {
-        const val = this.app.secretStorage.getSecret(this.selectedId);
-        this.onConfirm(val != null ? val : "");
+        if ((_a2 = this.options) == null ? void 0 : _a2.returnId) {
+          this.onConfirm(this.selectedId);
+        } else {
+          const val = this.app.secretStorage.getSecret(this.selectedId);
+          this.onConfirm(val != null ? val : "");
+        }
       }
       this.close();
     });
@@ -3574,6 +3590,29 @@ async function uploadSkillFromZip(plugin, file) {
     }),
     installedPath: targetFolder
   };
+}
+
+// src/utils/secret.ts
+var MODEL_KEY_PREFIX = "smartnotes-model";
+function modelLinkSecretId(linkId) {
+  return `${MODEL_KEY_PREFIX}-${sanitizeSecretId(linkId)}`;
+}
+function sanitizeSecretId(raw) {
+  return raw.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "default";
+}
+function resolveModelLinkApiKey(app, link) {
+  if (!link.apiKeyRef)
+    return null;
+  return app.secretStorage.getSecret(link.apiKeyRef);
+}
+function migrateModelLinkApiKeyToKeychain(app, link) {
+  const legacyKey = link.apiKey;
+  if (typeof legacyKey === "string" && legacyKey && !link.apiKeyRef) {
+    const secretId = modelLinkSecretId(link.id);
+    app.secretStorage.setSecret(secretId, legacyKey);
+    link.apiKeyRef = secretId;
+    delete link.apiKey;
+  }
 }
 
 // src/settings.ts
@@ -6903,7 +6942,7 @@ ${extra}` : text
         );
         if (selectedLink) {
           const linkWithModel = { ...selectedLink, models: [modelName] };
-          provider = createProviderFromLink(linkWithModel);
+          provider = createProviderFromLink(this.app, linkWithModel);
         } else {
           provider = this.plugin.getProvider();
         }
@@ -7847,7 +7886,7 @@ var RolePickerModal = class extends BaseListPickerModal {
 };
 
 // src/migrate.ts
-function migrateSettings(loaded, settings) {
+function migrateSettings(loaded, settings, app) {
   if (!settings.modelLinks || settings.modelLinks.length === 0) {
     const hasLegacy = loaded.provider || loaded.openaiApiKey || loaded.openaiBaseUrl || loaded.ollamaBaseUrl || loaded.openaiModel || loaded.ollamaModel;
     if (hasLegacy) {
@@ -7861,6 +7900,8 @@ function migrateSettings(loaded, settings) {
         apiKey: loaded.openaiApiKey || "",
         models: modelId ? [modelId] : []
       };
+      migrateModelLinkApiKeyToKeychain(app, link);
+      delete link.apiKey;
       settings.modelLinks = [link];
       settings.defaultModelLinkId = link.id;
     } else {
@@ -7870,6 +7911,12 @@ function migrateSettings(loaded, settings) {
   }
   if (settings.modelLinks.length > 0 && !settings.modelLinks.some((l) => l.id === settings.defaultModelLinkId)) {
     settings.defaultModelLinkId = settings.modelLinks[0].id;
+  }
+  for (const link of settings.modelLinks) {
+    migrateModelLinkApiKeyToKeychain(
+      app,
+      link
+    );
   }
   if (!settings.roles || settings.roles.length === 0) {
     const legacy = loaded.customInstructions;
@@ -7889,6 +7936,7 @@ function migrateSettings(loaded, settings) {
   if (settings.roles.length > 0 && !settings.roles.some((r) => r.id === settings.defaultRoleId)) {
     settings.defaultRoleId = settings.roles[0].id;
   }
+  settings.openaiApiKey = "";
 }
 
 // src/main.ts
@@ -7956,7 +8004,7 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
   }
   async onload() {
     await this.loadSettings();
-    this.provider = createProvider(this.settings);
+    this.provider = createProvider(this.app, this.settings);
     initI18n(this.app);
     (0, import_obsidian13.addIcon)("vault-mind", ICON_SVG);
     void ensureAiFolder(this);
@@ -8070,11 +8118,11 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
   async loadSettings() {
     const loaded = await this.loadData() || {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
-    migrateSettings(loaded, this.settings);
+    migrateSettings(loaded, this.settings, this.app);
   }
   async saveSettings() {
     await this.saveData(this.settings);
-    this.provider = createProvider(this.settings);
+    this.provider = createProvider(this.app, this.settings);
     try {
       this.settingsEvents.trigger("settings-changed");
     } catch (e) {

@@ -38,7 +38,7 @@
   "settings.test.httpError": "HTTP 状态 {status}",
 
   "settings.openaiKey.name": "API Key",
-  "settings.openaiKey.desc": "仅保存在本地插件数据中，只发送给你所配置的 Base URL。",
+  "settings.openaiKey.desc": "从 Obsidian 钥匙串中选择密钥；密钥不会保存到 data.json，只发送给你所配置的 Base URL。",
   "settings.openaiBaseUrl.name": "Base URL",
   "settings.openaiBaseUrl.desc": "默认：https://api.openai.com/v1",
   "settings.openaiModel.name": "模型名称",

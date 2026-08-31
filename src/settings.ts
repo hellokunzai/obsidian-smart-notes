@@ -7,6 +7,7 @@ import {
   ToggleComponent,
   setIcon,
 } from "obsidian";
+import { sanitizeSecretId } from "./utils/secret";
 import type AiNoteAgentPlugin from "./main";
 import { t } from "./i18n";
 import { ModelLinkModal, SecretPickerModal } from "./modelLinkModal";
@@ -27,7 +28,11 @@ export interface ModelLink {
   name: string;
   type: ProviderType;
   baseUrl: string;
-  apiKey: string;
+  /**
+   * Obsidian 钥匙串中对应密钥的引用 ID。
+   * 实际 API Key 不再保存到 data.json，而是通过此 ID 从 keychain 读取。
+   */
+  apiKeyRef?: string;
   /** 该链接下可使用的模型 ID 列表（支持多个）。 */
   models: string[];
   /** 该链接的最大 Token 数（不填则使用全局默认值）。 */
@@ -35,6 +40,15 @@ export interface ModelLink {
   /** 该链接的温度参数（不填则使用全局默认值）。 */
   temperature?: number;
 }
+
+/** 从 Obsidian keychain 读取模型链接对应的实际 API Key。 */
+export { resolveModelLinkApiKey } from "./utils/secret";
+
+/**
+ * 将模型链接的明文 API Key 迁移到 Obsidian keychain（一次性兼容处理）。
+ * 直接修改传入的 link 对象。
+ */
+export { migrateModelLinkApiKeyToKeychain } from "./utils/secret";
 
 /** 生成短随机 id，用于模型链接 / 角色信息唯一标识。 */
 export function genId(): string {

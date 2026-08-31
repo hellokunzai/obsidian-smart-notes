@@ -10,7 +10,7 @@ import {
 } from "obsidian";
 import type AiNoteAgentPlugin from "./main";
 import type { ModelLink, ProviderType } from "./settings";
-import { genId } from "./settings";
+import { genId, migrateModelLinkApiKeyToKeychain, resolveModelLinkApiKey } from "./settings";
 import { createProviderFromLink } from "./ai/provider";
 import { t } from "./i18n";
 
@@ -23,7 +23,8 @@ export class ModelLinkModal extends Modal {
   private name = "";
   private type: ProviderType = "openai";
   private baseUrl = "";
-  private apiKey = "";
+  /** 指向 Obsidian keychain 中 secret 的引用 ID。 */
+  private apiKeyRef = "";
   private models: string[] = [];
   private maxTokens = "";
   private temperature = "";
@@ -44,7 +45,9 @@ export class ModelLinkModal extends Modal {
       this.name = editing.name;
       this.type = editing.type;
       this.baseUrl = editing.baseUrl;
-      this.apiKey = editing.apiKey;
+      // 兼容旧数据：若 data.json 仍保存明文 apiKey，先迁移到 Obsidian keychain
+      migrateModelLinkApiKeyToKeychain(this.app, editing as ModelLink & { apiKey?: string });
+      this.apiKeyRef = editing.apiKeyRef ?? "";
       this.models = editing.models.slice();
       this.maxTokens = editing.maxTokens != null ? String(editing.maxTokens) : "0";
       this.temperature = editing.temperature != null ? String(editing.temperature) : "0.3";
@@ -204,7 +207,7 @@ export class ModelLinkModal extends Modal {
 
       /** 根据当前密钥状态更新选择按钮文字 */
       const updateSelectBtnText = () => {
-        selectBtn.textContent = this.apiKey
+        selectBtn.textContent = this.apiKeyRef
           ? t("settings.modelLinks.modal.modifyKey")
           : t("settings.modelLinks.modal.selectKey");
       };
@@ -215,13 +218,17 @@ export class ModelLinkModal extends Modal {
       });
       updateSelectBtnText();
       selectBtn.addEventListener("click", () => {
+        const currentKey = this.apiKeyRef
+          ? resolveModelLinkApiKey(this.app, { apiKeyRef: this.apiKeyRef } as ModelLink) ?? ""
+          : "";
         new SecretPickerModal(
           this.app,
-          this.apiKey,
-          (secret) => {
-            this.apiKey = secret;
+          currentKey,
+          (secretId) => {
+            this.apiKeyRef = secretId;
             updateSelectBtnText();
-          }
+          },
+          { returnId: true }
         ).open();
       });
 
@@ -240,7 +247,7 @@ export class ModelLinkModal extends Modal {
         testBtn.textContent = t("settings.test.testing");
         try {
           const link = this.buildLink("");
-          const provider = createProviderFromLink(link);
+          const provider = createProviderFromLink(this.app, link);
           await provider.complete(
             [
               { role: "system", content: "You are a helpful assistant." },
@@ -340,18 +347,21 @@ export class ModelLinkModal extends Modal {
   /** 由当前草稿状态构造 ModelLink（name 缺省时用占位名）。 */
   private buildLink(id: string): ModelLink {
     const isOllama = this.type === "ollama";
-    return {
+    const link: ModelLink = {
       id,
       name: this.name.trim() || t("settings.modelLinks.modal.untitled"),
       type: this.type,
       baseUrl: this.baseUrl.trim() || (isOllama ? "http://localhost:11434" : "https://api.openai.com/v1"),
-      apiKey: this.apiKey.trim(),
       models: this.models.map((m) => m.trim()).filter(Boolean),
       maxTokens: this.maxTokens
         ? parseInt(this.maxTokens, 10) || 0
         : undefined,
       temperature: this.temperature ? parseFloat(this.temperature) || undefined : undefined,
     };
+    if (this.apiKeyRef) {
+      link.apiKeyRef = this.apiKeyRef;
+    }
+    return link;
   }
 
   private async save(): Promise<void> {
@@ -412,7 +422,8 @@ export class SecretPickerModal extends Modal {
   constructor(
     app: App,
     private currentKey: string,
-    private onConfirm: (secret: string) => void
+    private onConfirm: (secret: string) => void,
+    private options?: { returnId?: boolean }
   ) {
     super(app);
   }
@@ -496,8 +507,12 @@ export class SecretPickerModal extends Modal {
     this.saveBtnEl.disabled = !this.selectedId;
     this.saveBtnEl.addEventListener("click", () => {
       if (this.selectedId) {
-        const val = this.app.secretStorage.getSecret(this.selectedId);
-        this.onConfirm(val ?? "");
+        if (this.options?.returnId) {
+          this.onConfirm(this.selectedId);
+        } else {
+          const val = this.app.secretStorage.getSecret(this.selectedId);
+          this.onConfirm(val ?? "");
+        }
       }
       this.close();
     });

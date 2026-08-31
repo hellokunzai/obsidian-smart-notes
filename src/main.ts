@@ -117,7 +117,7 @@ export default class AiNoteAgentPlugin extends Plugin {
 
   async onload() {
     await this.loadSettings();
-    this.provider = createProvider(this.settings);
+    this.provider = createProvider(this.app, this.settings);
     initI18n(this.app);
 
     addIcon("vault-mind", ICON_SVG);
@@ -249,12 +249,12 @@ export default class AiNoteAgentPlugin extends Plugin {
     const loaded = ((await this.loadData()) as Record<string, any>) || {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
     // 迁移旧版扁平字段 → modelLinks / roles，并做 defaultId 兜底
-    migrateSettings(loaded, this.settings);
+    migrateSettings(loaded, this.settings, this.app);
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
-    this.provider = createProvider(this.settings);
+    this.provider = createProvider(this.app, this.settings);
     // 通知已打开的视图（如对话面板）刷新依赖设置的 UI
     try {
       this.settingsEvents.trigger("settings-changed");
