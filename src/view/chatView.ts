@@ -946,7 +946,7 @@ export class ChatView extends ItemView {
     // 开启时若未配置凭据，给出提示
     if (s.webSearch) {
       const cfg = this.buildSearchConfig();
-      if (!new WebSearchService(cfg).hasCredentials()) {
+      if (!new WebSearchService(this.app, cfg).hasCredentials()) {
         new Notice(t("view.webNoCredentials"));
       }
     }
@@ -958,9 +958,9 @@ export class ChatView extends ItemView {
     return {
       enabled: st.webSearchEnabled,
       provider: st.webSearchProvider,
-      tavilyApiKeys: st.tavilyApiKeys,
-      serperApiKeys: st.serperApiKeys,
-      braveApiKeys: st.braveApiKeys,
+      tavilyApiKeyRef: st.tavilyApiKeyRef,
+      serperApiKeyRef: st.serperApiKeyRef,
+      braveApiKeyRef: st.braveApiKeyRef,
       searxngInstances: st.searxngInstances,
       maxResults: st.webSearchMaxResults,
       maxCharsPerResult: st.webSearchMaxCharsPerResult,
@@ -1507,7 +1507,7 @@ export class ChatView extends ItemView {
     let webContext = "";
     if (s.webSearch && this.plugin.settings.webSearchEnabled) {
       try {
-        const svc = new WebSearchService(this.buildSearchConfig());
+        const svc = new WebSearchService(this.app, this.buildSearchConfig());
         if (svc.hasCredentials()) {
           const results = await svc.search(this.lastUserText);
           webContext = buildWebSearchContext(

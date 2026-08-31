@@ -2,6 +2,7 @@ import { App } from "obsidian";
 import type { ModelLink } from "../settings";
 
 const MODEL_KEY_PREFIX = "smartnotes-model";
+const WEB_KEY_PREFIX = "smartnotes-web";
 
 /**
  * 为模型链接生成一个合规的 keychain secret ID。
@@ -62,4 +63,31 @@ export function migrateModelLinkApiKeyToKeychain(
     link.apiKeyRef = secretId;
     delete (link as unknown as Record<string, unknown>).apiKey;
   }
+}
+
+/**
+ * 为联网搜索 provider 的明文密钥生成确定性 keychain secret ID。
+ * 形如 `smartnotes-web-<provider>-<n>`，便于用户识别与迁移幂等。
+ */
+export function webKeySecretId(provider: string, n: number): string {
+  return `${WEB_KEY_PREFIX}-${sanitizeSecretId(provider)}-${n}`;
+}
+
+/**
+ * 把明文密钥迁移到 Obsidian keychain，返回单个引用 ID。
+ * 仅保留第一个非空密钥（UI 已改为单密钥配置），写入确定性 ID
+ * `<provider>-1`；调用方应把返回的 ID 存入 settings 的 `<provider>ApiKeyRef`
+ * 字段（data.json 只保留引用，不保留明文）。
+ */
+export function migrateWebApiKeysToKeychain(
+  app: App,
+  provider: "tavily" | "serper" | "brave",
+  keys: string[]
+): string | null {
+  const first = (Array.isArray(keys) ? keys : [])
+    .find((k) => typeof k === "string" && k);
+  if (!first) return null;
+  const id = webKeySecretId(provider, 1);
+  app.secretStorage.setSecret(id, first);
+  return id;
 }

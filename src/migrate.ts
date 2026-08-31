@@ -9,6 +9,7 @@ import {
 } from "./settings";
 import { t } from "./i18n";
 import { App } from "obsidian";
+import { migrateWebApiKeysToKeychain } from "./utils/secret";
 
 /**
  * 设置迁移：把旧版扁平字段（单一 provider / customInstructions）
@@ -77,6 +78,61 @@ export function migrateSettings(
       link as ModelLink & { apiKey?: string }
     );
   }
+
+  // ── 迁移 3：旧版联网搜索密钥（tavily/serper/brave）→ 单值 keychain 引用 ──
+  // 兼容三种历史形态，统一收敛为单个 <provider>ApiKeyRef 引用：
+  //   a) 明文数组 tavilyApiKeys（最早版本）→ 写入 keychain，取第一个
+  //   b) 引用数组 tavilyApiKeyRefs（上轮 keychain 化遗留）→ 直接取第一个
+  //   c) 当前单值 tavilyApiKeyRef → 保持不变
+  const webProviders: Array<"tavily" | "serper" | "brave"> = [
+    "tavily",
+    "serper",
+    "brave",
+  ];
+  for (const prov of webProviders) {
+    const refField = `${prov}ApiKeyRef` as
+      | "tavilyApiKeyRef"
+      | "serperApiKeyRef"
+      | "braveApiKeyRef";
+    const settingsAny = settings as unknown as Record<string, string>;
+    // 已是单值引用且非空 → 无需处理
+    if (settingsAny[refField]) continue;
+
+    // b) 上轮遗留的引用数组：第一个元素本身就是 keychain ID
+    const legacyRefs = (loaded as Record<string, unknown>)[
+      `${prov}ApiKeyRefs`
+    ];
+    if (
+      Array.isArray(legacyRefs) &&
+      legacyRefs.length > 0 &&
+      typeof legacyRefs[0] === "string" &&
+      legacyRefs[0]
+    ) {
+      settingsAny[refField] = legacyRefs[0];
+      continue;
+    }
+
+    // a) 最早的明文数组 → 迁入 keychain，取第一个
+    const legacyKeys = (loaded as Record<string, unknown>)[
+      `${prov}ApiKeys`
+    ];
+    if (Array.isArray(legacyKeys) && legacyKeys.length > 0) {
+      const ref = migrateWebApiKeysToKeychain(
+        app,
+        prov,
+        legacyKeys as string[]
+      );
+      if (ref) settingsAny[refField] = ref;
+    }
+  }
+  // 安全清理：删除由 Object.assign 带入 settings 的旧数组字段，否则下次
+  // saveSettings 会把它们重新写回 data.json，导致「保存多个密钥」的残留。
+  delete (settings as unknown as Record<string, unknown>).tavilyApiKeyRefs;
+  delete (settings as unknown as Record<string, unknown>).serperApiKeyRefs;
+  delete (settings as unknown as Record<string, unknown>).braveApiKeyRefs;
+  delete (settings as unknown as Record<string, unknown>).tavilyApiKeys;
+  delete (settings as unknown as Record<string, unknown>).serperApiKeys;
+  delete (settings as unknown as Record<string, unknown>).braveApiKeys;
 
   // ── 迁移 2：旧版单一 customInstructions（系统指令）→ 单条「默认角色」──
   if (!settings.roles || settings.roles.length === 0) {

@@ -315,17 +315,17 @@ var en_default = {
   "settings.webSearchEnabled.desc": "Master switch for web search. Even when on, it only runs when you explicitly toggle the \u{1F310} button in a chat.",
   "settings.webSearchProvider.name": "Search provider",
   "settings.webSearchProvider.desc": "Which search backend to use. Tavily / Serper (Google) / Brave / SearXNG.",
-  "settings.webKeys.tavily.name": "Tavily API keys",
-  "settings.webKeys.tavily.desc": "One key per line (or comma-separated). Keys are polled in order; if one fails or is rate-limited, the next is tried.",
+  "settings.webKeys.tavily.name": "Tavily API key",
+  "settings.webKeys.tavily.desc": 'Key is stored in the Obsidian keychain (not written to data.json). Click "Select key" to pick or create a single secret.',
   "settings.webKeys.tavily.placeholder": "tvly-xxx",
-  "settings.webKeys.serper.name": "Serper API keys",
-  "settings.webKeys.serper.desc": "One key per line (or comma-separated). Keys are polled in order.",
+  "settings.webKeys.serper.name": "Serper API key",
+  "settings.webKeys.serper.desc": 'Key is stored in the Obsidian keychain (not written to data.json). Click "Select key" to pick or create a single secret.',
   "settings.webKeys.serper.placeholder": "your-serper-key",
-  "settings.webKeys.brave.name": "Brave Search API keys",
-  "settings.webKeys.brave.desc": "One key per line (or comma-separated). Keys are polled in order.",
+  "settings.webKeys.brave.name": "Brave Search API key",
+  "settings.webKeys.brave.desc": 'Key is stored in the Obsidian keychain (not written to data.json). Click "Select key" to pick or create a single secret.',
   "settings.webKeys.brave.placeholder": "BSA-xxx",
   "settings.webKeys.searxng.name": "SearXNG instances",
-  "settings.webKeys.searxng.desc": "One instance base URL per line (e.g. https://searx.example.com). Instances are tried in order.",
+  "settings.webKeys.searxng.desc": "One instance base URL per line (e.g. https://searx.example.com). Instances are tried in order. Instance URLs are not secrets and are stored as plain config.",
   "settings.webKeys.searxng.placeholder": "https://searx.example.com",
   "settings.webSearchMaxResults.name": "Max results",
   "settings.webSearchMaxResults.desc": "Maximum number of search results fetched per query.",
@@ -667,16 +667,16 @@ var zh_default = {
   "settings.webSearchProvider.name": "\u641C\u7D22\u63D0\u4F9B\u5546",
   "settings.webSearchProvider.desc": "\u4F7F\u7528\u54EA\u4E2A\u641C\u7D22\u540E\u7AEF\uFF1ATavily / Serper\uFF08Google\uFF09/ Brave / SearXNG\u3002",
   "settings.webKeys.tavily.name": "Tavily API Key",
-  "settings.webKeys.tavily.desc": "\u6BCF\u884C\u4E00\u4E2A Key\uFF08\u6216\u7528\u9017\u53F7\u5206\u9694\uFF09\u3002\u591A\u4E2A Key \u4F1A\u6309\u987A\u5E8F\u8F6E\u8BE2\uFF0C\u67D0\u4E2A\u5931\u6548\u6216\u9650\u6D41\u65F6\u81EA\u52A8\u5C1D\u8BD5\u4E0B\u4E00\u4E2A\u3002",
+  "settings.webKeys.tavily.desc": "\u5BC6\u94A5\u4FDD\u5B58\u5728 Obsidian \u94A5\u5319\u4E32\u4E2D\uFF08\u4E0D\u5199\u5165 data.json\uFF09\u3002\u70B9\u51FB\u300C\u9009\u62E9\u5BC6\u94A5\u300D\u4ECE\u94A5\u5319\u4E32\u9009\u62E9\u6216\u65B0\u5EFA\u4E00\u4E2A\u5BC6\u94A5\u3002",
   "settings.webKeys.tavily.placeholder": "tvly-xxx",
   "settings.webKeys.serper.name": "Serper API Key",
-  "settings.webKeys.serper.desc": "\u6BCF\u884C\u4E00\u4E2A Key\uFF08\u6216\u7528\u9017\u53F7\u5206\u9694\uFF09\u3002\u591A\u4E2A Key \u4F1A\u6309\u987A\u5E8F\u8F6E\u8BE2\u3002",
+  "settings.webKeys.serper.desc": "\u5BC6\u94A5\u4FDD\u5B58\u5728 Obsidian \u94A5\u5319\u4E32\u4E2D\uFF08\u4E0D\u5199\u5165 data.json\uFF09\u3002\u70B9\u51FB\u300C\u9009\u62E9\u5BC6\u94A5\u300D\u4ECE\u94A5\u5319\u4E32\u9009\u62E9\u6216\u65B0\u5EFA\u4E00\u4E2A\u5BC6\u94A5\u3002",
   "settings.webKeys.serper.placeholder": "your-serper-key",
   "settings.webKeys.brave.name": "Brave \u641C\u7D22 API Key",
-  "settings.webKeys.brave.desc": "\u6BCF\u884C\u4E00\u4E2A Key\uFF08\u6216\u7528\u9017\u53F7\u5206\u9694\uFF09\u3002\u591A\u4E2A Key \u4F1A\u6309\u987A\u5E8F\u8F6E\u8BE2\u3002",
+  "settings.webKeys.brave.desc": "\u5BC6\u94A5\u4FDD\u5B58\u5728 Obsidian \u94A5\u5319\u4E32\u4E2D\uFF08\u4E0D\u5199\u5165 data.json\uFF09\u3002\u70B9\u51FB\u300C\u9009\u62E9\u5BC6\u94A5\u300D\u4ECE\u94A5\u5319\u4E32\u9009\u62E9\u6216\u65B0\u5EFA\u4E00\u4E2A\u5BC6\u94A5\u3002",
   "settings.webKeys.brave.placeholder": "BSA-xxx",
   "settings.webKeys.searxng.name": "SearXNG \u5B9E\u4F8B\u5730\u5740",
-  "settings.webKeys.searxng.desc": "\u6BCF\u884C\u4E00\u4E2A\u5B9E\u4F8B\u57FA\u7840\u5730\u5740\uFF08\u5982 https://searx.example.com\uFF09\u3002\u591A\u4E2A\u5B9E\u4F8B\u4F1A\u6309\u987A\u5E8F\u5C1D\u8BD5\u3002",
+  "settings.webKeys.searxng.desc": "\u6BCF\u884C\u4E00\u4E2A\u5B9E\u4F8B\u57FA\u7840\u5730\u5740\uFF08\u5982 https://searx.example.com\uFF09\u3002\u591A\u4E2A\u5B9E\u4F8B\u4F1A\u6309\u987A\u5E8F\u5C1D\u8BD5\u3002\u5B9E\u4F8B\u5730\u5740\u975E\u5BC6\u94A5\uFF0C\u4EE5\u660E\u6587\u914D\u7F6E\u4FDD\u5B58\u3002",
   "settings.webKeys.searxng.placeholder": "https://searx.example.com",
   "settings.webSearchMaxResults.name": "\u6700\u5927\u7ED3\u679C\u6570",
   "settings.webSearchMaxResults.desc": "\u6BCF\u6B21\u641C\u7D22\u6700\u591A\u83B7\u53D6\u7684\u7ED3\u679C\u6761\u6570\u3002",
@@ -1521,6 +1521,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
     this.expandedId = null;
   }
   onOpen() {
+    var _a2;
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("ana-model-link-modal");
@@ -1549,8 +1550,8 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
     if (this.currentKey) {
       const allIds = this.app.secretStorage.listSecrets();
       for (const id of allIds) {
-        const val = this.app.secretStorage.getSecret(id);
-        if (val === this.currentKey) {
+        const match = ((_a2 = this.options) == null ? void 0 : _a2.returnId) ? id === this.currentKey : this.app.secretStorage.getSecret(id) === this.currentKey;
+        if (match) {
           this.selectedId = id;
           break;
         }
@@ -1580,9 +1581,9 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
     });
     this.saveBtnEl.disabled = !this.selectedId;
     this.saveBtnEl.addEventListener("click", () => {
-      var _a2;
+      var _a3;
       if (this.selectedId) {
-        if ((_a2 = this.options) == null ? void 0 : _a2.returnId) {
+        if ((_a3 = this.options) == null ? void 0 : _a3.returnId) {
           this.onConfirm(this.selectedId);
         } else {
           const val = this.app.secretStorage.getSecret(this.selectedId);
@@ -2783,7 +2784,8 @@ var PROVIDERS = {
   searxng: new SearXNGProvider()
 };
 var WebSearchService = class {
-  constructor(config) {
+  constructor(app, config) {
+    this.app = app;
     this.config = config;
   }
   /** 当前是否配置了至少一个可用的凭据。 */
@@ -2791,14 +2793,24 @@ var WebSearchService = class {
     const keys = this.keysForProvider(this.config.provider);
     return keys.length > 0;
   }
+  /** 把单个 keychain 引用 ID 解析为实际密钥。 */
+  resolveRef(ref) {
+    return ref ? this.app.secretStorage.getSecret(ref) : null;
+  }
   keysForProvider(p) {
     switch (p) {
-      case "tavily":
-        return this.config.tavilyApiKeys;
-      case "serper":
-        return this.config.serperApiKeys;
-      case "brave":
-        return this.config.braveApiKeys;
+      case "tavily": {
+        const key = this.resolveRef(this.config.tavilyApiKeyRef);
+        return key ? [key] : [];
+      }
+      case "serper": {
+        const key = this.resolveRef(this.config.serperApiKeyRef);
+        return key ? [key] : [];
+      }
+      case "brave": {
+        const key = this.resolveRef(this.config.braveApiKeyRef);
+        return key ? [key] : [];
+      }
       case "searxng":
         return this.config.searxngInstances;
     }
@@ -2824,15 +2836,15 @@ var WebSearchService = class {
     }));
   }
   /**
-   * 测试指定 provider 的单个凭据是否可用。
-   * 凭据无效（HTTP 非 200 / 响应含 error 字段 / 网络错误）时抛出带原因的错误；
-   * 凭据有效时返回 true。
+   * 测试指定 provider 的凭据是否可用。
+   * 凭据无效（HTTP 非 200 / 响应含 error 字段 / 网络错误）时抛出带原因的错误。
    */
-  async testConnection(providerId, key) {
-    if (!key)
+  async testConnection(providerId) {
+    const keys = this.keysForProvider(providerId);
+    if (keys.length === 0)
       throw new Error(t("settings.test.noKey"));
     const provider = PROVIDERS[providerId];
-    await provider.search("test", [key], 1);
+    await provider.search("test", keys, 1);
     return true;
   }
 };
@@ -3594,6 +3606,7 @@ async function uploadSkillFromZip(plugin, file) {
 
 // src/utils/secret.ts
 var MODEL_KEY_PREFIX = "smartnotes-model";
+var WEB_KEY_PREFIX = "smartnotes-web";
 function modelLinkSecretId(linkId) {
   return `${MODEL_KEY_PREFIX}-${sanitizeSecretId(linkId)}`;
 }
@@ -3613,6 +3626,17 @@ function migrateModelLinkApiKeyToKeychain(app, link) {
     link.apiKeyRef = secretId;
     delete link.apiKey;
   }
+}
+function webKeySecretId(provider, n) {
+  return `${WEB_KEY_PREFIX}-${sanitizeSecretId(provider)}-${n}`;
+}
+function migrateWebApiKeysToKeychain(app, provider, keys) {
+  const first = (Array.isArray(keys) ? keys : []).find((k) => typeof k === "string" && k);
+  if (!first)
+    return null;
+  const id = webKeySecretId(provider, 1);
+  app.secretStorage.setSecret(id, first);
+  return id;
 }
 
 // src/settings.ts
@@ -3667,9 +3691,9 @@ var DEFAULT_SETTINGS = {
   defaultSkills: [],
   webSearchEnabled: false,
   webSearchProvider: "tavily",
-  tavilyApiKeys: [],
-  serperApiKeys: [],
-  braveApiKeys: [],
+  tavilyApiKeyRef: "",
+  serperApiKeyRef: "",
+  braveApiKeyRef: "",
   searxngInstances: [],
   webSearchMaxResults: 5,
   webSearchMaxCharsPerResult: 1500,
@@ -4298,23 +4322,6 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
     }).setDisabled(!this.plugin.settings.frontmatterGenerationEnabled);
   }
   // ===== 标签页：联网搜索 =====
-  /** 获取当前 provider 的第一个秘钥（兼容数组数据模型） */
-  getCurrentWebKey(prov) {
-    const arr = prov === "tavily" ? this.plugin.settings.tavilyApiKeys : prov === "serper" ? this.plugin.settings.serperApiKeys : prov === "brave" ? this.plugin.settings.braveApiKeys : this.plugin.settings.searxngInstances;
-    return arr.length > 0 ? arr[0] : "";
-  }
-  /** 设置当前 provider 的秘钥（替换整个数组为单元素） */
-  setWebKey(prov, secret) {
-    const arr = secret ? [secret] : [];
-    if (prov === "tavily")
-      this.plugin.settings.tavilyApiKeys = arr;
-    else if (prov === "serper")
-      this.plugin.settings.serperApiKeys = arr;
-    else if (prov === "brave")
-      this.plugin.settings.braveApiKeys = arr;
-    else
-      this.plugin.settings.searxngInstances = arr;
-  }
   renderWebTab(bodyEl) {
     let providerSetting;
     let keysSetting;
@@ -4341,61 +4348,80 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       })
     ).setDisabled(!webEnabled);
     const prov = this.plugin.settings.webSearchProvider;
-    const currentWebKey = this.getCurrentWebKey(prov);
-    keysSetting = new import_obsidian8.Setting(bodyEl).setName(t(`settings.webKeys.${prov}.name`)).setDesc(t(`settings.webKeys.${prov}.desc`)).setClass("ana-setting-key-row");
-    const webKeyBtnRow = keysSetting.controlEl.createEl("div", {
-      cls: "ana-model-link-key-btn-row"
-    });
-    const selectKeyBtn = webKeyBtnRow.createEl("button", {
-      cls: "ana-model-link-btn",
-      text: currentWebKey ? t("settings.modelLinks.modal.modifyKey") : t("settings.modelLinks.modal.selectKey")
-    });
-    selectKeyBtn.addEventListener("click", () => {
-      new SecretPickerModal(
-        this.app,
-        this.getCurrentWebKey(prov),
-        async (secret) => {
-          this.setWebKey(prov, secret);
-          selectKeyBtn.textContent = secret ? t("settings.modelLinks.modal.modifyKey") : t("settings.modelLinks.modal.selectKey");
-          await this.plugin.saveSettings();
+    const isApiKey = prov !== "searxng";
+    if (isApiKey) {
+      const refField = `${prov}ApiKeyRef`;
+      const getRef = () => {
+        return this.plugin.settings[refField] || "";
+      };
+      const setRef = (ref) => {
+        this.plugin.settings[refField] = ref;
+      };
+      keysSetting = new import_obsidian8.Setting(bodyEl).setName(t(`settings.webKeys.${prov}.name`)).setDesc(t(`settings.webKeys.${prov}.desc`)).setClass("ana-setting-key-row");
+      const btnRow = keysSetting.controlEl.createEl("div", {
+        cls: "ana-model-link-key-btn-row"
+      });
+      const selectBtn = btnRow.createEl("button", {
+        cls: "ana-model-link-btn",
+        text: getRef() ? t("settings.modelLinks.modal.modifyKey") : t("settings.modelLinks.modal.selectKey")
+      });
+      selectBtn.addEventListener("click", () => {
+        new SecretPickerModal(
+          this.app,
+          getRef(),
+          async (secretId) => {
+            setRef(secretId);
+            await this.plugin.saveSettings();
+            this.display();
+          },
+          { returnId: true }
+        ).open();
+      });
+      const webTestBtn = btnRow.createEl("button", {
+        cls: "ana-model-link-btn",
+        text: t("settings.test.button")
+      });
+      webTestBtn.addEventListener("click", async () => {
+        if (!getRef()) {
+          new import_obsidian8.Notice(t("settings.test.noKey"));
+          return;
         }
-      ).open();
-    });
-    const webTestBtn = webKeyBtnRow.createEl("button", {
-      cls: "ana-model-link-btn",
-      text: t("settings.test.button")
-    });
-    webTestBtn.addEventListener("click", async () => {
-      const key = this.getCurrentWebKey(prov);
-      if (!key) {
-        new import_obsidian8.Notice(t("settings.test.noKey"));
-        return;
-      }
-      webTestBtn.disabled = true;
-      webTestBtn.textContent = t("settings.test.testing");
-      try {
-        const svc = new WebSearchService({
-          enabled: true,
-          provider: prov,
-          tavilyApiKeys: this.plugin.settings.tavilyApiKeys,
-          serperApiKeys: this.plugin.settings.serperApiKeys,
-          braveApiKeys: this.plugin.settings.braveApiKeys,
-          searxngInstances: this.plugin.settings.searxngInstances,
-          maxResults: this.plugin.settings.webSearchMaxResults,
-          maxCharsPerResult: this.plugin.settings.webSearchMaxCharsPerResult
+        webTestBtn.disabled = true;
+        webTestBtn.textContent = t("settings.test.testing");
+        try {
+          const svc = new WebSearchService(this.app, {
+            enabled: true,
+            provider: prov,
+            tavilyApiKeyRef: this.plugin.settings.tavilyApiKeyRef,
+            serperApiKeyRef: this.plugin.settings.serperApiKeyRef,
+            braveApiKeyRef: this.plugin.settings.braveApiKeyRef,
+            searxngInstances: this.plugin.settings.searxngInstances,
+            maxResults: this.plugin.settings.webSearchMaxResults,
+            maxCharsPerResult: this.plugin.settings.webSearchMaxCharsPerResult
+          });
+          await svc.testConnection(prov);
+          new import_obsidian8.Notice(t("settings.test.success"));
+        } catch (e) {
+          new import_obsidian8.Notice(
+            t("settings.test.failure", { error: e.message })
+          );
+        } finally {
+          webTestBtn.disabled = false;
+          webTestBtn.textContent = t("settings.test.button");
+        }
+      });
+    } else {
+      keysSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.webKeys.searxng.name")).setDesc(t("settings.webKeys.searxng.desc")).setClass("ana-setting-key-row").addTextArea((ta) => {
+        ta.setPlaceholder(t("settings.webKeys.searxng.placeholder"));
+        ta.setValue(this.plugin.settings.searxngInstances.join("\n"));
+        ta.onChange(async (v) => {
+          this.plugin.settings.searxngInstances = v.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+          await this.plugin.saveSettings();
         });
-        await svc.testConnection(prov, key);
-        new import_obsidian8.Notice(t("settings.test.success"));
-      } catch (e) {
-        new import_obsidian8.Notice(
-          t("settings.test.failure", { error: e.message })
-        );
-      } finally {
-        webTestBtn.disabled = false;
-        webTestBtn.textContent = t("settings.test.button");
-      }
-    });
-    keysSetting.setDisabled(!webEnabled);
+        ta.inputEl.rows = 3;
+      });
+    }
+    keysSetting == null ? void 0 : keysSetting.setDisabled(!webEnabled);
     maxResultsSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.webSearchMaxResults.name")).setDesc(t("settings.webSearchMaxResults.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "1";
@@ -6409,7 +6435,7 @@ var ChatView = class extends import_obsidian12.ItemView {
     await this.persist();
     if (s.webSearch) {
       const cfg = this.buildSearchConfig();
-      if (!new WebSearchService(cfg).hasCredentials()) {
+      if (!new WebSearchService(this.app, cfg).hasCredentials()) {
         new import_obsidian12.Notice(t("view.webNoCredentials"));
       }
     }
@@ -6420,9 +6446,9 @@ var ChatView = class extends import_obsidian12.ItemView {
     return {
       enabled: st.webSearchEnabled,
       provider: st.webSearchProvider,
-      tavilyApiKeys: st.tavilyApiKeys,
-      serperApiKeys: st.serperApiKeys,
-      braveApiKeys: st.braveApiKeys,
+      tavilyApiKeyRef: st.tavilyApiKeyRef,
+      serperApiKeyRef: st.serperApiKeyRef,
+      braveApiKeyRef: st.braveApiKeyRef,
       searxngInstances: st.searxngInstances,
       maxResults: st.webSearchMaxResults,
       maxCharsPerResult: st.webSearchMaxCharsPerResult
@@ -6882,7 +6908,7 @@ var ChatView = class extends import_obsidian12.ItemView {
     let webContext = "";
     if (s.webSearch && this.plugin.settings.webSearchEnabled) {
       try {
-        const svc = new WebSearchService(this.buildSearchConfig());
+        const svc = new WebSearchService(this.app, this.buildSearchConfig());
         if (svc.hasCredentials()) {
           const results = await svc.search(this.lastUserText);
           webContext = buildWebSearchContext(
@@ -7918,6 +7944,38 @@ function migrateSettings(loaded, settings, app) {
       link
     );
   }
+  const webProviders = [
+    "tavily",
+    "serper",
+    "brave"
+  ];
+  for (const prov of webProviders) {
+    const refField = `${prov}ApiKeyRef`;
+    const settingsAny = settings;
+    if (settingsAny[refField])
+      continue;
+    const legacyRefs = loaded[`${prov}ApiKeyRefs`];
+    if (Array.isArray(legacyRefs) && legacyRefs.length > 0 && typeof legacyRefs[0] === "string" && legacyRefs[0]) {
+      settingsAny[refField] = legacyRefs[0];
+      continue;
+    }
+    const legacyKeys = loaded[`${prov}ApiKeys`];
+    if (Array.isArray(legacyKeys) && legacyKeys.length > 0) {
+      const ref = migrateWebApiKeysToKeychain(
+        app,
+        prov,
+        legacyKeys
+      );
+      if (ref)
+        settingsAny[refField] = ref;
+    }
+  }
+  delete settings.tavilyApiKeyRefs;
+  delete settings.serperApiKeyRefs;
+  delete settings.braveApiKeyRefs;
+  delete settings.tavilyApiKeys;
+  delete settings.serperApiKeys;
+  delete settings.braveApiKeys;
   if (!settings.roles || settings.roles.length === 0) {
     const legacy = loaded.customInstructions;
     if (legacy && legacy.trim()) {

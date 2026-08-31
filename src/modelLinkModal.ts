@@ -464,12 +464,16 @@ export class SecretPickerModal extends Modal {
       cls: "ana-secret-picker-list",
     });
 
-    // 如果当前已有关联密钥，尝试预选中（通过值匹配）
+    // 如果当前已有关联密钥，尝试预选中
+    // returnId 模式下 currentKey 是 secret ID，直接按 id 匹配；
+    // 非 returnId 模式下 currentKey 是密钥值，需读取 secret 值匹配。
     if (this.currentKey) {
       const allIds = this.app.secretStorage.listSecrets();
       for (const id of allIds) {
-        const val = this.app.secretStorage.getSecret(id);
-        if (val === this.currentKey) {
+        const match = this.options?.returnId
+          ? id === this.currentKey
+          : this.app.secretStorage.getSecret(id) === this.currentKey;
+        if (match) {
           this.selectedId = id;
           break;
         }

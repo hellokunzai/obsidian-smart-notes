@@ -1,4 +1,4 @@
-import { requestUrl } from "obsidian";
+import { App, requestUrl } from "obsidian";
 import { t } from "../i18n";
 
 /**
@@ -7,7 +7,7 @@ import { t } from "../i18n";
  * 设计原则（与文件/ Skill 的「显式控制」风格一致）：
  * - 默认不进行任何联网操作，仅当用户在对话中显式开启「联网搜索」时才调用外部 API；
  * - 支持多个常用 Provider：Tavily / Serper / Brave / SearXNG；
- * - 每个 Provider 支持「多凭据轮询」：一个失效或限流时自动尝试下一个。
+ * - 每个 API Key 类 Provider 仅支持单个密钥（由 UI 控制）；SearXNG 实例仍可多选。
  */
 
 /** 单条搜索结果（已归一化）。 */
@@ -26,26 +26,18 @@ export interface SearchProviderConfig {
   enabled: boolean;
   /** 当前选中的 provider */
   provider: SearchProviderId;
-  /** Tavily API Key（可多个，换行/逗号分隔） */
-  tavilyApiKeys: string[];
-  /** Serper API Key（可多个） */
-  serperApiKeys: string[];
-  /** Brave API Key（可多个） */
-  braveApiKeys: string[];
-  /** SearXNG 实例地址（可多个，https://host） */
+  /** Tavily API Key 引用（Obsidian keychain 中的 secret ID，单密钥） */
+  tavilyApiKeyRef: string;
+  /** Serper API Key 引用（单密钥） */
+  serperApiKeyRef: string;
+  /** Brave API Key 引用（单密钥） */
+  braveApiKeyRef: string;
+  /** SearXNG 实例地址（可多个，https://host；非密钥，明文配置） */
   searxngInstances: string[];
   /** 单次最大结果数 */
   maxResults: number;
   /** 单条结果摘要的字符上限 */
   maxCharsPerResult: number;
-}
-
-/** 解析「多行/逗号分隔」文本为去空白非空的数组。 */
-export function parseKeyList(raw: string): string[] {
-  return raw
-    .split(/[\n,]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
 }
 
 /**
@@ -235,11 +227,11 @@ const PROVIDERS: Record<SearchProviderId, WebSearchProvider> = {
 };
 
 /**
- * 联网搜索服务：根据配置选 provider，调用对应的多凭据轮询搜索。
- * 任何 provider 只要有一个凭据成功返回结果即视为成功；全部失败返回空数组。
+ * 联网搜索服务：根据配置选 provider，调用对应搜索。
+ * API Key 类 provider 仅使用单个密钥；SearXNG 仍支持多实例轮询。
  */
 export class WebSearchService {
-  constructor(private config: SearchProviderConfig) {}
+  constructor(private app: App, private config: SearchProviderConfig) {}
 
   /** 当前是否配置了至少一个可用的凭据。 */
   hasCredentials(): boolean {
@@ -247,14 +239,25 @@ export class WebSearchService {
     return keys.length > 0;
   }
 
+  /** 把单个 keychain 引用 ID 解析为实际密钥。 */
+  private resolveRef(ref: string): string | null {
+    return ref ? this.app.secretStorage.getSecret(ref) : null;
+  }
+
   private keysForProvider(p: SearchProviderId): string[] {
     switch (p) {
-      case "tavily":
-        return this.config.tavilyApiKeys;
-      case "serper":
-        return this.config.serperApiKeys;
-      case "brave":
-        return this.config.braveApiKeys;
+      case "tavily": {
+        const key = this.resolveRef(this.config.tavilyApiKeyRef);
+        return key ? [key] : [];
+      }
+      case "serper": {
+        const key = this.resolveRef(this.config.serperApiKeyRef);
+        return key ? [key] : [];
+      }
+      case "brave": {
+        const key = this.resolveRef(this.config.braveApiKeyRef);
+        return key ? [key] : [];
+      }
       case "searxng":
         return this.config.searxngInstances;
     }
@@ -270,7 +273,6 @@ export class WebSearchService {
     try {
       results = await provider.search(query, keys, this.config.maxResults);
     } catch {
-      // 多凭据轮询：全部失败视为无结果
       return [];
     }
     const cap = this.config.maxCharsPerResult;
@@ -281,18 +283,14 @@ export class WebSearchService {
   }
 
   /**
-   * 测试指定 provider 的单个凭据是否可用。
-   * 凭据无效（HTTP 非 200 / 响应含 error 字段 / 网络错误）时抛出带原因的错误；
-   * 凭据有效时返回 true。
+   * 测试指定 provider 的凭据是否可用。
+   * 凭据无效（HTTP 非 200 / 响应含 error 字段 / 网络错误）时抛出带原因的错误。
    */
-  async testConnection(
-    providerId: SearchProviderId,
-    key: string
-  ): Promise<boolean> {
-    if (!key) throw new Error(t("settings.test.noKey"));
+  async testConnection(providerId: SearchProviderId): Promise<boolean> {
+    const keys = this.keysForProvider(providerId);
+    if (keys.length === 0) throw new Error(t("settings.test.noKey"));
     const provider = PROVIDERS[providerId];
-    // provider.search 在凭据无效时会抛错，这里不吞掉，让其向上传播
-    await provider.search("test", [key], 1);
+    await provider.search("test", keys, 1);
     return true;
   }
 }
