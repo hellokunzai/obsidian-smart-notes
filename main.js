@@ -5943,7 +5943,7 @@ var ChatView = class extends import_obsidian12.ItemView {
     });
     (0, import_obsidian12.setIcon)(this.stopBtn, "square");
     this.stopBtn.addEventListener("click", () => this.handleStop());
-    this.stopBtn.style.display = "none";
+    this.stopBtn.addClass("is-hidden");
     this.renderChips();
     this.renderActions();
     this.renderMessages();
@@ -7097,8 +7097,8 @@ ${extra}` : text
     this.sendBtn.disabled = disabled;
     this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
     (0, import_obsidian12.setIcon)(this.sendBtn, disabled ? "loader" : "send");
-    this.sendBtn.style.display = disabled ? "none" : "inline-flex";
-    this.stopBtn.style.display = disabled ? "inline-flex" : "none";
+    this.sendBtn.toggleClass("is-hidden", disabled);
+    this.stopBtn.toggleClass("is-hidden", !disabled);
   }
   /** 用户点击「停止」按钮：中断当前流式请求并在 UI 上标记为已停止。 */
   handleStop() {
@@ -7537,7 +7537,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
       const row = this.listEl.createEl("div", {
         cls: "ana-tree-row" + (node instanceof import_obsidian12.TFolder ? " is-folder" : "")
       });
-      row.style.paddingLeft = `${6 + depth * 18}px`;
+      row.style.setProperty("--ana-tree-indent", `${6 + depth * 18}px`);
       const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
       if (node instanceof import_obsidian12.TFolder) {
         const isOpen = this.expanded.has(node.path) || visible !== null && visible.has(node.path);

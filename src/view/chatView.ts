@@ -389,7 +389,7 @@ export class ChatView extends ItemView {
     });
     setIcon(this.stopBtn, "square"); // Obsidian 内置 square 图标表示停止
     this.stopBtn.addEventListener("click", () => this.handleStop());
-    this.stopBtn.style.display = "none"; // 默认隐藏
+    this.stopBtn.addClass("is-hidden"); // 默认隐藏
 
     this.renderChips();
     this.renderActions();
@@ -1738,8 +1738,8 @@ export class ChatView extends ItemView {
     this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
     setIcon(this.sendBtn, disabled ? "loader" : "send");
     // 流式输出时隐藏发送按钮，显示停止按钮；反之亦然
-    this.sendBtn.style.display = disabled ? "none" : "inline-flex";
-    this.stopBtn.style.display = disabled ? "inline-flex" : "none";
+    this.sendBtn.toggleClass("is-hidden", disabled);
+    this.stopBtn.toggleClass("is-hidden", !disabled);
   }
 
   /** 用户点击「停止」按钮：中断当前流式请求并在 UI 上标记为已停止。 */
@@ -2261,7 +2261,7 @@ class AttachmentPickerModal extends Modal {
       const row = this.listEl.createEl("div", {
         cls: "ana-tree-row" + (node instanceof TFolder ? " is-folder" : ""),
       });
-      row.style.paddingLeft = `${6 + depth * 18}px`;
+      row.style.setProperty("--ana-tree-indent", `${6 + depth * 18}px`);
 
       // 展开/折叠箭头（仅文件夹，文件用占位对齐）
       const toggle = row.createEl("span", { cls: "ana-tree-toggle" });

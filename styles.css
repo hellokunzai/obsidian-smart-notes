@@ -1197,6 +1197,10 @@ button.ana-settings-tab.is-active {
 .ana-picker .ana-tree-row:hover {
   background: var(--background-modifier-hover);
 }
+/* 树形缩进由 JS 通过 --ana-tree-indent 变量驱动，避免内联 style.paddingLeft */
+.ana-picker .ana-tree-row {
+  padding-left: var(--ana-tree-indent, 6px);
+}
 .ana-picker .ana-tree-row.is-folder > .ana-tree-name {
   font-weight: 550;
 }
