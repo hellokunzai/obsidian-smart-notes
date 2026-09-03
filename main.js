@@ -5959,7 +5959,7 @@ var ChatView = class extends import_obsidian12.ItemView {
     const onMove = (e) => {
       const delta = startY - e.clientY;
       const newH = Math.max(MIN, startH + delta);
-      input.style.setProperty("--ana-drag-height", `${newH}px`);
+      input.setCssProps({ "--ana-drag-height": `${newH}px` });
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
@@ -7537,7 +7537,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
       const row = this.listEl.createEl("div", {
         cls: "ana-tree-row" + (node instanceof import_obsidian12.TFolder ? " is-folder" : "")
       });
-      row.style.setProperty("--ana-tree-indent", `${6 + depth * 18}px`);
+      row.setCssProps({ "--ana-tree-indent": `${6 + depth * 18}px` });
       const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
       if (node instanceof import_obsidian12.TFolder) {
         const isOpen = this.expanded.has(node.path) || visible !== null && visible.has(node.path);

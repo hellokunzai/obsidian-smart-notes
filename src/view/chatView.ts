@@ -408,7 +408,7 @@ export class ChatView extends ItemView {
     const onMove = (e: PointerEvent) => {
       const delta = startY - e.clientY; // 向上拖动为正
       const newH = Math.max(MIN, startH + delta);
-      input.style.setProperty("--ana-drag-height", `${newH}px`);
+      input.setCssProps({ "--ana-drag-height": `${newH}px` });
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
@@ -2261,7 +2261,7 @@ class AttachmentPickerModal extends Modal {
       const row = this.listEl.createEl("div", {
         cls: "ana-tree-row" + (node instanceof TFolder ? " is-folder" : ""),
       });
-      row.style.setProperty("--ana-tree-indent", `${6 + depth * 18}px`);
+      row.setCssProps({ "--ana-tree-indent": `${6 + depth * 18}px` });
 
       // 展开/折叠箭头（仅文件夹，文件用占位对齐）
       const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
