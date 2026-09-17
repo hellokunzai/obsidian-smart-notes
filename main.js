@@ -27,10 +27,10 @@ __export(main_exports, {
   default: () => AiNoteAgentPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian13 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 
 // src/settings.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/i18n/index.ts
 var import_obsidian = require("obsidian");
@@ -306,7 +306,17 @@ var en_default = {
   "settings.defaultSkills.search.noResults": "No matching skills.",
   "settings.defaultSkills.table.name": "Name",
   "settings.defaultSkills.table.path": "Path",
-  "settings.defaultSkills.table.enabled": "Enabled",
+  "settings.defaultSkills.table.actions": "Actions",
+  "settings.defaultSkills.rowMenu.aria": 'More actions for "{name}"',
+  "settings.defaultSkills.rowMenu.openFolder": "Open folder",
+  "settings.defaultSkills.rowMenu.delete": "Delete",
+  "settings.defaultSkills.deleteConfirm.title": "Delete skill?",
+  "settings.defaultSkills.deleteConfirm.descFolder": "This moves the whole skill suite folder to the system trash, including its assets, scripts and references. This cannot be undone.",
+  "settings.defaultSkills.deleteConfirm.descFile": "This moves the skill file to the system trash. This cannot be undone.",
+  "settings.defaultSkills.deleteConfirm.cancel": "Cancel",
+  "settings.defaultSkills.deleteConfirm.confirm": "Delete",
+  "settings.defaultSkills.deleteNotice.done": 'Deleted skill "{name}"',
+  "settings.defaultSkills.deleteNotice.failed": "Could not delete the skill. Check file permissions and try again.",
   "settings.aiFolderName.name": "Data storage path",
   "settings.aiFolderName.desc": "Name of the data folder (at the vault root) that stores memory and skills. Changing it does not auto-migrate old data.",
   "settings.section.web": "Web search",
@@ -659,7 +669,17 @@ var zh_default = {
   "settings.defaultSkills.search.noResults": "\u6CA1\u6709\u5339\u914D\u7684 skill\u3002",
   "settings.defaultSkills.table.name": "\u540D\u79F0",
   "settings.defaultSkills.table.path": "\u8DEF\u5F84",
-  "settings.defaultSkills.table.enabled": "\u542F\u7528",
+  "settings.defaultSkills.table.actions": "\u64CD\u4F5C",
+  "settings.defaultSkills.rowMenu.aria": "\u300C{name}\u300D\u7684\u66F4\u591A\u64CD\u4F5C",
+  "settings.defaultSkills.rowMenu.openFolder": "\u6253\u5F00\u6587\u4EF6\u5939",
+  "settings.defaultSkills.rowMenu.delete": "\u5220\u9664",
+  "settings.defaultSkills.deleteConfirm.title": "\u5220\u9664 Skill\uFF1F",
+  "settings.defaultSkills.deleteConfirm.descFolder": "\u5C06\u628A\u8BE5 skill \u5957\u4EF6\u6587\u4EF6\u5939\u6574\u4E2A\u79FB\u5165\u7CFB\u7EDF\u56DE\u6536\u7AD9\uFF08\u542B\u5176\u4E2D\u7684 assets / scripts / references\uFF09\u3002\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
+  "settings.defaultSkills.deleteConfirm.descFile": "\u5C06\u628A\u8BE5 skill \u6587\u4EF6\u79FB\u5165\u7CFB\u7EDF\u56DE\u6536\u7AD9\u3002\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
+  "settings.defaultSkills.deleteConfirm.cancel": "\u53D6\u6D88",
+  "settings.defaultSkills.deleteConfirm.confirm": "\u5220\u9664",
+  "settings.defaultSkills.deleteNotice.done": "\u5DF2\u5220\u9664 skill\u300C{name}\u300D",
+  "settings.defaultSkills.deleteNotice.failed": "\u5220\u9664\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u6587\u4EF6\u6743\u9650\u540E\u91CD\u8BD5\u3002",
   "settings.section.web": "\u8054\u7F51\u641C\u7D22",
   "settings.section.web.desc": "\u914D\u7F6E\u5BF9\u8BDD\u4E2D\u53EF\u7528\u7684\u7F51\u7EDC\u641C\u7D22\u540E\u7AEF\u3002",
   "settings.webSearchEnabled.name": "\u542F\u7528\u8054\u7F51\u641C\u7D22",
@@ -2848,9 +2868,11 @@ var WebSearchService = class {
 };
 
 // src/skills/skills.ts
+var import_obsidian8 = require("obsidian");
 function skillsBasePath(plugin) {
   return getSkillsDir(plugin);
 }
+var SKILL_FILE_NAME = "SKILL.md";
 function resolveSkillName(content, fallback) {
   const fm = /^---\s*\n([\s\S]*?)\n---\s*\n?/.exec(content);
   if (fm) {
@@ -2948,6 +2970,32 @@ async function listSkills(plugin, app) {
   entries.sort((a, b) => a.name.localeCompare(b.name));
   return entries;
 }
+function resolveSkillTarget(plugin, relPath) {
+  const base = skillsBasePath(plugin);
+  const suffix = "/" + SKILL_FILE_NAME;
+  if (relPath.endsWith(suffix)) {
+    return {
+      path: `${base}/${relPath.slice(0, -suffix.length)}`,
+      isFolder: true
+    };
+  }
+  return { path: `${base}/${relPath}`, isFolder: false };
+}
+async function trashSkill(plugin, relPath) {
+  const adapter = plugin.app.vault.adapter;
+  const target = resolveSkillTarget(plugin, relPath);
+  if (!await adapter.exists(target.path))
+    return;
+  const trashed = await adapter.trashSystem(target.path).catch(() => false);
+  if (!trashed)
+    await adapter.trashLocal(target.path);
+}
+function revealSkillInFileManager(app, path) {
+  if (!import_obsidian8.Platform.isDesktopApp)
+    return false;
+  app.showInFolder(path);
+  return true;
+}
 function resolveSkillDescription(content) {
   const fm = /^---\s*\n([\s\S]*?)\n---\s*\n?/.exec(content);
   if (fm) {
@@ -3020,6 +3068,80 @@ async function buildSkillContent(plugin, app, paths, maxChars) {
   }
   return contentBlocks.length > 0 ? ["# Active skill instructions", ...contentBlocks].join("\n\n") : "";
 }
+
+// src/skills/skillRowMenu.ts
+var import_obsidian9 = require("obsidian");
+function buildSkillRowMenu(opts) {
+  const { app, target, skillsDir, onDelete } = opts;
+  const menu = new import_obsidian9.Menu();
+  if (import_obsidian9.Platform.isDesktopApp) {
+    menu.addItem(
+      (item) => item.setTitle(t("settings.defaultSkills.rowMenu.openFolder")).setIcon("folder-open").onClick(() => {
+        revealSkillInFileManager(
+          app,
+          target.isFolder ? target.path : skillsDir
+        );
+      })
+    );
+    menu.addSeparator();
+  }
+  menu.addItem(
+    (item) => item.setTitle(t("settings.defaultSkills.rowMenu.delete")).setIcon("trash-2").setWarning(true).onClick(onDelete)
+  );
+  return menu;
+}
+
+// src/skills/skillDeleteModal.ts
+var import_obsidian10 = require("obsidian");
+var SkillDeleteConfirmModal = class extends import_obsidian10.Modal {
+  constructor(app, target, onResult) {
+    super(app);
+    this.target = target;
+    this.onResult = onResult;
+    this.settled = false;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h3", {
+      text: t("settings.defaultSkills.deleteConfirm.title")
+    });
+    contentEl.createEl("p", {
+      text: this.target.isFolder ? t("settings.defaultSkills.deleteConfirm.descFolder") : t("settings.defaultSkills.deleteConfirm.descFile")
+    });
+    contentEl.createDiv({
+      cls: "ana-skill-delete-path",
+      text: this.target.path
+    });
+    const actions = contentEl.createDiv({ cls: "ana-skill-delete-actions" });
+    const cancel = actions.createEl("button", {
+      text: t("settings.defaultSkills.deleteConfirm.cancel")
+    });
+    cancel.addEventListener("click", () => {
+      this.finish(false);
+      this.close();
+    });
+    const confirm = actions.createEl("button", {
+      cls: "mod-warning",
+      text: t("settings.defaultSkills.deleteConfirm.confirm")
+    });
+    confirm.addEventListener("click", () => {
+      this.finish(true);
+      this.close();
+    });
+  }
+  onClose() {
+    this.contentEl.empty();
+    this.finish(false);
+  }
+  /** 只回报一次结果，避免「点删除 → onClose 又回报一次取消」把结果覆盖掉。 */
+  finish(confirmed) {
+    if (this.settled)
+      return;
+    this.settled = true;
+    this.onResult(confirmed);
+  }
+};
 
 // node_modules/fflate/esm/browser.js
 var u8 = Uint8Array;
@@ -3700,7 +3822,7 @@ var DEFAULT_SETTINGS = {
   defaultRoleId: "",
   rolesEnabled: true
 };
-var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
+var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.memorySaveTimer = null;
@@ -3785,7 +3907,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "ana-settings-tab"
       });
       const iconEl = btn.createSpan({ cls: "ana-settings-tab-icon" });
-      (0, import_obsidian8.setIcon)(iconEl, sec.icon);
+      (0, import_obsidian11.setIcon)(iconEl, sec.icon);
       btn.createSpan({
         cls: "ana-settings-tab-text",
         text: t(sec.titleKey)
@@ -3802,7 +3924,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
   // ===== 标签页：模型配置 =====
   renderProviderTab(bodyEl) {
     this.createGroupHeader(bodyEl, "settings.providerGroup.storage");
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.aiFolderName.name")).setDesc(t("settings.aiFolderName.desc")).addText(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.aiFolderName.name")).setDesc(t("settings.aiFolderName.desc")).addText(
       (t2) => t2.setPlaceholder(".smartnotes").setValue(this.plugin.settings.aiFolderName).inputEl.addEventListener("blur", async () => {
         const name = t2.inputEl.value.trim();
         if (name && name !== this.plugin.settings.aiFolderName) {
@@ -3812,7 +3934,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       })
     );
     this.createGroupHeader(bodyEl, "settings.providerGroup.link");
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.modelLinks.add.name")).setDesc(t("settings.modelLinks.add.desc")).addButton((btn) => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.modelLinks.add.name")).setDesc(t("settings.modelLinks.add.desc")).addButton((btn) => {
       btn.setButtonText(t("settings.modelLinks.add.button")).setCta();
       btn.onClick(() => {
         new ModelLinkModal(
@@ -3824,7 +3946,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       });
     });
     let searchQuery = "";
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.modelLinks.search.name")).setDesc(t("settings.modelLinks.search.desc")).addText((input) => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.modelLinks.search.name")).setDesc(t("settings.modelLinks.search.desc")).addText((input) => {
       input.setPlaceholder(t("settings.modelLinks.search.placeholder"));
       input.onChange((v) => {
         searchQuery = v;
@@ -3901,7 +4023,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "clickable-icon ana-model-link-action-btn" + (isDefault ? " is-active" : "")
       });
       defaultBtn.setAttribute("aria-label", isDefault ? t("settings.modelLinks.defaultActive") : t("settings.modelLinks.setDefault"));
-      (0, import_obsidian8.setIcon)(defaultBtn, "star");
+      (0, import_obsidian11.setIcon)(defaultBtn, "star");
       defaultBtn.addEventListener("click", async () => {
         this.plugin.settings.defaultModelLinkId = link.id;
         await this.plugin.saveSettings();
@@ -3911,7 +4033,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "clickable-icon ana-model-link-action-btn"
       });
       editBtn.setAttribute("aria-label", t("settings.modelLinks.edit"));
-      (0, import_obsidian8.setIcon)(editBtn, "pencil");
+      (0, import_obsidian11.setIcon)(editBtn, "pencil");
       editBtn.addEventListener("click", () => {
         new ModelLinkModal(
           this.app,
@@ -3924,7 +4046,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "clickable-icon ana-model-link-action-btn danger"
       });
       delBtn.setAttribute("aria-label", t("settings.modelLinks.delete"));
-      (0, import_obsidian8.setIcon)(delBtn, "trash");
+      (0, import_obsidian11.setIcon)(delBtn, "trash");
       delBtn.addEventListener("click", async () => {
         var _a2, _b2;
         this.plugin.settings.modelLinks = this.plugin.settings.modelLinks.filter((l) => l.id !== link.id);
@@ -3984,7 +4106,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "clickable-icon ana-model-link-action-btn" + (isDefault ? " is-active" : "")
       });
       defaultBtn.setAttribute("aria-label", isDefault ? t("settings.roles.defaultActive") : t("settings.roles.setDefault"));
-      (0, import_obsidian8.setIcon)(defaultBtn, "star");
+      (0, import_obsidian11.setIcon)(defaultBtn, "star");
       defaultBtn.addEventListener("click", async () => {
         this.plugin.settings.defaultRoleId = role.id;
         await this.plugin.saveSettings();
@@ -3994,7 +4116,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "clickable-icon ana-model-link-action-btn"
       });
       editBtn.setAttribute("aria-label", t("settings.roles.edit"));
-      (0, import_obsidian8.setIcon)(editBtn, "pencil");
+      (0, import_obsidian11.setIcon)(editBtn, "pencil");
       editBtn.addEventListener("click", () => {
         new RoleInfoModal(
           this.app,
@@ -4007,7 +4129,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "clickable-icon ana-model-link-action-btn danger"
       });
       delBtn.setAttribute("aria-label", t("settings.roles.delete"));
-      (0, import_obsidian8.setIcon)(delBtn, "trash");
+      (0, import_obsidian11.setIcon)(delBtn, "trash");
       delBtn.addEventListener("click", async () => {
         var _a2, _b2;
         this.plugin.settings.roles = this.plugin.settings.roles.filter(
@@ -4024,13 +4146,13 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
   // ===== 标签页：知识库 =====
   renderKnowledgeTab(bodyEl) {
     this.createGroupHeader(bodyEl, "settings.knowledgeGroup.files");
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.fileSelectionEnabled.name")).setDesc(t("settings.fileSelectionEnabled.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.fileSelectionEnabled.name")).setDesc(t("settings.fileSelectionEnabled.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.fileSelectionEnabled).onChange(async (v) => {
         this.plugin.settings.fileSelectionEnabled = v;
         await this.plugin.saveSettings();
       })
     );
-    const includeVaultIndexSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.includeVaultIndex.name")).setDesc(t("settings.includeVaultIndex.desc")).addToggle(
+    const includeVaultIndexSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.includeVaultIndex.name")).setDesc(t("settings.includeVaultIndex.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.includeVaultIndex).onChange(async (v) => {
         this.plugin.settings.includeVaultIndex = v;
         await this.plugin.saveSettings();
@@ -4038,7 +4160,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         vaultIndexMaxFilesSetting == null ? void 0 : vaultIndexMaxFilesSetting.setDisabled(!v);
       })
     );
-    const vaultIndexMaxFilesSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.vaultIndexMaxFiles.name")).setDesc(t("settings.vaultIndexMaxFiles.desc")).setDisabled(!this.plugin.settings.includeVaultIndex).addText((t2) => {
+    const vaultIndexMaxFilesSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.vaultIndexMaxFiles.name")).setDesc(t("settings.vaultIndexMaxFiles.desc")).setDisabled(!this.plugin.settings.includeVaultIndex).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "0";
       t2.inputEl.step = "1";
@@ -4051,7 +4173,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       });
     });
-    const maxCharsSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.chatContextMaxChars.name")).setDesc(t("settings.chatContextMaxChars.desc")).setDisabled(!this.plugin.settings.includeVaultIndex).addText((t2) => {
+    const maxCharsSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.chatContextMaxChars.name")).setDesc(t("settings.chatContextMaxChars.desc")).setDisabled(!this.plugin.settings.includeVaultIndex).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "1";
       t2.inputEl.step = "1";
@@ -4068,7 +4190,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
     let fmKeysSetting;
     let fmMaxCharsSetting;
     let fmMaxFilesSetting;
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.includeFrontmatterIndex.name")).setDesc(t("settings.includeFrontmatterIndex.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.includeFrontmatterIndex.name")).setDesc(t("settings.includeFrontmatterIndex.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.includeFrontmatterIndex).onChange(async (v) => {
         this.plugin.settings.includeFrontmatterIndex = v;
         fmKeysSetting == null ? void 0 : fmKeysSetting.setDisabled(!v);
@@ -4077,14 +4199,14 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    fmKeysSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.frontmatterIndexKeys.name")).setDesc(t("settings.frontmatterIndexKeys.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
+    fmKeysSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterIndexKeys.name")).setDesc(t("settings.frontmatterIndexKeys.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
       ta.setPlaceholder(t("settings.frontmatterIndexKeys.placeholder")).setValue(this.plugin.settings.frontmatterIndexKeys).onChange(async (v) => {
         this.plugin.settings.frontmatterIndexKeys = v;
         await this.plugin.saveSettings();
       });
       ta.inputEl.rows = 4;
     }).setDisabled(!this.plugin.settings.includeFrontmatterIndex);
-    fmMaxCharsSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.frontmatterIndexMaxChars.name")).setDesc(t("settings.frontmatterIndexMaxChars.desc")).addText((t2) => {
+    fmMaxCharsSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterIndexMaxChars.name")).setDesc(t("settings.frontmatterIndexMaxChars.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "1";
       t2.inputEl.step = "1";
@@ -4097,7 +4219,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       });
     }).setDisabled(!this.plugin.settings.includeFrontmatterIndex);
-    fmMaxFilesSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.frontmatterIndexMaxFiles.name")).setDesc(t("settings.frontmatterIndexMaxFiles.desc")).addText((t2) => {
+    fmMaxFilesSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterIndexMaxFiles.name")).setDesc(t("settings.frontmatterIndexMaxFiles.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "0";
       t2.inputEl.step = "1";
@@ -4116,7 +4238,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
     this.createGroupHeader(bodyEl, "settings.memoryGroup.profile");
     let categoriesSetting;
     let memoryFileSetting;
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.memoryProfileEnabled.name")).setDesc(t("settings.memoryProfileEnabled.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.memoryProfileEnabled.name")).setDesc(t("settings.memoryProfileEnabled.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.memoryProfileEnabled).onChange(async (v) => {
         this.plugin.settings.memoryProfileEnabled = v;
         categoriesSetting == null ? void 0 : categoriesSetting.setDisabled(!v);
@@ -4127,14 +4249,14 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       })
     );
-    categoriesSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.memoryProfileCategories.name")).setDesc(t("settings.memoryProfileCategories.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
+    categoriesSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.memoryProfileCategories.name")).setDesc(t("settings.memoryProfileCategories.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
       ta.setPlaceholder(t("settings.memoryProfileCategories.placeholder")).setValue(this.plugin.settings.memoryProfileCategories).onChange(async (v) => {
         this.plugin.settings.memoryProfileCategories = v;
         await this.plugin.saveSettings();
       });
       ta.inputEl.rows = 5;
     }).setDisabled(!this.plugin.settings.memoryProfileEnabled);
-    memoryFileSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.memoryFile.name")).setDesc(t("settings.memoryFile.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
+    memoryFileSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.memoryFile.name")).setDesc(t("settings.memoryFile.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
       ta.setPlaceholder(t("settings.memoryFile.placeholder")).setValue("").onChange((v) => {
         if (this.memorySaveTimer !== null) {
           window.clearTimeout(this.memorySaveTimer);
@@ -4148,7 +4270,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         ta.setValue(content);
       });
     }).setDisabled(!this.plugin.settings.memoryProfileEnabled);
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.profileMemoryMaxChars.name")).setDesc(t("settings.profileMemoryMaxChars.desc")).setDisabled(!this.plugin.settings.memoryProfileEnabled).addText((t2) => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.profileMemoryMaxChars.name")).setDesc(t("settings.profileMemoryMaxChars.desc")).setDisabled(!this.plugin.settings.memoryProfileEnabled).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "1";
       t2.inputEl.step = "1";
@@ -4164,13 +4286,13 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
   }
   // ===== 标签页：角色信息 =====
   renderRolesTab(bodyEl) {
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.rolesEnabled.name")).setDesc(t("settings.rolesEnabled.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.rolesEnabled.name")).setDesc(t("settings.rolesEnabled.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.rolesEnabled).onChange(async (v) => {
         this.plugin.settings.rolesEnabled = v;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.roles.add.name")).setDesc(t("settings.roles.add.desc")).addButton((btn) => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.roles.add.name")).setDesc(t("settings.roles.add.desc")).addButton((btn) => {
       btn.setButtonText(t("settings.roles.add.button")).setCta();
       btn.onClick(() => {
         new RoleInfoModal(
@@ -4182,7 +4304,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       });
     });
     let roleSearchQuery = "";
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.roles.search.name")).setDesc(t("settings.roles.search.desc")).addText((input) => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.roles.search.name")).setDesc(t("settings.roles.search.desc")).addText((input) => {
       input.setPlaceholder(t("settings.roles.search.placeholder"));
       input.onChange((v) => {
         roleSearchQuery = v;
@@ -4197,7 +4319,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
   // ===== 标签页：交互设置 =====
   renderAutopromptTab(bodyEl) {
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.chat");
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.chatPanel.name")).setDesc(t("settings.chatPanel.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.chatPanel.name")).setDesc(t("settings.chatPanel.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.chatPanelEnabled).onChange(async (v) => {
         try {
           this.plugin.settings.chatPanelEnabled = v;
@@ -4205,33 +4327,33 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
           this.plugin.refreshChatPanelAccess();
         } catch (e) {
           console.error("[Smart Notes] failed to save chatPanelEnabled:", e);
-          new import_obsidian8.Notice(t("settings.saveError"));
+          new import_obsidian11.Notice(t("settings.saveError"));
         }
       })
     );
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.addCurrentNoteToChat.name")).setDesc(t("settings.addCurrentNoteToChat.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.addCurrentNoteToChat.name")).setDesc(t("settings.addCurrentNoteToChat.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.addCurrentNoteToChat).onChange(async (v) => {
         try {
           this.plugin.settings.addCurrentNoteToChat = v;
           await this.plugin.saveSettings();
         } catch (e) {
           console.error("[Smart Notes] failed to save addCurrentNoteToChat:", e);
-          new import_obsidian8.Notice(t("settings.saveError"));
+          new import_obsidian11.Notice(t("settings.saveError"));
         }
       })
     );
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.showReasoning.name")).setDesc(t("settings.showReasoning.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.showReasoning.name")).setDesc(t("settings.showReasoning.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.showReasoning).onChange(async (v) => {
         try {
           this.plugin.settings.showReasoning = v;
           await this.plugin.saveSettings();
         } catch (e) {
           console.error("[Smart Notes] failed to save showReasoning:", e);
-          new import_obsidian8.Notice(t("settings.saveError"));
+          new import_obsidian11.Notice(t("settings.saveError"));
         }
       })
     );
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.historyMaxMessages.name")).setDesc(t("settings.historyMaxMessages.desc")).addText((t2) => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.historyMaxMessages.name")).setDesc(t("settings.historyMaxMessages.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "0";
       t2.inputEl.step = "1";
@@ -4244,7 +4366,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       });
     });
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.chatActivityTimeout.name")).setDesc(t("settings.chatActivityTimeout.desc")).addText((t2) => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.chatActivityTimeout.name")).setDesc(t("settings.chatActivityTimeout.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "10";
       t2.inputEl.step = "10";
@@ -4259,14 +4381,14 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
     });
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.autoprompt");
     let debounceSetting;
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.realtime.name")).setDesc(t("settings.realtime.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.realtime.name")).setDesc(t("settings.realtime.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.realtimeEnabled).onChange(async (v) => {
         this.plugin.settings.realtimeEnabled = v;
         debounceSetting == null ? void 0 : debounceSetting.setDisabled(!v);
         await this.plugin.saveSettings();
       })
     );
-    debounceSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.debounce.name")).setDesc(t("settings.debounce.desc")).addText((t2) => {
+    debounceSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.debounce.name")).setDesc(t("settings.debounce.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "1";
       t2.inputEl.step = "1";
@@ -4282,7 +4404,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.optimize");
     let linkTypeSetting;
     let linkFormatSetting;
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.optimizeCurrent.name")).setDesc(t("settings.optimizeCurrent.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.optimizeCurrent.name")).setDesc(t("settings.optimizeCurrent.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.optimizeCurrentEnabled).onChange(async (v) => {
         this.plugin.settings.optimizeCurrentEnabled = v;
         linkTypeSetting == null ? void 0 : linkTypeSetting.setDisabled(!v);
@@ -4290,13 +4412,13 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    linkTypeSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.linkType.name")).setDesc(t("settings.linkType.desc")).addDropdown(
+    linkTypeSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.linkType.name")).setDesc(t("settings.linkType.desc")).addDropdown(
       (dd) => dd.addOption("shortest", t("settings.linkType.shortest")).addOption("relative", t("settings.linkType.relative")).addOption("absolute", t("settings.linkType.absolute")).setValue(this.plugin.settings.linkType).onChange(async (v) => {
         this.plugin.settings.linkType = v;
         await this.plugin.saveSettings();
       })
     ).setDisabled(!this.plugin.settings.optimizeCurrentEnabled);
-    linkFormatSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.linkFormat.name")).setDesc(t("settings.linkFormat.desc")).addDropdown(
+    linkFormatSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.linkFormat.name")).setDesc(t("settings.linkFormat.desc")).addDropdown(
       (dd) => dd.addOption("wikilink", t("settings.linkFormat.wikilink")).addOption("markdown", t("settings.linkFormat.markdown")).setValue(this.plugin.settings.linkFormat).onChange(async (v) => {
         this.plugin.settings.linkFormat = v;
         await this.plugin.saveSettings();
@@ -4304,14 +4426,14 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
     ).setDisabled(!this.plugin.settings.optimizeCurrentEnabled);
     this.createGroupHeader(bodyEl, "settings.autopromptGroup.frontmatter");
     let frontmatterTemplateSetting;
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.frontmatterGeneration.name")).setDesc(t("settings.frontmatterGeneration.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterGeneration.name")).setDesc(t("settings.frontmatterGeneration.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.frontmatterGenerationEnabled).onChange(async (v) => {
         this.plugin.settings.frontmatterGenerationEnabled = v;
         frontmatterTemplateSetting == null ? void 0 : frontmatterTemplateSetting.setDisabled(!v);
         await this.plugin.saveSettings();
       })
     );
-    frontmatterTemplateSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.frontmatterTemplate.name")).setDesc(t("settings.frontmatterTemplate.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
+    frontmatterTemplateSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterTemplate.name")).setDesc(t("settings.frontmatterTemplate.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
       ta.setPlaceholder(t("settings.frontmatterTemplate.placeholder")).setValue(this.plugin.settings.frontmatterTemplate).onChange(async (v) => {
         this.plugin.settings.frontmatterTemplate = v;
         await this.plugin.saveSettings();
@@ -4327,7 +4449,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
     let maxCharsSetting;
     let citationsSetting;
     const webEnabled = this.plugin.settings.webSearchEnabled;
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.webSearchEnabled.name")).setDesc(t("settings.webSearchEnabled.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.webSearchEnabled.name")).setDesc(t("settings.webSearchEnabled.desc")).addToggle(
       (t2) => t2.setValue(webEnabled).onChange(async (v) => {
         this.plugin.settings.webSearchEnabled = v;
         providerSetting == null ? void 0 : providerSetting.setDisabled(!v);
@@ -4338,7 +4460,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    providerSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.webSearchProvider.name")).setDesc(t("settings.webSearchProvider.desc")).addDropdown(
+    providerSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.webSearchProvider.name")).setDesc(t("settings.webSearchProvider.desc")).addDropdown(
       (dd) => dd.addOption("tavily", "Tavily").addOption("serper", "Serper (Google)").addOption("brave", "Brave Search").addOption("searxng", "SearXNG").setValue(this.plugin.settings.webSearchProvider).onChange(async (v) => {
         this.plugin.settings.webSearchProvider = v;
         await this.plugin.saveSettings();
@@ -4355,7 +4477,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       const setRef = (ref) => {
         this.plugin.settings[refField] = ref;
       };
-      keysSetting = new import_obsidian8.Setting(bodyEl).setName(t(`settings.webKeys.${prov}.name`)).setDesc(t(`settings.webKeys.${prov}.desc`)).setClass("ana-setting-key-row");
+      keysSetting = new import_obsidian11.Setting(bodyEl).setName(t(`settings.webKeys.${prov}.name`)).setDesc(t(`settings.webKeys.${prov}.desc`)).setClass("ana-setting-key-row");
       const btnRow = keysSetting.controlEl.createEl("div", {
         cls: "ana-model-link-key-btn-row"
       });
@@ -4381,7 +4503,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       });
       webTestBtn.addEventListener("click", async () => {
         if (!getRef()) {
-          new import_obsidian8.Notice(t("settings.test.noKey"));
+          new import_obsidian11.Notice(t("settings.test.noKey"));
           return;
         }
         webTestBtn.disabled = true;
@@ -4398,9 +4520,9 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
             maxCharsPerResult: this.plugin.settings.webSearchMaxCharsPerResult
           });
           await svc.testConnection(prov);
-          new import_obsidian8.Notice(t("settings.test.success"));
+          new import_obsidian11.Notice(t("settings.test.success"));
         } catch (e) {
-          new import_obsidian8.Notice(
+          new import_obsidian11.Notice(
             t("settings.test.failure", { error: e.message })
           );
         } finally {
@@ -4409,7 +4531,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       });
     } else {
-      keysSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.webKeys.searxng.name")).setDesc(t("settings.webKeys.searxng.desc")).setClass("ana-setting-key-row").addTextArea((ta) => {
+      keysSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.webKeys.searxng.name")).setDesc(t("settings.webKeys.searxng.desc")).setClass("ana-setting-key-row").addTextArea((ta) => {
         ta.setPlaceholder(t("settings.webKeys.searxng.placeholder"));
         ta.setValue(this.plugin.settings.searxngInstances.join("\n"));
         ta.onChange(async (v) => {
@@ -4420,7 +4542,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       });
     }
     keysSetting == null ? void 0 : keysSetting.setDisabled(!webEnabled);
-    maxResultsSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.webSearchMaxResults.name")).setDesc(t("settings.webSearchMaxResults.desc")).addText((t2) => {
+    maxResultsSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.webSearchMaxResults.name")).setDesc(t("settings.webSearchMaxResults.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "1";
       t2.inputEl.step = "1";
@@ -4433,7 +4555,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       });
     }).setDisabled(!webEnabled);
-    maxCharsSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.webSearchMaxChars.name")).setDesc(t("settings.webSearchMaxChars.desc")).addText((t2) => {
+    maxCharsSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.webSearchMaxChars.name")).setDesc(t("settings.webSearchMaxChars.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "1";
       t2.inputEl.step = "1";
@@ -4446,7 +4568,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         }
       });
     }).setDisabled(!webEnabled);
-    citationsSetting = new import_obsidian8.Setting(bodyEl).setName(t("settings.webSearchShowCitations.name")).setDesc(t("settings.webSearchShowCitations.desc")).addToggle(
+    citationsSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.webSearchShowCitations.name")).setDesc(t("settings.webSearchShowCitations.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.webSearchShowCitations).onChange(async (v) => {
         this.plugin.settings.webSearchShowCitations = v;
         await this.plugin.saveSettings();
@@ -4457,14 +4579,14 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
   renderSkillsTab(bodyEl) {
     const plugin = this.plugin;
     let query = "";
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.skillsEnabled.name")).setDesc(t("settings.skillsEnabled.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.skillsEnabled.name")).setDesc(t("settings.skillsEnabled.desc")).addToggle(
       (t2) => t2.setValue(plugin.settings.skillsEnabled).onChange(async (v) => {
         plugin.settings.skillsEnabled = v;
         await plugin.saveSettings();
         void renderSkillsList();
       })
     );
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.skills.upload.name")).setDesc(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.skills.upload.name")).setDesc(
       t("settings.skills.upload.desc") + " " + t("settings.defaultSkills.pathHint", { path: getSkillsDir(plugin) })
     ).addButton((btn) => {
       btn.setButtonText(t("settings.skills.upload.button"));
@@ -4478,7 +4600,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
           if (!file)
             return;
           const result = await uploadSkillFromZip(plugin, file);
-          new import_obsidian8.Notice(result.message);
+          new import_obsidian11.Notice(result.message);
           if (result.success) {
             void renderSkillsList();
           }
@@ -4492,7 +4614,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         void renderSkillsList();
       });
     });
-    new import_obsidian8.Setting(bodyEl).setName(t("settings.defaultSkills.search.name")).setDesc(t("settings.defaultSkills.search.desc")).addText((input) => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.defaultSkills.search.name")).setDesc(t("settings.defaultSkills.search.desc")).addText((input) => {
       input.setPlaceholder(t("settings.defaultSkills.search.placeholder"));
       input.onChange((v) => {
         query = v.trim().toLowerCase();
@@ -4540,7 +4662,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       htr.createEl("th", { text: t("settings.defaultSkills.table.name") });
       htr.createEl("th", { text: t("settings.defaultSkills.table.path") });
       htr.createEl("th", {
-        text: t("settings.defaultSkills.table.enabled"),
+        text: t("settings.defaultSkills.table.actions"),
         cls: "ana-skills-col-toggle"
       });
       const tbody = table.createEl("tbody");
@@ -4548,8 +4670,27 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         const tr = tbody.createEl("tr");
         tr.createEl("td", { cls: "ana-skills-col-name", text: sk.name });
         tr.createEl("td", { cls: "ana-skills-col-path", text: sk.path });
-        const tdToggle = tr.createEl("td", { cls: "ana-skills-col-toggle" });
-        const toggle = new import_obsidian8.ToggleComponent(tdToggle);
+        const tdActions = tr.createEl("td", { cls: "ana-skills-col-toggle" });
+        const actionWrap = tdActions.createDiv({
+          cls: "ana-skills-toggle-wrap"
+        });
+        const menuBtn = actionWrap.createEl("button", {
+          cls: "ana-skill-menu-btn clickable-icon",
+          attr: {
+            type: "button",
+            "aria-label": t("settings.defaultSkills.rowMenu.aria", {
+              name: sk.name
+            }),
+            "aria-haspopup": "menu"
+          }
+        });
+        (0, import_obsidian11.setIcon)(menuBtn, "more-vertical");
+        menuBtn.addEventListener("click", (evt) => {
+          evt.preventDefault();
+          evt.stopPropagation();
+          this.openSkillRowMenu(evt, menuBtn, sk, renderSkillsList);
+        });
+        const toggle = new import_obsidian11.ToggleComponent(actionWrap);
         toggle.setValue(plugin.settings.defaultSkills.includes(sk.path));
         toggle.setDisabled(!plugin.settings.skillsEnabled);
         toggle.onChange(async (v) => {
@@ -4568,6 +4709,56 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
       }
     };
     void renderSkillsList();
+  }
+  /**
+   * 打开某一行的「更多操作」菜单（菜单内容见 `buildSkillRowMenu`）。
+   */
+  openSkillRowMenu(evt, triggerEl, skill, refresh) {
+    const target = resolveSkillTarget(this.plugin, skill.path);
+    const menu = buildSkillRowMenu({
+      app: this.app,
+      target,
+      skillsDir: getSkillsDir(this.plugin),
+      onDelete: () => {
+        void this.confirmDeleteSkill(skill, target, refresh);
+      }
+    });
+    triggerEl.classList.add("is-active");
+    menu.onHide(() => triggerEl.classList.remove("is-active"));
+    if (evt.detail === 0) {
+      const rect = triggerEl.getBoundingClientRect();
+      menu.showAtPosition({ x: rect.left, y: rect.bottom });
+    } else {
+      menu.showAtMouseEvent(evt);
+    }
+  }
+  /**
+   * 删除 skill 前的二次确认；确认后把整个套件移入回收站并刷新列表。
+   */
+  async confirmDeleteSkill(skill, target, refresh) {
+    const confirmed = await new Promise((resolve) => {
+      new SkillDeleteConfirmModal(this.app, target, resolve).open();
+    });
+    if (!confirmed)
+      return;
+    try {
+      await trashSkill(this.plugin, skill.path);
+    } catch (e) {
+      console.error("[smart-notes] \u5220\u9664 skill \u5931\u8D25", e);
+      new import_obsidian11.Notice(t("settings.defaultSkills.deleteNotice.failed"));
+      return;
+    }
+    const kept = this.plugin.settings.defaultSkills.filter(
+      (p) => p !== skill.path
+    );
+    if (kept.length !== this.plugin.settings.defaultSkills.length) {
+      this.plugin.settings.defaultSkills = kept;
+      await this.plugin.saveSettings();
+    }
+    new import_obsidian11.Notice(
+      t("settings.defaultSkills.deleteNotice.done", { name: skill.name })
+    );
+    await refresh();
   }
   /** 在面板内创建一个小型分组标题。 */
   createGroupHeader(containerEl, titleKey) {
@@ -4595,8 +4786,8 @@ async function optimizeNote(plugin, content, linkFormat, linkType) {
 }
 
 // src/optimize/previewModal.ts
-var import_obsidian9 = require("obsidian");
-var OptimizeModal = class extends import_obsidian9.Modal {
+var import_obsidian12 = require("obsidian");
+var OptimizeModal = class extends import_obsidian12.Modal {
   constructor(app, original, optimized, onApply) {
     super(app);
     this.original = original;
@@ -4640,7 +4831,7 @@ var OptimizeModal = class extends import_obsidian9.Modal {
 // src/editor/autoprompt.ts
 var import_view2 = require("@codemirror/view");
 var import_state2 = require("@codemirror/state");
-var import_obsidian10 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 
 // src/editor/suggestWidget.ts
 var import_view = require("@codemirror/view");
@@ -4799,15 +4990,15 @@ async function autopromptAtCursor(plugin, editor) {
   if (text) {
     editor.replaceSelection(text);
   } else {
-    new import_obsidian10.Notice(t("notice.noSuggestion"));
+    new import_obsidian13.Notice(t("notice.noSuggestion"));
   }
 }
 
 // src/view/chatView.ts
-var import_obsidian12 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 
 // src/context/knowledge.ts
-var import_obsidian11 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 var STOP_WORDS = /* @__PURE__ */ new Set([
   // 中文
   "\u7684",
@@ -5309,14 +5500,14 @@ function messageMentionsFile(message, file) {
 }
 function collectMarkdownUnderFolder(app, folderPath) {
   const af = app.vault.getAbstractFileByPath(folderPath);
-  if (!(af instanceof import_obsidian11.TFolder))
+  if (!(af instanceof import_obsidian14.TFolder))
     return [];
   const out = [];
   const walk = (f) => {
     for (const child of f.children) {
-      if (child instanceof import_obsidian11.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian14.TFile && child.extension === "md") {
         out.push(child);
-      } else if (child instanceof import_obsidian11.TFolder) {
+      } else if (child instanceof import_obsidian14.TFolder) {
         walk(child);
       }
     }
@@ -5329,7 +5520,7 @@ function resolveAttachedFiles(app, attachments) {
   for (const ref of attachments) {
     if (ref.type === "file") {
       const af = app.vault.getAbstractFileByPath(ref.path);
-      if (af instanceof import_obsidian11.TFile && af.extension === "md") {
+      if (af instanceof import_obsidian14.TFile && af.extension === "md") {
         map.set(af.path, af);
       }
     } else {
@@ -5692,7 +5883,7 @@ var SIDEBAR_COLLAPSE_ICON = "smart-notes-sidebar-collapse";
 var SIDEBAR_COLLAPSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="1.77" width="22" height="1.96" rx="0.98"/><rect x="8.1" y="10.82" width="14.9" height="1.96" rx="0.98"/><rect x="1" y="19.87" width="22" height="1.96" rx="0.98"/><path d="M1 11.8 L5.26 8.95 L5.26 14.65 Z"/></svg>';
 var SIDEBAR_EXPAND_ICON = "smart-notes-sidebar-expand";
 var SIDEBAR_EXPAND_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="2.3" width="22" height="1.96" rx="0.98"/><rect x="9" y="8.06" width="14" height="1.96" rx="0.98"/><rect x="9" y="14.03" width="14" height="1.96" rx="0.98"/><rect x="1" y="19.66" width="22" height="1.96" rx="0.98"/><path d="M1.43 8.18 L5.99 11.9 L1.43 15.65 Z"/></svg>';
-var ChatView = class extends import_obsidian12.ItemView {
+var ChatView = class extends import_obsidian15.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     // 多会话状态
@@ -5830,7 +6021,7 @@ var ChatView = class extends import_obsidian12.ItemView {
       })
     );
     if (this.sessions.length > 0) {
-      new import_obsidian12.Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
+      new import_obsidian15.Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
     }
   }
   /** 用完整会话数据替换内存中同 id 的占位对象（不存在则追加）。 */
@@ -5870,13 +6061,13 @@ var ChatView = class extends import_obsidian12.ItemView {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.newSession") }
     });
-    (0, import_obsidian12.setIcon)(newBtn, "plus");
+    (0, import_obsidian15.setIcon)(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
     const clearBtn = rightGroup.createEl("button", {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.clearCurrent") }
     });
-    (0, import_obsidian12.setIcon)(clearBtn, "trash");
+    (0, import_obsidian15.setIcon)(clearBtn, "trash");
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
     this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
     this.attachLinkHandler(this.messagesEl);
@@ -5886,31 +6077,31 @@ var ChatView = class extends import_obsidian12.ItemView {
       cls: "clickable-icon ana-chat-model-btn",
       attr: { "aria-label": t("view.modelSelect") }
     });
-    (0, import_obsidian12.setIcon)(this.modelBtn, "sparkle");
+    (0, import_obsidian15.setIcon)(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
     this.attachBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") }
     });
-    (0, import_obsidian12.setIcon)(this.attachBtn, "paperclip");
+    (0, import_obsidian15.setIcon)(this.attachBtn, "paperclip");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
     this.roleBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-role-btn",
       attr: { "aria-label": t("view.roleSelect") }
     });
-    (0, import_obsidian12.setIcon)(this.roleBtn, "user");
+    (0, import_obsidian15.setIcon)(this.roleBtn, "user");
     this.roleBtn.addEventListener("click", () => void this.openRolePicker());
     this.skillBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.manageSkills") }
     });
-    (0, import_obsidian12.setIcon)(this.skillBtn, "puzzle");
+    (0, import_obsidian15.setIcon)(this.skillBtn, "puzzle");
     this.skillBtn.addEventListener("click", () => this.openSkillPicker());
     this.webToggleBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.webToggle") }
     });
-    (0, import_obsidian12.setIcon)(this.webToggleBtn, "globe");
+    (0, import_obsidian15.setIcon)(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
     const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
     this.inputWrapEl = inputArea.createEl("div", { cls: "ana-chat-input-wrap" });
@@ -5939,13 +6130,13 @@ var ChatView = class extends import_obsidian12.ItemView {
       cls: "clickable-icon ana-chat-send",
       attr: { "aria-label": t("view.send") }
     });
-    (0, import_obsidian12.setIcon)(this.sendBtn, "send");
+    (0, import_obsidian15.setIcon)(this.sendBtn, "send");
     this.sendBtn.addEventListener("click", () => void this.handleSend());
     this.stopBtn = rightActions.createEl("button", {
       cls: "clickable-icon ana-chat-stop",
       attr: { "aria-label": t("view.stop") }
     });
-    (0, import_obsidian12.setIcon)(this.stopBtn, "square");
+    (0, import_obsidian15.setIcon)(this.stopBtn, "square");
     this.stopBtn.addEventListener("click", () => this.handleStop());
     this.stopBtn.addClass("is-hidden");
     this.renderChips();
@@ -5993,7 +6184,7 @@ var ChatView = class extends import_obsidian12.ItemView {
       cls: "clickable-icon ana-chat-sidebar-new",
       attr: { "aria-label": t("view.newSession") }
     });
-    (0, import_obsidian12.setIcon)(newBtn, "plus");
+    (0, import_obsidian15.setIcon)(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
     this.sessionListEl = this.sidebarEl.createEl("div", {
       cls: "ana-chat-session-list"
@@ -6025,7 +6216,7 @@ var ChatView = class extends import_obsidian12.ItemView {
         cls: "clickable-icon ana-chat-session-action",
         attr: { "aria-label": t("view.renameSession") }
       });
-      (0, import_obsidian12.setIcon)(renameBtn, "pencil");
+      (0, import_obsidian15.setIcon)(renameBtn, "pencil");
       renameBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         this.renameSession(s);
@@ -6034,7 +6225,7 @@ var ChatView = class extends import_obsidian12.ItemView {
         cls: "clickable-icon ana-chat-session-action ana-chat-session-del",
         attr: { "aria-label": t("view.deleteSession") }
       });
-      (0, import_obsidian12.setIcon)(delBtn, "trash-2");
+      (0, import_obsidian15.setIcon)(delBtn, "trash-2");
       delBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         this.confirmDeleteSession(s);
@@ -6052,7 +6243,7 @@ var ChatView = class extends import_obsidian12.ItemView {
    * 让图标指向点击后侧栏移动的方向，而不是描述当前状态。
    */
   renderSidebarToggle() {
-    (0, import_obsidian12.setIcon)(
+    (0, import_obsidian15.setIcon)(
       this.sidebarToggleBtn,
       this.sidebarCollapsed ? SIDEBAR_EXPAND_ICON : SIDEBAR_COLLAPSE_ICON
     );
@@ -6092,15 +6283,15 @@ var ChatView = class extends import_obsidian12.ItemView {
     this.renderActions();
   }
   renameSession(s) {
-    const modal = new import_obsidian12.Modal(this.plugin.app);
+    const modal = new import_obsidian15.Modal(this.plugin.app);
     modal.titleEl.setText(t("view.renameSession"));
     let input;
-    new import_obsidian12.Setting(modal.contentEl).setName(t("view.sessionTitle")).addText((text) => {
+    new import_obsidian15.Setting(modal.contentEl).setName(t("view.sessionTitle")).addText((text) => {
       input = text.inputEl;
       text.inputEl.value = s.title;
       text.inputEl.focus();
     });
-    new import_obsidian12.ButtonComponent(modal.contentEl).setButtonText(t("modal.apply")).setCta().onClick(async () => {
+    new import_obsidian15.ButtonComponent(modal.contentEl).setButtonText(t("modal.apply")).setCta().onClick(async () => {
       var _a2;
       const v = ((_a2 = input == null ? void 0 : input.value) != null ? _a2 : "").trim() || t("view.defaultTitle");
       s.title = v;
@@ -6114,12 +6305,12 @@ var ChatView = class extends import_obsidian12.ItemView {
     modal.open();
   }
   confirmDeleteSession(s) {
-    const modal = new import_obsidian12.Modal(this.plugin.app);
+    const modal = new import_obsidian15.Modal(this.plugin.app);
     modal.titleEl.setText(t("view.deleteSession"));
     modal.contentEl.createEl("p", { text: t("view.confirmDelete", { title: s.title }) });
     const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian12.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
-    new import_obsidian12.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
+    new import_obsidian15.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
+    new import_obsidian15.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
       modal.close();
       this.sessions = this.sessions.filter((x) => x.id !== s.id);
       this.metaSnapshot.delete(s.id);
@@ -6170,13 +6361,13 @@ var ChatView = class extends import_obsidian12.ItemView {
       const chip = this.chipsEl.createEl("div", { cls: "ana-chat-chip" });
       const icon = ref.type === "folder" ? "folder" : "file-text";
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian12.setIcon)(iconSpan, icon);
+      (0, import_obsidian15.setIcon)(iconSpan, icon);
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeAttachment") }
       });
-      (0, import_obsidian12.setIcon)(x, "x");
+      (0, import_obsidian15.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeAttachment(i));
     }
     for (let i = 0; i < s.skills.length; i++) {
@@ -6185,13 +6376,13 @@ var ChatView = class extends import_obsidian12.ItemView {
         cls: "ana-chat-chip ana-chat-chip-skill"
       });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian12.setIcon)(iconSpan, "puzzle");
+      (0, import_obsidian15.setIcon)(iconSpan, "puzzle");
       chip.createSpan({ text: path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeSkill") }
       });
-      (0, import_obsidian12.setIcon)(x, "x");
+      (0, import_obsidian15.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeSkill(i));
     }
   }
@@ -6225,7 +6416,7 @@ var ChatView = class extends import_obsidian12.ItemView {
       }
     }
     if (added === 0) {
-      new import_obsidian12.Notice(t("view.noNewAttachment"));
+      new import_obsidian15.Notice(t("view.noNewAttachment"));
       return;
     }
     s.updatedAt = Date.now();
@@ -6276,7 +6467,7 @@ var ChatView = class extends import_obsidian12.ItemView {
       }
     }
     if (added === 0) {
-      new import_obsidian12.Notice(t("view.noNewSkill"));
+      new import_obsidian15.Notice(t("view.noNewSkill"));
       return;
     }
     s.updatedAt = Date.now();
@@ -6454,7 +6645,7 @@ var ChatView = class extends import_obsidian12.ItemView {
     if (s.webSearch) {
       const cfg = this.buildSearchConfig();
       if (!new WebSearchService(this.app, cfg).hasCredentials()) {
-        new import_obsidian12.Notice(t("view.webNoCredentials"));
+        new import_obsidian15.Notice(t("view.webNoCredentials"));
       }
     }
   }
@@ -6598,13 +6789,13 @@ var ChatView = class extends import_obsidian12.ItemView {
         cls: "ana-chat-chip ana-chat-chip-skill"
       });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian12.setIcon)(iconSpan, "puzzle");
+      (0, import_obsidian15.setIcon)(iconSpan, "puzzle");
       chip.createSpan({ text: this.skillDisplayName(p), cls: "ana-chat-chip-label" });
     }
     for (const ref of (_b2 = meta.attachments) != null ? _b2 : []) {
       const chip = footer.createEl("div", { cls: "ana-chat-chip" });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian12.setIcon)(iconSpan, ref.type === "folder" ? "folder" : "file-text");
+      (0, import_obsidian15.setIcon)(iconSpan, ref.type === "folder" ? "folder" : "file-text");
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
     }
     if (meta.createdAt) {
@@ -6616,8 +6807,8 @@ var ChatView = class extends import_obsidian12.ItemView {
   }
   /** 发送时间格式化：当天仅显示 HH:mm，否则显示 YYYY-MM-DD HH:mm。 */
   formatMessageTime(ts) {
-    const d = (0, import_obsidian12.moment)(ts);
-    if (d.isSame((0, import_obsidian12.moment)(), "day")) {
+    const d = (0, import_obsidian15.moment)(ts);
+    if (d.isSame((0, import_obsidian15.moment)(), "day")) {
       return d.format("HH:mm");
     }
     return d.format("YYYY-MM-DD HH:mm");
@@ -6681,10 +6872,10 @@ var ChatView = class extends import_obsidian12.ItemView {
       evt.stopPropagation();
       const cleanPath = filePath.split("?")[0].split("#")[0];
       const file = this.app.vault.getAbstractFileByPath(cleanPath);
-      if (file instanceof import_obsidian12.TFile) {
+      if (file instanceof import_obsidian15.TFile) {
         void this.app.workspace.getLeaf(false).openFile(file);
       } else {
-        new import_obsidian12.Notice(t("view.fileNotFound", { path: cleanPath }));
+        new import_obsidian15.Notice(t("view.fileNotFound", { path: cleanPath }));
       }
     });
   }
@@ -6696,7 +6887,7 @@ var ChatView = class extends import_obsidian12.ItemView {
       return;
     }
     try {
-      await import_obsidian12.MarkdownRenderer.renderMarkdown(text, el, "", this);
+      await import_obsidian15.MarkdownRenderer.renderMarkdown(text, el, "", this);
     } catch (e) {
       el.setText(text);
     }
@@ -6896,7 +7087,7 @@ var ChatView = class extends import_obsidian12.ItemView {
           sess.messages.pop();
       }
       this.transientSkillPaths.push(...r0.reenterPaths);
-      new import_obsidian12.Notice(t("view.skillReenter", { count: r0.reenterPaths.length }));
+      new import_obsidian15.Notice(t("view.skillReenter", { count: r0.reenterPaths.length }));
       await this.runTurn(1);
       this.transientSkillPaths = [];
     }
@@ -7050,7 +7241,7 @@ ${extra}` : text
       const needsReenter = detected.length > 0 && depth < 1;
       if (detected.length > 0 && !needsReenter) {
         this.renderChips();
-        new import_obsidian12.Notice(t("view.skillAutoLoaded", { count: detected.length }));
+        new import_obsidian15.Notice(t("view.skillAutoLoaded", { count: detected.length }));
       }
       let usage = result.usage;
       if (!usage && reply.length > 0) {
@@ -7116,7 +7307,7 @@ ${extra}` : text
     this.inputEl.disabled = disabled;
     this.sendBtn.disabled = disabled;
     this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
-    (0, import_obsidian12.setIcon)(this.sendBtn, disabled ? "loader" : "send");
+    (0, import_obsidian15.setIcon)(this.sendBtn, disabled ? "loader" : "send");
     this.sendBtn.toggleClass("is-hidden", disabled);
     this.stopBtn.toggleClass("is-hidden", !disabled);
   }
@@ -7389,7 +7580,7 @@ ${extra}` : text
     return parts.join("\n\n");
   }
 };
-var AttachmentPickerModal = class extends import_obsidian12.Modal {
+var AttachmentPickerModal = class extends import_obsidian15.Modal {
   constructor(app, plugin, onSubmit) {
     super(app);
     /** 被选中的 file/folder 的 path 集合（folder 整文件夹也算一条）。 */
@@ -7425,7 +7616,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
     });
     expandAll.addEventListener("click", () => {
       this.vaultRoot().children.forEach((c) => {
-        if (c instanceof import_obsidian12.TFolder)
+        if (c instanceof import_obsidian15.TFolder)
           this.walkFolders(c, (f) => this.expanded.add(f.path));
       });
       this.render();
@@ -7437,7 +7628,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
     collapseAll.addEventListener("click", () => {
       this.expanded.clear();
       this.vaultRoot().children.forEach((c) => {
-        if (c instanceof import_obsidian12.TFolder)
+        if (c instanceof import_obsidian15.TFolder)
           this.expanded.add(c.path);
       });
       this.render();
@@ -7445,13 +7636,13 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
     this.countEl = toolbar.createEl("span", { cls: "ana-picker-count" });
     this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
     this.vaultRoot().children.forEach((c) => {
-      if (c instanceof import_obsidian12.TFolder)
+      if (c instanceof import_obsidian15.TFolder)
         this.expanded.add(c.path);
     });
     this.render();
     const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian12.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
-    this.confirmBtn = new import_obsidian12.ButtonComponent(btns).setButtonText(t("view.picker.confirm")).setCta().onClick(() => {
+    new import_obsidian15.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
+    this.confirmBtn = new import_obsidian15.ButtonComponent(btns).setButtonText(t("view.picker.confirm")).setCta().onClick(() => {
       const refs = this.buildRefs();
       this.close();
       this.onSubmit(refs);
@@ -7465,7 +7656,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
   /** 递归遍历所有 folder（含自身），对每个 folder 调用 cb。 */
   walkFolders(node, cb) {
     for (const child of node.children) {
-      if (child instanceof import_obsidian12.TFolder) {
+      if (child instanceof import_obsidian15.TFolder) {
         cb(child);
         this.walkFolders(child, cb);
       }
@@ -7475,9 +7666,9 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
   allLeaves(folder) {
     const out = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian12.TFile && child.extension === "md")
+      if (child instanceof import_obsidian15.TFile && child.extension === "md")
         out.push(child);
-      else if (child instanceof import_obsidian12.TFolder)
+      else if (child instanceof import_obsidian15.TFolder)
         out.push(...this.allLeaves(child));
     }
     return out;
@@ -7510,9 +7701,9 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
     const walk = (node) => {
       const selfHit = node.name.toLowerCase().includes(q);
       let childHit = false;
-      if (node instanceof import_obsidian12.TFolder) {
+      if (node instanceof import_obsidian15.TFolder) {
         for (const child of node.children) {
-          if (child instanceof import_obsidian12.TFolder || child instanceof import_obsidian12.TFile) {
+          if (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile) {
             if (walk(child))
               childHit = true;
           }
@@ -7523,7 +7714,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
       return selfHit || childHit;
     };
     for (const child of this.vaultRoot().children) {
-      if (child instanceof import_obsidian12.TFolder || child instanceof import_obsidian12.TFile)
+      if (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile)
         walk(child);
     }
     return visible;
@@ -7555,11 +7746,11 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
         return;
       shown++;
       const row = this.listEl.createEl("div", {
-        cls: "ana-tree-row" + (node instanceof import_obsidian12.TFolder ? " is-folder" : "")
+        cls: "ana-tree-row" + (node instanceof import_obsidian15.TFolder ? " is-folder" : "")
       });
       row.setCssProps({ "--ana-tree-indent": `${6 + depth * 18}px` });
       const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
-      if (node instanceof import_obsidian12.TFolder) {
+      if (node instanceof import_obsidian15.TFolder) {
         const isOpen = this.expanded.has(node.path) || visible !== null && visible.has(node.path);
         if (!isOpen)
           toggle.classList.add("collapsed");
@@ -7577,7 +7768,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
       }
       const cb = row.createEl("input", { cls: "ana-tree-cb" });
       cb.type = "checkbox";
-      if (node instanceof import_obsidian12.TFolder) {
+      if (node instanceof import_obsidian15.TFolder) {
         const st = this.folderState(node);
         if (st === "checked")
           cb.checked = true;
@@ -7590,7 +7781,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
       cb.addEventListener("change", () => this.onToggle(node));
       row.appendChild(cb);
       const icon = row.createEl("span", { cls: "ana-tree-icon" });
-      icon.setText(node instanceof import_obsidian12.TFolder ? "\u{1F4C1}" : "\u{1F4C4}");
+      icon.setText(node instanceof import_obsidian15.TFolder ? "\u{1F4C1}" : "\u{1F4C4}");
       const nameEl = row.createEl("span", { cls: "ana-tree-name" });
       for (const part of this.highlight(node.name)) {
         if (typeof part === "string")
@@ -7599,22 +7790,22 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
           nameEl.appendChild(part);
       }
       row.addEventListener("click", () => {
-        if (node instanceof import_obsidian12.TFolder) {
+        if (node instanceof import_obsidian15.TFolder) {
           toggle.click();
         } else {
           cb.checked = !cb.checked;
           cb.dispatchEvent(new Event("change"));
         }
       });
-      if (node instanceof import_obsidian12.TFolder && (this.expanded.has(node.path) || visible !== null && visible.has(node.path))) {
+      if (node instanceof import_obsidian15.TFolder && (this.expanded.has(node.path) || visible !== null && visible.has(node.path))) {
         for (const child of node.children) {
-          if (child instanceof import_obsidian12.TFolder || child instanceof import_obsidian12.TFile)
+          if (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile)
             walk(child, depth + 1);
         }
       }
     };
     for (const child of this.vaultRoot().children) {
-      if (child instanceof import_obsidian12.TFolder || child instanceof import_obsidian12.TFile)
+      if (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile)
         walk(child, 0);
     }
     if (shown === 0) {
@@ -7627,7 +7818,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
   }
   // ---- 勾选逻辑 ----
   onToggle(node) {
-    if (node instanceof import_obsidian12.TFolder) {
+    if (node instanceof import_obsidian15.TFolder) {
       const wantSelect = this.folderState(node) !== "checked";
       if (wantSelect) {
         this.selected.add(node.path);
@@ -7651,7 +7842,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
       const node = this.findNode(p);
       if (!node)
         return false;
-      if (node instanceof import_obsidian12.TFile) {
+      if (node instanceof import_obsidian15.TFile) {
         const parts = p.split("/");
         for (let i = 1; i < parts.length; i++) {
           if (this.selected.has(parts.slice(0, i).join("/")))
@@ -7662,7 +7853,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
     });
     return result.map((p) => {
       const node = this.findNode(p);
-      return { type: node instanceof import_obsidian12.TFolder ? "folder" : "file", path: p };
+      return { type: node instanceof import_obsidian15.TFolder ? "folder" : "file", path: p };
     });
   }
   findNode(path) {
@@ -7670,10 +7861,10 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
       if (node.path === path)
         return node;
       for (const child of node.children) {
-        if (child.path === path && (child instanceof import_obsidian12.TFolder || child instanceof import_obsidian12.TFile)) {
+        if (child.path === path && (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile)) {
           return child;
         }
-        if (child instanceof import_obsidian12.TFolder) {
+        if (child instanceof import_obsidian15.TFolder) {
           const found = walk(child);
           if (found)
             return found;
@@ -7696,7 +7887,7 @@ var AttachmentPickerModal = class extends import_obsidian12.Modal {
     this.contentEl.empty();
   }
 };
-var BaseListPickerModal = class extends import_obsidian12.Modal {
+var BaseListPickerModal = class extends import_obsidian15.Modal {
   /** 是否显示确认按钮（多选模式）。默认 false（单选：选中即关闭）。 */
   hasConfirmButton() {
     return false;
@@ -7731,9 +7922,9 @@ var BaseListPickerModal = class extends import_obsidian12.Modal {
     await this.loadItems();
     this.renderList();
     const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian12.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
+    new import_obsidian15.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
     if (this.hasConfirmButton()) {
-      new import_obsidian12.ButtonComponent(btns).setButtonText(this.getConfirmButtonText()).setCta().onClick(() => {
+      new import_obsidian15.ButtonComponent(btns).setButtonText(this.getConfirmButtonText()).setCta().onClick(() => {
         this.onConfirm();
         this.close();
       });
@@ -8019,11 +8210,11 @@ function migrateSettings(loaded, settings, app) {
 var SLASH_TRIGGER_LINE = /^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/;
 var SLASH_TRIGGER_STANDALONE = /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm;
 var ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg>`;
-var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
+var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
   constructor() {
     super(...arguments);
     /** 设置变更事件总线（用于通知已打开的视图刷新 UI）。 */
-    this.settingsEvents = new import_obsidian13.Events();
+    this.settingsEvents = new import_obsidian16.Events();
     /**
      * Ribbon 图标 DOM 引用，用于在关闭 chatPanelEnabled 时移除。
      * null 表示尚未添加或已主动 remove。
@@ -8071,7 +8262,7 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
         if (!checking) {
           const active = this.app.workspace.getActiveFile();
           void this.openChatView(
-            active instanceof import_obsidian13.TFile ? active : void 0
+            active instanceof import_obsidian16.TFile ? active : void 0
           );
         }
         return true;
@@ -8082,9 +8273,9 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
     await this.loadSettings();
     this.provider = createProvider(this.app, this.settings);
     initI18n(this.app);
-    (0, import_obsidian13.addIcon)("smart-notes", ICON_SVG);
-    (0, import_obsidian13.addIcon)(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
-    (0, import_obsidian13.addIcon)(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
+    (0, import_obsidian16.addIcon)("smart-notes", ICON_SVG);
+    (0, import_obsidian16.addIcon)(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
+    (0, import_obsidian16.addIcon)(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
     void ensureAiFolder(this);
     this.memoryRebuildTimeout = window.setTimeout(
       () => void rebuildProfileMemory(this),
@@ -8118,7 +8309,7 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
       checkCallback: (checking) => {
         if (!this.settings.realtimeEnabled)
           return false;
-        const view = this.app.workspace.getActiveViewOfType(import_obsidian13.MarkdownView);
+        const view = this.app.workspace.getActiveViewOfType(import_obsidian16.MarkdownView);
         if (!view || !view.editor)
           return false;
         if (!checking) {
@@ -8152,7 +8343,7 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
   }
   async openChatView(file) {
     if (!this.settings.chatPanelEnabled) {
-      new import_obsidian13.Notice(t("settings.chatPanel.desc"));
+      new import_obsidian16.Notice(t("settings.chatPanel.desc"));
       return;
     }
     const { workspace } = this.app;
@@ -8170,7 +8361,7 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
     }
     const rightLeaf = workspace.getRightLeaf(false);
     if (!rightLeaf) {
-      new import_obsidian13.Notice(t("view.openFailed"));
+      new import_obsidian16.Notice(t("view.openFailed"));
       return;
     }
     await rightLeaf.setViewState({
@@ -8208,18 +8399,18 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
     }
   }
   async runWithNotice(msg, fn) {
-    const notice = new import_obsidian13.Notice(msg, 0);
+    const notice = new import_obsidian16.Notice(msg, 0);
     try {
       await fn();
       notice.hide();
-      new import_obsidian13.Notice(t("notice.done"));
+      new import_obsidian16.Notice(t("notice.done"));
     } catch (e) {
       notice.hide();
-      new import_obsidian13.Notice(t("notice.error", { error: e.message }));
+      new import_obsidian16.Notice(t("notice.error", { error: e.message }));
     }
   }
   async optimizeCommand(file) {
-    const notice = new import_obsidian13.Notice(t("notice.optimizing"), 0);
+    const notice = new import_obsidian16.Notice(t("notice.optimizing"), 0);
     try {
       const content = await this.app.vault.read(file);
       const optimized = await optimizeNote(
@@ -8231,15 +8422,15 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
       notice.hide();
       new OptimizeModal(this.app, content, optimized, async (text) => {
         await this.app.vault.modify(file, text);
-        new import_obsidian13.Notice(t("notice.noteUpdated"));
+        new import_obsidian16.Notice(t("notice.noteUpdated"));
       }).open();
     } catch (e) {
       notice.hide();
-      new import_obsidian13.Notice(t("notice.error", { error: e.message }));
+      new import_obsidian16.Notice(t("notice.error", { error: e.message }));
     }
   }
   async generateFrontmatterCommand(file) {
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian13.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian16.MarkdownView);
     const editor = view == null ? void 0 : view.editor;
     let content = editor ? editor.getValue() : await this.app.vault.read(file);
     if (editor) {

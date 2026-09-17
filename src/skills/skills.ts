@@ -1,4 +1,4 @@
-import { App, Stat, Vault } from "obsidian";
+import { App, Platform, Stat, Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { getSkillsDir } from "../utils/aiFolder";
 
@@ -32,6 +32,9 @@ export interface SkillEntry {
 function skillsBasePath(plugin: AiNoteAgentPlugin): string {
   return getSkillsDir(plugin); // 形如 "<AI 文件夹>/skills"
 }
+
+/** skill 套件的入口文件名。 */
+const SKILL_FILE_NAME = "SKILL.md";
 
 /**
  * 从 skill 文件内容解析展示名。
@@ -176,6 +179,85 @@ export async function listSkills(
   }
   entries.sort((a, b) => a.name.localeCompare(b.name));
   return entries;
+}
+
+/* ── 套件的文件操作（删除 / 在系统文件管理器中显示）───────────────── */
+
+/**
+ * 一个 skill 在 vault 内的可操作目标。
+ *
+ * 套件 = 一个文件夹（其根目录下有 SKILL.md），所以绝大多数情况下目标就是
+ * 该文件夹本身；删除它即连同 assets/ scripts/ references/ 一起移除。
+ * 少数情况下 SKILL.md 直接放在 skills/ 根目录，此时没有"套件文件夹"，
+ * 目标退化为那一个文件——绝不会出现「删掉 skills/ 目录本身」这种结果。
+ */
+export interface SkillTarget {
+  /** vault 内相对路径（可直接交给 vault.adapter / app.showInFolder）。 */
+  path: string;
+  /** true = 套件文件夹；false = skills/ 根目录下的单个 SKILL.md。 */
+  isFolder: boolean;
+}
+
+/**
+ * 由 skill 的展示路径解析出可操作目标。
+ *
+ * @param relPath 相对 skills/ 目录的路径，如 `obsidian-plugin-dev/SKILL.md`
+ */
+export function resolveSkillTarget(
+  plugin: AiNoteAgentPlugin,
+  relPath: string
+): SkillTarget {
+  const base = skillsBasePath(plugin);
+  const suffix = "/" + SKILL_FILE_NAME;
+  if (relPath.endsWith(suffix)) {
+    return {
+      path: `${base}/${relPath.slice(0, -suffix.length)}`,
+      isFolder: true,
+    };
+  }
+  return { path: `${base}/${relPath}`, isFolder: false };
+}
+
+/**
+ * 把 skill 套件（或其单个 SKILL.md）移入回收站。
+ *
+ * 优先用系统回收站；系统回收站不可用（被系统设置禁用、或移动端没有）时
+ * 回落到 vault 根目录的 `.trash/`，与 Obsidian 自己删除文件的行为一致。
+ * 目标不存在时视为已删除，直接返回（幂等，避免重复删除报错）。
+ *
+ * @throws 两种回收站都失败时抛出底层错误，由调用方提示用户。
+ */
+export async function trashSkill(
+  plugin: AiNoteAgentPlugin,
+  relPath: string
+): Promise<void> {
+  const adapter = plugin.app.vault.adapter;
+  const target = resolveSkillTarget(plugin, relPath);
+  if (!(await adapter.exists(target.path))) return;
+
+  const trashed = await adapter
+    .trashSystem(target.path)
+    .catch(() => false);
+  if (!trashed) await adapter.trashLocal(target.path);
+}
+
+/**
+ * 在系统文件管理器中显示该 skill 的套件文件夹。
+ *
+ * skill 位于 `<AI 文件夹>/skills/`（默认 `.smartnotes/skills`，vault 隐藏目录），
+ * Obsidian 的文件浏览器不索引隐藏目录，所以「打开文件夹」只能交给系统文件管理器。
+ *
+ * 用的是 Obsidian 自己的 `app.showInFolder()`——文件浏览器右键菜单里
+ * 「在系统资源管理器中显示」就是它：桌面端经 `adapter.getFullPath()` 换算绝对
+ * 路径后交给 Electron shell，路径不存在时它自己会弹 Notice。该方法未收录进公开
+ * 的 obsidian.d.ts，所以这里用交叉类型补出签名后调用（而不是用 any / @ts-ignore）。
+ *
+ * @returns false 表示当前平台不支持（移动端），调用方应据此不展示该菜单项。
+ */
+export function revealSkillInFileManager(app: App, path: string): boolean {
+  if (!Platform.isDesktopApp) return false;
+  (app as App & { showInFolder(path: string): void }).showInFolder(path);
+  return true;
 }
 
 /**

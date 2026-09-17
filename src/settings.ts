@@ -14,7 +14,15 @@ import { ModelLinkModal, SecretPickerModal } from "./modelLinkModal";
 import { RoleInfoModal } from "./roleInfoModal";
 import { loadMemoryFile, saveMemoryFile, rebuildProfileMemory } from "./memory/profileMemory";
 import { WebSearchService } from "./search/search";
-import { listSkills, type SkillEntry } from "./skills/skills";
+import {
+  listSkills,
+  resolveSkillTarget,
+  trashSkill,
+  type SkillEntry,
+  type SkillTarget,
+} from "./skills/skills";
+import { buildSkillRowMenu } from "./skills/skillRowMenu";
+import { SkillDeleteConfirmModal } from "./skills/skillDeleteModal";
 import { uploadSkillFromZip } from "./skills/uploadSkill";
 import { renderAvatar } from "./avatar";
 import { getSkillsDir } from "./utils/aiFolder";
@@ -1474,7 +1482,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       htr.createEl("th", { text: t("settings.defaultSkills.table.name") });
       htr.createEl("th", { text: t("settings.defaultSkills.table.path") });
       htr.createEl("th", {
-        text: t("settings.defaultSkills.table.enabled"),
+        text: t("settings.defaultSkills.table.actions"),
         cls: "ana-skills-col-toggle",
       });
 
@@ -1483,8 +1491,36 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         const tr = tbody.createEl("tr");
         tr.createEl("td", { cls: "ana-skills-col-name", text: sk.name });
         tr.createEl("td", { cls: "ana-skills-col-path", text: sk.path });
-        const tdToggle = tr.createEl("td", { cls: "ana-skills-col-toggle" });
-        const toggle = new ToggleComponent(tdToggle);
+
+        // 「操作」列：⋮ 更多操作 + 启用开关，两者共用这一列。
+        // flex 必须落在内层 div 上——直接给 <td> 写 display:flex 会覆盖
+        // table-cell，该单元格立刻脱离表格的列尺寸协商（边框断开、控件错位）。
+        const tdActions = tr.createEl("td", { cls: "ana-skills-col-toggle" });
+        const actionWrap = tdActions.createDiv({
+          cls: "ana-skills-toggle-wrap",
+        });
+
+        const menuBtn = actionWrap.createEl("button", {
+          cls: "ana-skill-menu-btn clickable-icon",
+          attr: {
+            type: "button",
+            "aria-label": t("settings.defaultSkills.rowMenu.aria", {
+              name: sk.name,
+            }),
+            "aria-haspopup": "menu",
+          },
+        });
+        setIcon(menuBtn, "more-vertical");
+        menuBtn.addEventListener("click", (evt) => {
+          // 阻止冒泡：避免触发设置行 / 表格自身的点击处理
+          evt.preventDefault();
+          evt.stopPropagation();
+          this.openSkillRowMenu(evt, menuBtn, sk, renderSkillsList);
+        });
+
+        // 先建按钮再建开关：ToggleComponent 构造时把 .checkbox-container
+        // append 到容器末尾，因此 ⋮ 自然落在开关左侧。
+        const toggle = new ToggleComponent(actionWrap);
         toggle.setValue(plugin.settings.defaultSkills.includes(sk.path));
         toggle.setDisabled(!plugin.settings.skillsEnabled);
         toggle.onChange(async (v) => {
@@ -1503,6 +1539,76 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     };
 
     void renderSkillsList();
+  }
+
+  /**
+   * 打开某一行的「更多操作」菜单（菜单内容见 `buildSkillRowMenu`）。
+   */
+  private openSkillRowMenu(
+    evt: MouseEvent,
+    triggerEl: HTMLElement,
+    skill: SkillEntry,
+    refresh: () => Promise<void>
+  ): void {
+    const target = resolveSkillTarget(this.plugin, skill.path);
+    const menu = buildSkillRowMenu({
+      app: this.app,
+      target,
+      skillsDir: getSkillsDir(this.plugin),
+      onDelete: () => {
+        void this.confirmDeleteSkill(skill, target, refresh);
+      },
+    });
+
+    // 菜单展开期间给触发按钮挂 is-active：主题的 .clickable-icon.is-active
+    // 会自动换成「激活态图标色」，不必自己写 hex，也能跟随任意主题。
+    triggerEl.classList.add("is-active");
+    menu.onHide(() => triggerEl.classList.remove("is-active"));
+
+    if (evt.detail === 0) {
+      // 键盘触发（Enter / Space）的 MouseEvent 坐标是 0,0，菜单会跑到屏幕左上角
+      const rect = triggerEl.getBoundingClientRect();
+      menu.showAtPosition({ x: rect.left, y: rect.bottom });
+    } else {
+      menu.showAtMouseEvent(evt);
+    }
+  }
+
+  /**
+   * 删除 skill 前的二次确认；确认后把整个套件移入回收站并刷新列表。
+   */
+  private async confirmDeleteSkill(
+    skill: SkillEntry,
+    target: SkillTarget,
+    refresh: () => Promise<void>
+  ): Promise<void> {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      new SkillDeleteConfirmModal(this.app, target, resolve).open();
+    });
+    if (!confirmed) return;
+
+    try {
+      await trashSkill(this.plugin, skill.path);
+    } catch (e) {
+      console.error("[smart-notes] 删除 skill 失败", e);
+      new Notice(t("settings.defaultSkills.deleteNotice.failed"));
+      return;
+    }
+
+    // 被删的 skill 若原本处于启用状态，defaultSkills 里会留下悬空路径，
+    // 顺手清掉——否则设置里会一直记着一个已经不存在的 skill。
+    const kept = this.plugin.settings.defaultSkills.filter(
+      (p) => p !== skill.path
+    );
+    if (kept.length !== this.plugin.settings.defaultSkills.length) {
+      this.plugin.settings.defaultSkills = kept;
+      await this.plugin.saveSettings();
+    }
+
+    new Notice(
+      t("settings.defaultSkills.deleteNotice.done", { name: skill.name })
+    );
+    await refresh();
   }
 
   /** 在面板内创建一个小型分组标题。 */

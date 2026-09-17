@@ -1424,19 +1424,9 @@
    （--toggle-s-width）+ 余量 6 = 82px。写 width 是"期望宽度"而非硬上限：
    表格是 auto 布局，内容更宽时会自动加宽，主题把开关调成 36px 也挤不坏。
    right + nowrap 保证「操作」两个字不折行、两个控件贴右边缘。 */
-.ana-skills-table .ana-skills-col-toggle {
-  width: 82px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-/* flex 必须落在内层 div 上。直接给 <td> 写 display:flex 会覆盖 table-cell，
-   该单元格立刻脱离表格的列尺寸协商——边框断开、后面的列错位、子元素被挪走。 */
-.ana-skills-table .ana-skills-toggle-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--size-4-1);
+.ana-skills-col-toggle {
+  width: 56px;
+  text-align: center;
 }
 
 /* 行内「更多操作」按钮。
@@ -1446,44 +1436,8 @@
    ③ 激活态只换图标颜色、不加底色——所以把 is-active 也一并纳入本规则，
       用 (0,3,0) 确定性地压掉 .clickable-icon.is-active 的
       background-color，而 color 不声明，交给主题的 --icon-color-active。 */
-.ana-skills-table .ana-skill-menu-btn,
-.ana-skills-table .ana-skill-menu-btn.is-active {
-  padding: 0;
-  width: 22px;
-  height: 22px;
-  min-width: 0;
-  min-height: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  flex: 0 0 auto;
-}
-
-/* 图标尺寸只在这里定义一处（内联 width/height 会被 CSS 静默覆盖） */
-.ana-skills-table .ana-skill-menu-btn svg {
-  width: 16px;
-  height: 16px;
-}
 
 /* 「删除 Skill」确认框：把要删的确切路径单独展示出来 */
-.ana-skill-delete-path {
-  margin: var(--size-4-1) 0 var(--size-4-2);
-  padding: var(--size-4-1) var(--size-4-2);
-  border-radius: var(--radius-s);
-  background: var(--background-secondary);
-  color: var(--text-muted);
-  font-family: var(--font-monospace);
-  font-size: var(--font-smaller);
-  /* 路径可能很长（嵌套套件），必须允许在任意位置断行，否则撑宽弹窗 */
-  word-break: break-all;
-}
-
-.ana-skill-delete-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--size-4-2);
-  margin-top: var(--size-4-3);
-}
 
 /* 多 Key / 实例 输入框：多行、等宽 */
 .ana-settings-keys {
