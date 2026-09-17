@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>设置页标签栏「左右滚动箭头」— 原型/验证台</title>
+<!--
+  原型说明
+  ========
+  目的：确认「设置页顶部标签栏显示不全时，**左右两端同时**出现滚动箭头」的
+        出现条件、位置、样式、点击步长、以及「滚到头」那一侧的表现。
+
+  ⚠️ 你圈出来的两个红框都能在这页里复现：
+     · 窗口 1200（面板宽自适应）= 你现在那张「7 个标签都显示」的截图 → 不该有箭头
+     · 把「面板宽」切到 620 / 560     = 你那张被截断的截图      → 两端都出现箭头
+
+  本次（第 2 版）相对上一版改了什么：
+     · 箭头出现与否只看「装不装得下」，跟滚动位置无关 —— 两端要么都在，要么都不在。
+       （上一版是「只显示还有内容的那一侧」，被你否掉了）
+     · 默认布局换成 B 占位：两端各留 26px，箭头落在空位上，最左/最右端不压任何标签。
+       A 浮层保留在工具条里做对比（不占位，但两端会压住边缘标签）。
+     · 「到头那侧」默认变淡禁用（仍显示，保持两端对称）；「隐藏」留作备选。
+
+  这个页面刻意做了三件事：
+  1) <link> 直接引真实的 ../styles.css（不是副本）—— 标签条现有样式就是插件里的真样式。
+  2) 页面自己的 <style> 里只放【Obsidian 原生规则】（*{box-sizing} / 裸 button /
+     button:not(.clickable-icon) / .clickable-icon / .setting-item*）+ 一份
+     Catppuccin Latte 主题变量（按你截图逐像素采样得到），外加两个
+     「未被采用」的对照变体。插件的样式一行都不复制 —— 采用了的那份已经搬进
+     ../styles.css，副本留在页面里会让同一组规则被命中两次，验证台当场失效。
+  3) 断言跑的就是真表里的规则。负向基线由 .workbuddy/tmp/make-tab-scroll-pages.js
+     生成：它把 styles.css 里那一段**整段剥掉**另存一份，再让基线页 <link> 那份、
+     并把 ARROWS 注释之间的 DOM 换回改动前的结构 —— 同一套断言必须报错。
+
+  顶栏的黑色工具条不是插件 UI，是给你切布局/到头策略/步长/面板宽用的。
+  「布局」与「到头那侧」如今只剩对照意义：插件已定稿为「B 占位 + 到尽头变淡禁用」。
+-->
+<link rel="stylesheet" href=".baseline-styles.css">
+<style>
+/* ==========================================================================
+   1. Obsidian 全局重置 + 主题变量
+   变量名与取值来自 obsidian.asar 里的 app.css；颜色按用户截图逐像素采样
+   （Catppuccin Latte：#eff1f5 / #e6e9ef / #dce0e8 / #8839ef …）。
+   —— 这一段是 Obsidian 自己的东西，不是插件 CSS
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  --font-default: ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+  --font-interface: var(--font-default);
+  --font-text: var(--font-default);
+  --font-ui-large: 20px; --font-ui-medium: 15px; --font-ui-small: 13px; --font-ui-smaller: 12px;
+  --font-smaller: 0.875em;
+  --font-normal: 400; --font-medium: 500; --font-semibold: 600;
+  --line-height-tight: 1.3; --line-height-normal: 1.5;
+
+  --color-base-00: #eff1f5; --color-base-05: #eff1f5; --color-base-10: #e6e9ef;
+  --color-base-20: #e6e9ef; --color-base-25: #dce0e8; --color-base-30: #ccd0da;
+  --color-base-35: #bcc0cc; --color-base-40: #acb0be; --color-base-50: #9ca0b0;
+  --color-base-60: #8c8fa1; --color-base-70: #6c6f85; --color-base-100: #4c4f69;
+  --color-accent: #8839ef;
+  --color-red: #d20f39; --color-green: #40a02b; --color-yellow: #df8e1d;
+
+  --background-primary: #eff1f5;
+  --background-primary-alt: #eff1f5;
+  --background-secondary: #e6e9ef;
+  --background-modifier-border: var(--color-base-30);
+  --background-modifier-border-hover: var(--color-base-35);
+  --background-modifier-hover: rgba(76, 79, 105, 0.067);
+  --background-modifier-active-hover: rgba(136, 57, 239, 0.1);
+  --interactive-normal: var(--color-base-10);
+  --interactive-hover: var(--color-base-25);
+  --interactive-accent: var(--color-accent);
+  --icon-color: var(--text-muted);
+  --icon-color-hover: var(--text-normal);
+  --icon-color-focused: var(--text-normal);
+  --icon-color-active: var(--text-accent);
+  --icon-opacity: 0.85;
+  --icon-opacity-hover: 1;
+  /* 图标边长。真实 Obsidian 由 app.css 的 `.svg-icon { width/height: var(--icon-size) }`
+     提供，setIcon() 产出的 <svg> 自带 svg-icon 类；本原型的 mock 图标不带类，
+     所以下面候选规则里显式给了 svg 尺寸（真实插件里那条是冗余但无害的）。 */
+  --icon-size: 16px;
+  --text-normal: var(--color-base-100);
+  --text-muted: var(--color-base-70);
+  --text-faint: var(--color-base-50);
+  --text-accent: var(--color-accent);
+  --text-error: var(--color-red);
+  --text-on-accent: #ffffff;
+
+  --size-2-1: 2px; --size-2-2: 4px; --size-2-3: 6px;
+  --size-4-1: 4px; --size-4-2: 8px; --size-4-3: 12px; --size-4-4: 16px;
+  --size-4-5: 20px; --size-4-6: 24px; --size-4-8: 32px;
+  --radius-s: 4px; --radius-m: 8px; --radius-l: 12px;
+  --clickable-icon-radius: var(--radius-s);
+  --corner-shape: round;
+  --border-width: 1px;
+  --input-height: 30px;
+  --input-shadow: none;
+  --input-shadow-hover: none;
+  --button-radius: var(--radius-s);
+  --button-corner-shape: var(--corner-shape);
+  --input-font-weight: var(--font-medium);
+  --cursor: default;
+  --anim-duration-fast: 140ms;
+
+  --toggle-radius: 18px;
+  --toggle-thumb-radius: 18px;
+  --toggle-thumb-color: #e6e9ef;
+  --toggle-s-width: 34px;
+  --toggle-s-height: 19px;
+  --toggle-s-border-width: 2px;
+  --toggle-s-thumb-width: 15px;
+  --toggle-s-thumb-height: 15px;
+  --toggle-off-track: #d20f39;
+  --toggle-on-track: #40a02b;
+
+  --setting-items-background: var(--background-secondary);
+  --setting-items-border-color: transparent;
+  --setting-items-radius: var(--radius-m);
+
+  margin: 0; padding: 24px;
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-medium);
+  line-height: var(--line-height-tight);
+  color: var(--text-normal);
+  background: #dce0e8;
+}
+
+/* ==========================================================================
+   2. Obsidian 原生规则（必须抄，否则「箭头被压成灰底方块」这类问题在原型里看不出来）
+   ========================================================================== */
+button {
+  --text-color: var(--text-normal);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-color);
+  font-size: var(--font-ui-small);
+  border-radius: var(--button-radius);
+  corner-shape: var(--button-corner-shape);
+  border: 0;
+  padding: var(--size-4-1) var(--size-4-3);
+  height: var(--input-height);
+  font-weight: var(--input-font-weight);
+  cursor: var(--cursor);
+  font-family: inherit; outline: none; user-select: none; white-space: nowrap;
+}
+button:not(.clickable-icon) {
+  color: var(--text-color);
+  background-color: var(--interactive-normal);
+  box-shadow: var(--input-shadow);
+}
+button:hover { background-color: var(--interactive-hover); box-shadow: var(--input-shadow-hover); }
+
+.clickable-icon {
+  background-color: transparent;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--size-2-2) var(--size-2-3);
+  cursor: var(--cursor);
+  border-radius: var(--clickable-icon-radius);
+  color: var(--icon-color);
+  height: auto;
+  corner-shape: var(--corner-shape);
+}
+.clickable-icon svg { opacity: var(--icon-opacity); transition: opacity var(--anim-duration-fast) ease-in-out; }
+.clickable-icon:hover { box-shadow: none; color: var(--icon-color-hover); background-color: var(--background-modifier-hover); }
+.clickable-icon:hover svg { opacity: var(--icon-opacity-hover); }
+.clickable-icon:active { color: var(--icon-color-focused); background-color: var(--background-modifier-hover); }
+
+.checkbox-container {
+  cursor: var(--cursor);
+  background-color: var(--toggle-off-track);
+  border-radius: var(--toggle-radius);
+  display: inline-block; flex-shrink: 0; position: relative; user-select: none;
+  width: var(--toggle-s-width);
+  height: calc(var(--toggle-s-thumb-height) + var(--toggle-s-border-width) * 2);
+}
+.checkbox-container.is-enabled { background-color: var(--toggle-on-track); }
+.checkbox-container::after {
+  pointer-events: none; content: ''; display: block; position: absolute;
+  background-color: var(--toggle-thumb-color);
+  border-radius: var(--toggle-thumb-radius);
+  transition: transform 0.15s ease-in-out;
+  left: 0;
+  width: var(--toggle-s-thumb-width);
+  height: var(--toggle-s-thumb-height);
+  margin: var(--toggle-s-border-width) 0 0 0;
+  transform: translate3d(var(--toggle-s-border-width), 0, 0);
+}
+.checkbox-container.is-enabled::after {
+  transform: translate3d(calc(var(--toggle-s-width) - var(--toggle-s-thumb-width) - var(--toggle-s-border-width)), 0, 0);
+}
+
+.setting-item {
+  display: flex; align-items: center; row-gap: var(--size-4-3);
+  border-radius: var(--setting-items-radius);
+  background-color: var(--setting-items-background);
+  padding: var(--size-4-6);
+  margin-bottom: var(--size-4-2);
+  border: 1px solid var(--setting-items-border-color);
+}
+.setting-item-info { flex: 1 1 auto; min-width: 0; }
+.setting-item-name { color: var(--text-normal); font-size: var(--font-ui-medium); }
+.setting-item-description {
+  color: var(--text-muted); font-size: var(--font-ui-smaller);
+  padding-top: var(--size-4-1); line-height: var(--line-height-tight);
+}
+.setting-item-control {
+  flex: 1 1 auto; text-align: end; display: flex; justify-content: flex-end;
+  align-items: center; gap: var(--size-4-2);
+}
+
+/* ==========================================================================
+   3. 设置窗口外壳（只为「看起来像 Obsidian」，不是插件代码）
+   真实 Obsidian 里 containerEl（插件的设置内容区）位于
+   .vertical-tab-content-container > .vertical-tab-content 内，左右有 24px 内边距。
+   ========================================================================== */
+.win {
+  width: 1120px; height: 720px; margin: 0 auto;
+  background: var(--background-primary);
+  border-radius: 10px; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+  display: flex; flex-direction: column;
+  font-size: var(--font-ui-small);
+}
+.titlebar {
+  height: 30px; background: var(--color-base-25); flex: 0 0 30px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: var(--font-ui-smaller); position: relative;
+}
+.titlebar .win-btns { position: absolute; right: 8px; display: flex; gap: 14px; color: var(--text-muted); }
+.win-body { flex: 1 1 auto; display: flex; min-height: 0; }
+.sidenav {
+  width: 236px; flex: 0 0 236px; padding: 12px 10px; overflow: hidden;
+  border-right: 1px solid var(--background-modifier-border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nav-search {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--background-secondary); border-radius: var(--radius-m);
+  padding: 6px 10px; color: var(--text-faint); margin-bottom: 10px;
+  border: 1px solid var(--background-modifier-border);
+}
+.nav-item { padding: 5px 8px; border-radius: var(--radius-s); color: var(--text-normal); }
+.nav-item.is-active { background: var(--background-secondary); font-weight: var(--font-medium); }
+.nav-group { margin-top: 14px; color: var(--text-faint); font-size: var(--font-ui-smaller); padding: 0 8px 4px; }
+.main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.content-host { padding: 16px 24px 24px; overflow: auto; display: flex; }
+/* #content = 真实插件里 containerEl 的等价物（标签条 + 面板都挂在它下面） */
+.content { width: 100%; min-width: 0; }
+
+.role-row {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center;
+  gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-small);
+}
+.role-row:last-child { border-bottom: none; }
+.role-avatar { width: 22px; height: 22px; border-radius: 50%; background: var(--color-base-25); }
+.role-ops { display: flex; gap: 6px; color: var(--text-muted); }
+.badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: var(--radius-s);
+  background: var(--color-green); color: #fff; font-size: var(--font-ui-smaller);
+}
+
+/* ==========================================================================
+   4. 当前插件生效的规则 = ../styles.css（本页 <link> 的就是它）
+   ==========================================================================
+   这里**不放副本** —— 同一组规则被命中两次就分不清是哪一份在生效，验证台会当场失效。
+   对应片段见 styles.css 里「标签栏溢出 → 左右滚动箭头」那一节，
+   那一节目前实现的是「reserve 占位 + 到头变淡禁用」。
+
+   ⚠️ 本轮要评估的是把**占位换成浮层**。真表里那两条给箭头腾位置的占位伪元素
+   是无条件生效的，所以浮层在原型里只能靠「把那两条中和掉」来模拟；
+   落到插件时则是直接删掉那两条规则。两者结果等价：
+   箭头下方不再有专属空位，而是直接压在两端标签上。
+   ========================================================================== */
+
+/* （基线页：本次新增的对照变体规则也一并剥掉） */
+
+/* ==========================================================================
+   CANDIDATE-END
+   ========================================================================== */
+
+/* ==========================================================================
+   5. 工具条（非插件 UI，仅用于切方案 / 看读数）
+   ========================================================================== */
+.devbar {
+  width: 1120px; margin: 0 auto 14px; padding: 10px 14px;
+  background: #495057; color: #f1f3f5; border-radius: 10px;
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+  font-size: 12px; font-family: var(--font-interface);
+}
+.devbar b { font-weight: 600; opacity: 0.7; margin-right: 4px; }
+.seg { display: inline-flex; border: 1px solid rgba(255,255,255,0.35); border-radius: 6px; overflow: hidden; }
+.seg button {
+  all: unset; padding: 3px 9px; cursor: pointer; font-size: 12px;
+  color: #ced4da; height: auto; background: transparent; border-radius: 0;
+}
+.seg button.is-on { background: #adb5bd; color: #212529; font-weight: 600; }
+.readout { display: flex; gap: 14px; flex-wrap: wrap; }
+.readout span { opacity: 0.9; }
+.readout .ok { color: #8ce99a; }
+.readout .bad { color: #ffa8a8; }
+#measure { position: absolute; left: -9999px; top: 0; white-space: pre; }
+</style>
+</head>
+<body>
+
+<!-- ===== 工具条 ===== -->
+<div class="devbar">
+  <span><b>布局</b>
+    <span class="seg" id="segLayout">
+      <button data-v="reserve">B 占位（现插件）</button>
+      <button data-v="overlay" class="is-on">A 浮层（拟改为这个）</button>
+    </span>
+  </span>
+  <span><b>到尽头那侧</b>
+    <span class="seg" id="segEndpoint">
+      <button data-v="dim" class="is-on">变淡禁用（已采用）</button>
+      <button data-v="hide">隐藏（未采用）</button>
+    </span>
+  </span>
+  <span><b>步长</b>
+    <span class="seg" id="segStep">
+      <button data-v="page" class="is-on">一屏（已采用）</button>
+      <button data-v="tab">一个标签（未采用）</button>
+    </span>
+  </span>
+  <span><b>面板宽</b>
+    <span class="seg" id="segWidth">
+      <button data-v="0" class="is-on">自适应</button>
+      <button data-v="720">720</button>
+      <button data-v="620">620</button>
+      <button data-v="560">560</button>
+      <button data-v="460">460</button>
+    </span>
+  </span>
+  <span class="readout" id="readout"></span>
+</div>
+
+<!-- ===== 设置窗口 ===== -->
+<div class="win">
+  <div class="titlebar">
+    设置 - obsidian_vault - Obsidian 1.13.7
+    <span class="win-btns"><span>&#x2212;</span><span>&#x25A1;</span><span>&#x2715;</span></span>
+  </div>
+  <div class="win-body">
+    <div class="sidenav">
+      <div class="nav-search"><span>搜索设置…</span></div>
+      <div class="nav-item">密钥串</div>
+      <div class="nav-item">核心插件</div>
+      <div class="nav-group">第三方插件</div>
+      <div class="nav-item">Editing Toolbar</div>
+      <div class="nav-item">Gitee Sync Plus</div>
+      <div class="nav-item is-active">Smart Notes</div>
+      <div class="nav-item">Signal RSS</div>
+      <div class="nav-item">Vault Encrypted</div>
+    </div>
+    <div class="main">
+      <div class="content-host">
+        <div class="content" id="content">
+
+          <!-- 基线版：改动前的原始结构（标签条直接挂在 containerEl 上，没有左右箭头） -->
+          <div class="ana-settings-tabs" id="tabs"></div>
+          <!--
+            基线版由 .workbuddy/tmp/make-tab-scroll-pages.js 生成：
+            它把上面 ARROWS 段整块替换成改动前的原始结构（标签条直接挂在 containerEl 上）：
+              <div class="ana-settings-tabs" id="tabs"></div>
+            并把 CANDIDATE 段之间的 CSS 一起剥掉。同一套断言在基线版上必须报错。
+          -->
+
+          <!-- 面板：真 styles.css 里 .ana-settings-panel 默认 display:none，
+               靠 .is-active 显示（真实插件里由 activate(idx) 切换）。原型只有一个面板
+               容器、内容随选中标签重绘，所以恒挂 is-active。
+               结构照搬真实代码：.ana-settings-panel > .ana-settings-panel-body -->
+          <div class="ana-settings-panel is-active">
+            <div class="ana-settings-panel-body" id="panelBody"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<pre id="measure"></pre>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- 真实 Lucide 图标数据（取自 obsidian.asar 图标表） ----------
+     格式：[6, "path d"] = <path>，[1, cx, cy, r] = <circle> */
+  var ICONS = {
+    "settings": [[6,"M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"],[1,12,12,3]],
+    "mouse-pointer-click": [[6,"M14 4.1 12 6"],[6,"m5.1 8-2.9-.8"],[6,"m6 12-1.9 2"],[6,"M7.2 2.2 8 5.1"],[6,"M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"]],
+    "file-text": [[6,"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"],[6,"M14 2v5a1 1 0 0 0 1 1h5"],[6,"M10 9H8"],[6,"M16 13H8"],[6,"M16 17H8"]],
+    "user-round": [[1,12,8,5],[6,"M20 21a8 8 0 0 0-16 0"]],
+    "user": [[6,"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"],[1,12,7,4]],
+    "puzzle": [[6,"M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"]],
+    "globe": [[1,12,12,10],[6,"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"],[6,"M2 12h20"]],
+    "chevron-left": [[6,"m15 18-6-6 6-6"]],
+    "chevron-right": [[6,"m9 18 6-6-6-6"]],
+    "chevrons-left": [[6,"m11 17-5-5 5-5"],[6,"m18 17-5-5 5-5"]],
+    "chevrons-right": [[6,"m6 17 5-5-5-5"],[6,"m13 17 5-5-5-5"]]
+  };
+
+  function svgFor(name) {
+    var d = ICONS[name];
+    if (!d) return null;
+    var s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+    for (var i = 0; i < d.length; i++) {
+      var it = d[i];
+      if (it[0] === 1) s += '<circle cx="' + it[1] + '" cy="' + it[2] + '" r="' + it[3] + '"/>';
+      else s += '<path d="' + it[1] + '"/>';
+    }
+    return s + "</svg>";
+  }
+  function setIcon(host, name) {
+    var box = document.createElement("span");
+    box.innerHTML = svgFor(name) || "";
+    var svg = box.firstChild;
+    if (svg) host.appendChild(svg);
+  }
+
+  /* ---------- 与 src/settings.ts 的 7 个标签页一致 ---------- */
+  var SECTIONS = [
+    { id: "provider",   text: "模型配置",   icon: "settings" },
+    { id: "autoprompt", text: "交互设置",   icon: "mouse-pointer-click" },
+    { id: "knowledge",  text: "知识库",     icon: "file-text" },
+    { id: "profile",    text: "用户画像",   icon: "user-round" },
+    { id: "roles",      text: "角色信息",   icon: "user" },
+    { id: "skills",     text: "Skill 技能", icon: "puzzle" },
+    { id: "web",        text: "联网搜索",   icon: "globe" }
+  ];
+
+  var state = {
+    width: 0,
+    layout: "overlay",   /* overlay（本轮要评估的：箭头压标签但不吃宽度）/ reserve（现插件：占位） */
+    endpoint: "dim",     /* dim（推荐：到尽头那侧变淡但仍显示）/ hide */
+    step: "page",
+    behavior: "smooth",
+    active: 4
+  };
+
+  var contentEl, tabsWrap, tabsEl, navPrev, navNext, panelBody;
+
+  function $(id) { return document.getElementById(id); }
+
+  /* ---------------- 标签条渲染 ---------------- */
+  function buildTabs(host) {
+    if (!host) return;
+    host.innerHTML = "";
+    SECTIONS.forEach(function (sec, i) {
+      var btn = document.createElement("button");
+      btn.setAttribute("type", "button");
+      btn.className = "ana-settings-tab" + (i === state.active ? " is-active" : "");
+      var ic = document.createElement("span");
+      ic.className = "ana-settings-tab-icon";
+      setIcon(ic, sec.icon);
+      btn.appendChild(ic);
+      var tx = document.createElement("span");
+      tx.className = "ana-settings-tab-text";
+      tx.textContent = sec.text;
+      btn.appendChild(tx);
+      btn.addEventListener("click", function () { activate(i); });
+      host.appendChild(btn);
+    });
+  }
+
+  function activate(idx) {
+    state.active = idx;
+    var tabs = tabsEl.querySelectorAll(".ana-settings-tab");
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.toggle("is-active", i === idx);
+    renderPanel();
+  }
+
+  /* ---------------- 面板内容（照着你截图的那一屏做，够像就行） ---------------- */
+  var ROLES = [
+    { name: "知识库协作助手", color: "#8839ef", def: true },
+    { name: "咕咕嘎嘎", color: "#df8e1d", def: false },
+    { name: "芙宁娜", color: "#4c4f69", def: false },
+    { name: "纳西妲", color: "#40a02b", def: false }
+  ];
+
+  function settingRow(name, desc, control) {
+    var row = document.createElement("div");
+    row.className = "setting-item";
+    var info = document.createElement("div");
+    info.className = "setting-item-info";
+    var n = document.createElement("div"); n.className = "setting-item-name"; n.textContent = name;
+    var d = document.createElement("div"); d.className = "setting-item-description"; d.textContent = desc;
+    info.appendChild(n); info.appendChild(d);
+    var ctl = document.createElement("div");
+    ctl.className = "setting-item-control";
+    if (control === "toggle") {
+      var t = document.createElement("span");
+      t.className = "checkbox-container is-enabled" + (state.active === 4 ? "" : " is-enabled");
+      ctl.appendChild(t);
+    } else if (control === "text") {
+      var inp = document.createElement("input");
+      inp.placeholder = "按名称搜索……";
+      inp.setAttribute("style", "height:30px;font-family:inherit;font-size:var(--font-ui-small);border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);padding:0 8px;background:var(--background-primary);color:var(--text-normal);width:190px;");
+      ctl.appendChild(inp);
+    }
+    row.appendChild(info); row.appendChild(ctl);
+    return row;
+  }
+
+  function renderPanel() {
+    var sec = SECTIONS[state.active];
+    panelBody.innerHTML = "";
+    if (sec.id === "roles") {
+      panelBody.appendChild(settingRow("启用角色功能", "在 AI 对话框显示「角色」按钮，允许切换当前对话的角色。关闭后按钮隐藏，且默认角色不再注入 system prompt。", "toggle"));
+      panelBody.appendChild(settingRow("添加角色", "添加一个 AI 角色（名称 + 提示词），可将其设为默认并注入所有 AI 功能的 system prompt。", null));
+      panelBody.appendChild(settingRow("搜索角色", "按角色名称实时筛选下方列表。", "text"));
+      var list = document.createElement("div");
+      ROLES.forEach(function (r) {
+        var row = document.createElement("div");
+        row.className = "role-row";
+        row.innerHTML =
+          '<span class="role-avatar" style="background:' + r.color + ';opacity:.55"></span>' +
+          '<span>' + r.name + (r.def ? '<span class="badge">默认</span>' : '') + '</span>' +
+          '<span class="role-ops">★ ✎ 🗑</span>';
+        list.appendChild(row);
+      });
+      panelBody.appendChild(list);
+    } else {
+      panelBody.appendChild(settingRow(sec.text + " · 示例设置项", "这一屏只是为了让你看清标签条，内容不是本次改动范围。", "toggle"));
+      panelBody.appendChild(settingRow("另一个设置项", "切到「角色信息」标签能看到你截图里的那一屏。", "text"));
+    }
+  }
+
+  /* ---------------- 溢出判定 + 箭头状态 ----------------
+     溢出判定不拿 scrollWidth 直接比了：reserve 方案往滚动内容两端塞了 26px 占位，
+     scrollWidth 里混进了占位宽，拿它比会在「加占位 → 更溢出 → 永远摘不掉」上死锁。
+     改为直接量标签自身的自然总宽（首标签左缘 → 末标签右缘，与滚动位置无关），
+     跟标签条可用宽比 —— 两种布局的门槛因此完全一致，对比才公平。 */
+  function metrics() {
+    if (!tabsEl) return null;
+    var tabs = tabsEl.querySelectorAll(".ana-settings-tab");
+    var natural = 0;
+    if (tabs.length) {
+      var f = tabs[0].getBoundingClientRect();
+      var l = tabs[tabs.length - 1].getBoundingClientRect();
+      natural = l.right - f.left;
+    }
+    var avail = tabsEl.clientWidth;
+    var maxScroll = Math.max(0, tabsEl.scrollWidth - tabsEl.clientWidth);
+    return {
+      maxScroll: maxScroll,
+      natural: Math.round(natural),
+      avail: avail,
+      overflow: natural - avail > 1,
+      atStart: tabsEl.scrollLeft <= 1,
+      atEnd: tabsEl.scrollLeft >= maxScroll - 1,
+      scrollLeft: tabsEl.scrollLeft,
+      scrollWidth: tabsEl.scrollWidth,
+      clientWidth: tabsEl.clientWidth
+    };
+  }
+
+  /* blocked = 该方向已经没内容可滚。
+     dim 模式：只加 .is-disabled（变淡 + 不可点），**元素仍然显示** → 两端对称常显。
+     hide 模式：加 .is-hidden 直接不显示（备选，默认不用）。 */
+  function applyNavState(btn, blocked) {
+    if (!btn) return;
+    btn.classList.toggle("is-disabled", blocked && state.endpoint === "dim");
+    btn.classList.toggle("is-hidden", blocked && state.endpoint === "hide");
+    btn.setAttribute("aria-disabled", blocked ? "true" : "false");
+  }
+
+  function updateNav() {
+    var m = metrics();
+    if (!m) return null;
+    if (tabsWrap) {
+      tabsWrap.classList.toggle("has-overflow", m.overflow);
+      tabsWrap.setAttribute("data-layout", state.layout);
+    }
+    applyNavState(navPrev, !m.overflow || m.atStart);
+    applyNavState(navNext, !m.overflow || m.atEnd);
+    paintReadout(m);
+    return m;
+  }
+
+  function navBox(btn, m) {
+    if (!btn || !m) return { shown: false, display: "none", opacity: 1, cls: "", rect: null, svg: null };
+    var cs = getComputedStyle(btn);
+    var r = btn.getBoundingClientRect();
+    var svg = btn.querySelector("svg");
+    return {
+      shown: cs.display !== "none",
+      visible: cs.display !== "none" && cs.visibility === "visible" && parseFloat(cs.opacity) > 0.05,
+      display: cs.display,
+      opacity: parseFloat(cs.opacity),
+      bg: cs.backgroundColor,
+      rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+      svg: svg ? svg.getBoundingClientRect() : null,
+      cls: btn.className
+    };
+  }
+
+  /** 基线页里箭头元素不存在，任何 getComputedStyle 都会抛 —— 统一走这里拿 display。 */
+  function navDisplay(btn) {
+    return btn ? getComputedStyle(btn).display : "none";
+  }
+
+  /* ---------------- 对比度（证明「淡态箭头」真的看得见，而不是靠感觉） ---------------- */
+  function parseColor(c) {
+    var m = String(c).match(/rgba?\(([^)]+)\)/);
+    if (!m) return null;
+    var p = m[1].split(",").map(function (x) { return parseFloat(x); });
+    return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+  }
+  function over(fg, bg) {   /* fg 按自身 alpha 叠在 bg 上 */
+    var a = fg.a;
+    return { r: fg.r * a + bg.r * (1 - a), g: fg.g * a + bg.g * (1 - a), b: fg.b * a + bg.b * (1 - a), a: 1 };
+  }
+  function lum(c) {
+    function f(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+    return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+  }
+  function contrast(fg, bg) {
+    var a = lum(fg), b = lum(bg);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+  function effectiveBg(el) {
+    var node = el;
+    while (node && node !== document.documentElement) {
+      var c = parseColor(getComputedStyle(node).backgroundColor);
+      if (c && c.a > 0.95) return c;
+      node = node.parentElement;
+    }
+    var b = parseColor(getComputedStyle(document.body).backgroundColor);
+    return (b && b.a > 0.95) ? b : { r: 255, g: 255, b: 255, a: 1 };
+  }
+  /** 箭头图标的实测对比度 = 图标色（含自身 opacity）叠在标签条底色上。 */
+  function iconContrast(btn) {
+    if (!btn) return null;
+    var cs = getComputedStyle(btn);
+    var fg = parseColor(cs.color);
+    if (!fg) return null;
+    fg.a *= parseFloat(cs.opacity);
+    var bg = effectiveBg(tabsEl || btn);
+    return Math.round(contrast(over(fg, bg), bg) * 100) / 100;
+  }
+
+  /* ---------------- 滚动 ---------------- */
+  function stepPx(dir) {
+    var tabs = tabsEl.querySelectorAll(".ana-settings-tab");
+    if (state.step === "tab" && tabs.length) {
+      return dir * (tabs[0].getBoundingClientRect().width + 4);
+    }
+    return dir * Math.max(80, tabsEl.clientWidth - 60);
+  }
+
+  function step(dir, instant) {
+    var m = metrics();
+    if (!m || !m.overflow) return false;
+    if (dir < 0 && m.atStart) return false;
+    if (dir > 0 && m.atEnd) return false;
+    tabsEl.scrollBy({ left: stepPx(dir), behavior: instant ? "auto" : state.behavior });
+    return true;
+  }
+
+  /* ---------------- 面板宽 ---------------- */
+  function setWidth(w) {
+    state.width = w;
+    if (w) { contentEl.style.width = w + "px"; contentEl.style.flex = "0 0 auto"; }
+    else { contentEl.style.width = ""; contentEl.style.flex = ""; }
+    if (tabsEl) tabsEl.scrollLeft = 0;
+    updateNav();
+  }
+
+  /* ---------------- 读数 / 测量块 ---------------- */
+  function paintReadout(m) {
+    var rd = $("readout");
+    if (!rd) return;
+    var prev = navBox(navPrev, m), next = navBox(navNext, m);
+    rd.innerHTML = "";
+    var add = function (txt, ok) {
+      var s = document.createElement("span");
+      s.textContent = txt;
+      if (ok === true) s.className = "ok";
+      if (ok === false) s.className = "bad";
+      rd.appendChild(s);
+    };
+    add("面板 " + (state.width ? state.width + "px" : "自适应") );
+    add("标签条 " + (m ? m.clientWidth + "/" + m.scrollWidth + "px" : "-"));
+    add("溢出 " + (m ? m.maxScroll + "px" : "-"), m ? m.overflow : null);
+    var label = function (b, btn) {
+      if (!b.shown) return "无";
+      if (b.cls.indexOf("is-hidden") >= 0) return "隐";
+      return (b.cls.indexOf("is-disabled") >= 0 ? "淡" : "亮") + " " + iconContrast(btn) + ":1";
+    };
+    add("左箭头 " + label(prev, navPrev));
+    add("右箭头 " + label(next, navNext));
+    add("scrollLeft " + (m ? Math.round(m.scrollLeft) : "-"));
+  }
+
+  function measureNow() {
+    var m = updateNav();
+    if (!m) return null;
+    var strip = tabsEl.getBoundingClientRect();
+    var stripCs = getComputedStyle(tabsEl);
+    var wrapR = tabsWrap ? tabsWrap.getBoundingClientRect() : null;
+    var tabs = tabsEl.querySelectorAll(".ana-settings-tab");
+    var tabW = [];
+    for (var i = 0; i < tabs.length; i++) tabW.push(Math.round(tabs[i].getBoundingClientRect().width));
+
+    var overlapPrev = null, overlapNext = null;
+    if (tabs.length && tabsWrap) {
+      var pv = navBox(navPrev, m);
+      var nx = navBox(navNext, m);
+      if (pv.shown) overlapPrev = Math.round(pv.rect.x + pv.rect.w - tabs[0].getBoundingClientRect().left);
+      if (nx.shown) overlapNext = Math.round(tabs[tabs.length - 1].getBoundingClientRect().right - nx.rect.x);
+    }
+
+    return {
+      width: state.width,
+      layout: state.layout,
+      endpoint: state.endpoint,
+      overflow: m.maxScroll,
+      natural: m.natural,
+      avail: m.avail,
+      prevContrast: iconContrast(navPrev),
+      nextContrast: iconContrast(navNext),
+      hasOverflowClass: tabsWrap ? tabsWrap.classList.contains("has-overflow") : null,
+      panel: (function () {
+        if (!panelBody) return null;
+        var r = panelBody.getBoundingClientRect();
+        return {
+          rows: panelBody.querySelectorAll(".setting-item").length,
+          x: Math.round(r.left), y: Math.round(r.top),
+          w: Math.round(r.width), h: Math.round(r.height),
+          display: getComputedStyle(panelBody).display
+        };
+      })(),
+      stripW: Math.round(strip.width),
+      stripH: Math.round(strip.height),
+      stripCs: stripCs,
+      borderW: stripCs.borderBottomWidth,
+      wrapW: wrapR ? Math.round(wrapR.width) : null,
+      tabW: tabW,
+      prev: navBox(navPrev, m),
+      next: navBox(navNext, m),
+      scrollLeft: Math.round(m.scrollLeft),
+      overlapPrev: overlapPrev,
+      overlapNext: overlapNext
+    };
+  }
+
+  function writeMeasure(lines, data) {
+    var pre = $("measure");
+    pre.textContent = lines.join("\n");
+  }
+
+  function snapshot(label) {
+    var out = [];
+    var d = measureNow();
+    out.push("[" + label + "]");
+    if (!d) { out.push("  标签条未渲染"); writeMeasure(out); return null; }
+    out.push("  布局=" + d.layout + "  端点=" + d.endpoint + "  面板=" + (d.width ? d.width + "px" : "自适应"));
+    out.push("  标签条 " + d.stripW + "×" + d.stripH + "px  标签自然总宽=" + d.natural + "  可用宽=" + d.avail + "  溢出=" + d.overflow + "px  .has-overflow=" + d.hasOverflowClass);
+    out.push("  底边框 " + d.borderW + "  标签条宽 " + d.stripW + "  外层容器宽 " + d.wrapW);
+    out.push("  左箭头 " + d.prev.display + "  opacity=" + d.prev.opacity + "  对比度=" + d.prevContrast + ":1  rect=" + JSON.stringify(d.prev.rect) + "  svg=" + JSON.stringify(d.prev.svg));
+    out.push("  右箭头 " + d.next.display + "  opacity=" + d.next.opacity + "  对比度=" + d.nextContrast + ":1  rect=" + JSON.stringify(d.next.rect) + "  svg=" + JSON.stringify(d.next.svg));
+    out.push("  箭头↔标签重叠：左 " + d.overlapPrev + "px  右 " + d.overlapNext + "px（>0 = 压在标签上，只在 scrollLeft=0 时看左值有意义）");
+    out.push("  标签宽：" + d.tabW.join(" / ") + "  scrollLeft=" + d.scrollLeft);
+    out.push("  面板内容：" + (d.panel ? (d.panel.rows + " 行 setting-item，rect=" + JSON.stringify({ x: d.panel.x, y: d.panel.y, w: d.panel.w, h: d.panel.h }) + " display=" + d.panel.display) : "未渲染"));
+    out.push("");
+    writeMeasure(out);
+    return d;
+  }
+
+  /* ---------------- 断言 ---------------- */
+  var TEST = [];
+  function check(name, cond) { TEST.push((cond ? "PASS  " : "FAIL  ") + name); }
+  function checkFn(name, fn) {
+    try { TEST.push((fn() ? "PASS  " : "FAIL  ") + name); }
+    catch (e) { TEST.push("FAIL  " + name + "   ← 异常: " + (e && e.message ? e.message : e)); }
+  }
+
+  function runTests() {
+    /* 断言自带宽度上下文：进来先切到「放得下」的宽度跑 A 组，出去还原本来的宽度，
+       这样不管页面是哪个 hash 变体，A/B 两组的结论都成立。 */
+    var keepWidth = state.width;
+    setWidth(0);
+
+    var m = metrics();
+
+    /* ---- A. 放得下时（面板自适应 / 1120 窗口）：不该有箭头 ---- */
+    check("A1 宽面板下 7 个标签全都放得下（无溢出）", !!(m && !m.overflow));
+    checkFn("A2 无溢出 → 不显示左箭头", function () {
+      return !!navPrev && getComputedStyle(navPrev).display === "none";
+    });
+    checkFn("A3 无溢出 → 不显示右箭头", function () {
+      return !!navNext && getComputedStyle(navNext).display === "none";
+    });
+    checkFn("A4 无溢出 → 外层容器没有 .has-overflow 类", function () {
+      return !!tabsWrap && !tabsWrap.classList.contains("has-overflow");
+    });
+    checkFn("A5 无溢出 → 箭头不占位（标签条宽度 = 容器宽度）", function () {
+      return Math.abs(tabsEl.getBoundingClientRect().width - contentEl.getBoundingClientRect().width) < 1;
+    });
+
+    /* ---- B. 收窄到 620：溢出 → 箭头出现 ---- */
+    setWidth(620);
+    var m2 = metrics();
+    check("B1 面板 620 → 标签溢出", !!(m2 && m2.overflow));
+    checkFn("B2 溢出 → 右箭头显示", function () {
+      return !!navNext && getComputedStyle(navNext).display !== "none";
+    });
+    checkFn("B3 溢出 → 左箭头也显示（两端常显；hide 变体例外，见 F1）", function () {
+      if (!navPrev) return false;
+      var disp = getComputedStyle(navPrev).display !== "none";
+      return state.endpoint === "dim" ? disp : !disp;
+    });
+    checkFn("B4 箭头是 26×26 的方形按钮", function () {
+      var r = navNext.getBoundingClientRect();
+      return Math.abs(r.width - 26) < 0.6 && Math.abs(r.height - 26) < 0.6;
+    });
+    checkFn("B5 两个箭头的图标都真的画出来了（svg ≥ 12px 且有描边、有图形）", function () {
+      var bad = 0, checked = 0;
+      [navPrev, navNext].forEach(function (btn) {
+        if (!btn || navDisplay(btn) === "none") return;
+        checked++;
+        var svg = btn.querySelector("svg");
+        if (!svg) { bad++; return; }
+        var r = svg.getBoundingClientRect();
+        var cs = getComputedStyle(svg);
+        if (!(r.width >= 12 && r.height >= 12 && cs.stroke !== "none" &&
+              cs.stroke !== "rgba(0, 0, 0, 0)" && svg.querySelectorAll("path,circle,rect").length > 0)) bad++;
+      });
+      /* dim 模式下两个都在显示，必须两个都查；hide 模式下只显示一个，也不能一个都没查 */
+      return checked === (state.endpoint === "dim" ? 2 : 1) && bad === 0;
+    });
+    checkFn("B6 箭头未被 Obsidian 原生规则压成灰底方块", function () {
+      if (!navNext) return false;
+      var cs = getComputedStyle(navNext);
+      return (cs.backgroundColor === "rgba(0, 0, 0, 0)" || cs.backgroundColor === "transparent") &&
+             cs.boxShadow === "none";
+    });
+    checkFn("B7 箭头挂了 clickable-icon（豁免 button:not(.clickable-icon)）", function () {
+      return !!navNext && !!navPrev &&
+             navNext.classList.contains("clickable-icon") && navPrev.classList.contains("clickable-icon");
+    });
+    checkFn("B8 箭头垂直居中于标签条（中心差 ≤ 1px）", function () {
+      var s = tabsEl.getBoundingClientRect();
+      var bad = 0;
+      [navPrev, navNext].forEach(function (btn) {
+        if (!btn || navDisplay(btn) === "none") return;
+        var n = btn.getBoundingClientRect();
+        if (Math.abs((n.top + n.height / 2) - (s.top + s.height / 2)) > 1) bad++;
+      });
+      return bad === 0;
+    });
+    checkFn("B9 箭头在标签条内（不越界）", function () {
+      var s = tabsEl.getBoundingClientRect();
+      var checked = 0, bad = 0;
+      if (navDisplay(navPrev) !== "none") {
+        checked++;
+        if (navPrev.getBoundingClientRect().left < s.left - 0.6) bad++;
+      }
+      if (navDisplay(navNext) !== "none") {
+        checked++;
+        if (navNext.getBoundingClientRect().right > s.right + 0.6) bad++;
+      }
+      /* hide 模式下只会有一个箭头在显示，所以按「实际显示的箭头」逐个查，不能拿 0×0 的矩形比 */
+      return checked > 0 && bad === 0;
+    });
+    checkFn("B10 标签条底边框仍是 2px（箭头没把它吃掉）", function () {
+      return getComputedStyle(tabsEl).borderBottomWidth === "2px";
+    });
+    checkFn("B11 标签条仍占满容器宽度（占位靠伪元素撑在滚动内容里，不吃标签条本身的宽，底边框不掉）", function () {
+      if (!tabsWrap) return false;
+      return Math.abs(tabsEl.getBoundingClientRect().width - tabsWrap.getBoundingClientRect().width) < 1;
+    });
+    checkFn("B12 标签宽度没被压扁（溢出是靠滚动而不是压缩解决）", function () {
+      return tabW620 === null || JSON.stringify(currentTabWidths()) === JSON.stringify(tabW620);
+    });
+    checkFn("B13 滚动条仍不可见", function () {
+      var cs = getComputedStyle(tabsEl);
+      return cs.scrollbarWidth === "none" || cs.overflowX === "auto";
+    });
+
+    /* ---- C. 滚动行为：都走真实的 .click()，连「事件有没有接上」一起验 ---- */
+    function clickInstant(btn) {
+      var keep = state.behavior;
+      state.behavior = "auto";      /* 无头下不等平滑动画 */
+      try { btn.click(); } finally { state.behavior = keep; }
+    }
+
+    checkFn("C1 点右箭头按钮 → 向右滚动", function () {
+      var before = tabsEl.scrollLeft;
+      clickInstant(navNext);
+      return tabsEl.scrollLeft > before;
+    });
+    checkFn("C2 滚到最右端：右箭头进入「到头」状态（dim=变淡但仍显示 / hide=不显示）", function () {
+      if (!navNext) return false;
+      tabsEl.scrollLeft = metrics().maxScroll;
+      updateNav();
+      if (state.endpoint === "dim") {
+        return navNext.classList.contains("is-disabled") && getComputedStyle(navNext).display !== "none";
+      }
+      return getComputedStyle(navNext).display === "none";
+    });
+    checkFn("C3 已在最右端时再点右箭头 → 不动（有守卫）", function () {
+      var before = tabsEl.scrollLeft;
+      clickInstant(navNext);
+      return tabsEl.scrollLeft === before;
+    });
+    checkFn("C4 最右端时左箭头是可点的（有内容可以回去）", function () {
+      if (!navPrev) return false;
+      if (state.endpoint === "dim") {
+        return !navPrev.classList.contains("is-disabled") &&
+               getComputedStyle(navPrev).display !== "none";
+      }
+      return getComputedStyle(navPrev).display !== "none";
+    });
+    checkFn("C5 点左箭头按钮 → 向左滚动", function () {
+      var before = tabsEl.scrollLeft;
+      clickInstant(navPrev);
+      return tabsEl.scrollLeft < before;
+    });
+    checkFn("C6 回到最左端：左箭头进入「到头」状态", function () {
+      if (!navPrev) return false;
+      tabsEl.scrollLeft = 0;
+      updateNav();
+      if (state.endpoint === "dim") {
+        return navPrev.classList.contains("is-disabled") && getComputedStyle(navPrev).display !== "none";
+      }
+      return getComputedStyle(navPrev).display === "none";
+    });
+    checkFn("C7 溢出状态下两端的箭头状态是「一端不可点、一端可点」", function () {
+      if (!navPrev || !navNext) return false;
+      var m3 = metrics();
+      var pBlocked = navPrev.classList.contains("is-disabled") || navDisplay(navPrev) === "none";
+      var nBlocked = navNext.classList.contains("is-disabled") || navDisplay(navNext) === "none";
+      return m3.atStart ? (pBlocked && !nBlocked) : true;
+    });
+    /* 「变淡」必须是看得见的变淡：早先用 opacity:.4 叠 --text-faint，实测 1.3:1 等于隐形。 */
+    checkFn("C8 淡态箭头对比度 ≥ 2:1（看得清轮廓），且明显弱于亮态（≤ 亮态 0.6 倍）", function () {
+      if (state.endpoint !== "dim") return true;      /* hide 模式无淡态，N/A */
+      setWidth(620);
+      tabsEl.scrollLeft = 0; updateNav();             /* 最左端：左淡右亮 */
+      var cp = iconContrast(navPrev), cn = iconContrast(navNext);
+      return cp !== null && cn !== null && cp >= 2 && cp <= cn * 0.6;
+    });
+    checkFn("C9 淡态没有把箭头缩没（仍是 26×26、图标仍有 16px）", function () {
+      if (state.endpoint !== "dim") return true;
+      setWidth(620);
+      tabsEl.scrollLeft = 0; updateNav();
+      var r = navPrev.getBoundingClientRect();
+      var svg = navPrev.querySelector("svg");
+      return Math.abs(r.width - 26) < 0.6 && !!svg && svg.getBoundingClientRect().width >= 12;
+    });
+
+    /* ---- D. 布局变体 ---- */
+    if (state.layout === "reserve") {
+      /* 占位方案的不变量：两端箭头落在 ::before/::after 撑出的空位上，不压任何标签。
+         两端各验一次（中间滚动位置必然会有箭头压在半截标签上，那是任何单滚动容器方案的共性，
+         不在这里断言）。 */
+      checkFn("D1 占位方案：最左端时左箭头整块落在占位上（箭头右缘 ≤ 首标签左缘）", function () {
+        tabsEl.scrollLeft = 0; updateNav();
+        if (!navPrev) return false;
+        /* hide 模式下这一侧此刻是不显示的（0×0 矩形）—— 按「箭头该在的位置」量，
+           否则会拿 0 去比、无论对错都通过（假绿）。 */
+        var pRight = navDisplay(navPrev) === "none"
+          ? tabsEl.getBoundingClientRect().left + 26
+          : navPrev.getBoundingClientRect().right;
+        var first = tabsEl.querySelector(".ana-settings-tab").getBoundingClientRect();
+        return pRight <= first.left + 0.5;
+      });
+      checkFn("D2 占位方案：最右端时右箭头整块落在占位上（末标签右缘 ≤ 右箭头左缘）", function () {
+        tabsEl.scrollLeft = metrics().maxScroll; updateNav();
+        if (!navNext) return false;
+        var nLeft = navDisplay(navNext) === "none"
+          ? tabsEl.getBoundingClientRect().right - 26
+          : navNext.getBoundingClientRect().left;
+        var last = tabsEl.querySelectorAll(".ana-settings-tab");
+        var lastR = last[last.length - 1].getBoundingClientRect();
+        return lastR.right <= nLeft + 0.5;
+      });
+      checkFn("D3 占位方案：占位真的撑出来了（scrollWidth − 标签自然总宽 ≥ 52px）", function () {
+        setWidth(620);
+        var mm = metrics();
+        return tabsEl.scrollWidth - mm.natural >= 52;
+      });
+    } else {
+      checkFn("D1 浮层方案：**显示着的**箭头都压在最边缘的标签上（预期行为，箭头下有渐隐遮罩）", function () {
+        if (!navPrev || !navNext) return false;
+        tabsEl.scrollLeft = 0; updateNav();
+        var tabs = tabsEl.querySelectorAll(".ana-settings-tab");
+        var first = tabs[0].getBoundingClientRect();
+        var lastR = tabs[tabs.length - 1].getBoundingClientRect();
+        /* 隐藏的箭头 rect 恒为 0×0（hide 变体下最左端左箭头就是隐藏的），
+           拿它比 `first.left < 0` 会得到恒假的假红；反过来拿 `0 <= x` 比又会假绿。
+           所以只查此刻真的在显示的箭头，并且要求至少有一个。 */
+        var checked = 0, bad = 0;
+        if (navDisplay(navPrev) !== "none") {
+          checked++;
+          if (!(first.left < navPrev.getBoundingClientRect().right)) bad++;
+        }
+        if (navDisplay(navNext) !== "none") {
+          checked++;
+          if (!(lastR.right > navNext.getBoundingClientRect().left)) bad++;
+        }
+        return checked > 0 && bad === 0;
+      });
+      checkFn("D2 浮层方案：没有占位，scrollWidth 与标签自然总宽一致（差 ≤ 1px）", function () {
+        setWidth(620);
+        var mm = metrics();
+        return Math.abs(tabsEl.scrollWidth - mm.natural) <= 1;
+      });
+      checkFn("D3 浮层方案：标签条仍占满容器宽度", function () {
+        if (!tabsWrap) return false;
+        return Math.abs(tabsEl.getBoundingClientRect().width - tabsWrap.getBoundingClientRect().width) < 1;
+      });
+    }
+    checkFn("D4 两种布局都带渐隐底（滚到中间时箭头下的文字淡出，不会和 chevron 糊在一起）", function () {
+      if (!navPrev || !navNext) return false;
+      return getComputedStyle(navPrev).backgroundImage.indexOf("gradient") >= 0 &&
+             getComputedStyle(navNext).backgroundImage.indexOf("gradient") >= 0;
+    });
+
+    /* ---- F. 本次需求本体：显示不全 → 两端都显示；放得下 → 两端都不显示 ---- */
+    checkFn("F0 放得下（面板自适应宽）→ 两端箭头都不显示", function () {
+      setWidth(0);
+      var mm = metrics();
+      if (!mm || mm.overflow) return false;
+      return navDisplay(navPrev) === "none" && navDisplay(navNext) === "none";
+    });
+
+    [
+      { tag: "最左", frac: 0 },
+      { tag: "中间", frac: 0.5 },
+      { tag: "最右", frac: 1 }
+    ].forEach(function (spot) {
+      checkFn("F1 " + spot.tag + "端（溢出 620）：两端箭头显示情况符合所选模式", function () {
+        if (!navPrev || !navNext) return false;
+        setWidth(620);
+        var mm = metrics();
+        tabsEl.scrollLeft = Math.round(mm.maxScroll * spot.frac);
+        updateNav();
+        var pVis = navDisplay(navPrev) !== "none";
+        var nVis = navDisplay(navNext) !== "none";
+        if (state.endpoint === "dim") return pVis && nVis;   /* 核心：两端常显 */
+        var at = metrics();
+        if (at.atStart) return !pVis && nVis;
+        if (at.atEnd) return pVis && !nVis;
+        return pVis && nVis;
+      });
+    });
+
+    checkFn("F2 「到头那侧」是变淡而不是消失（仍 display:flex，只多挂 is-disabled）", function () {
+      if (!navPrev) return false;
+      if (state.endpoint !== "dim") return true;           /* hide 模式定义如此，N/A */
+      setWidth(620);
+      tabsEl.scrollLeft = 0; updateNav();
+      return navDisplay(navPrev) === "flex" &&
+             navPrev.classList.contains("is-disabled") &&
+             !navPrev.classList.contains("is-hidden");
+    });
+
+    checkFn("F3 占位方案的空间代价能量出来：溢出量比浮层方案多 ≥ 52px", function () {
+      var keep = state.layout;
+      try {
+        setWidth(620);
+        state.layout = "overlay"; updateNav();
+        var ov = metrics().maxScroll;
+        state.layout = "reserve"; updateNav();
+        var rv = metrics().maxScroll;
+        var cost = rv - ov;
+        return cost >= 52 && cost <= 68;    /* 26×2 占位 + 两端各 1 个 4px 间隙 */
+      } finally {
+        state.layout = keep;
+        if (tabsWrap) tabsWrap.setAttribute("data-layout", keep);
+        updateNav();
+      }
+    });
+
+    /* ---- E. 可访问性：箭头是 button + 有名字，读屏/键盘能用 ---- */
+    checkFn("E1 两个箭头都是 <button> 且有 aria-label", function () {
+      return !!navPrev && !!navNext &&
+             navPrev.tagName === "BUTTON" && navNext.tagName === "BUTTON" &&
+             navPrev.getAttribute("aria-label") !== "" && navNext.getAttribute("aria-label") !== "" &&
+             !!navPrev.getAttribute("aria-label") && !!navNext.getAttribute("aria-label");
+    });
+    checkFn("E2 箭头 type=button（不会误触发表单提交）", function () {
+      return !!navPrev && !!navNext &&
+             navPrev.getAttribute("type") === "button" && navNext.getAttribute("type") === "button";
+    });
+
+    /* 复位 */
+    tabsEl.scrollLeft = 0;
+    setWidth(keepWidth);
+  }
+
+  var tabW620 = null;
+  function currentTabWidths() {
+    var tabs = tabsEl.querySelectorAll(".ana-settings-tab");
+    var out = [];
+    for (var i = 0; i < tabs.length; i++) out.push(Math.round(tabs[i].getBoundingClientRect().width));
+    return out;
+  }
+
+  /* ---- 宽度扫描：找出箭头出现的临界宽度 ---- */
+  function runSweep() {
+    var out = ["", "宽度扫描（同一套 DOM，只改 containerEl 宽度；滚动位置恒为 0）", "  面板宽  标签条可用  标签自然宽  溢出  左箭头  右箭头"];
+    var keep = state.width;
+    var widths = [836, 760, 720, 680, 660, 640, 620, 600, 560, 480, 400];
+    function st(btn) {
+      if (!btn || navDisplay(btn) === "none") return "  隐";
+      return btn.classList.contains("is-disabled") ? "  淡" : "  亮";
+    }
+    for (var i = 0; i < widths.length; i++) {
+      setWidth(widths[i]);
+      var m = metrics();
+      out.push("  " + String(widths[i]).padStart(6) + "  " +
+        String(m.avail).padStart(9) + "  " +
+        String(m.natural).padStart(10) + "  " +
+        String(m.maxScroll).padStart(4) + "  " +
+        st(navPrev) + "  " + st(navNext));
+    }
+    setWidth(keep);
+    return out;
+  }
+
+  /* ---------------- 工具条 ---------------- */
+  function wireSeg(id, key, cast) {
+    var el = $(id);
+    el.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b) return;
+      var kids = el.querySelectorAll("button");
+      for (var i = 0; i < kids.length; i++) kids[i].classList.remove("is-on");
+      b.classList.add("is-on");
+      var v = cast ? cast(b.dataset.v) : b.dataset.v;
+      if (key === "width") setWidth(v);
+      else { state[key] = v; if (tabsEl) tabsEl.scrollLeft = 0; updateNav(); }
+      snapshot("切换到 " + key + "=" + state[key]);
+    });
+  }
+  wireSeg("segLayout", "layout");
+  wireSeg("segEndpoint", "endpoint");
+  wireSeg("segStep", "step");
+  wireSeg("segWidth", "width", function (v) { return parseInt(v, 10) || 0; });
+
+  /* ---------------- hash 变体 ----------------
+     拆两段：状态部分必须在 runTests 之前应用（否则布局/端点变体的断言根本不会跑），
+     滚动位置部分必须在 runTests 之后（runTests 会复位滚动）。 */
+  /* 让工具条的分段控件跟着 hash 变体一起高亮，否则截图里会出现
+     「读数说占位、按钮还亮着浮层」这种自相矛盾的画面 */
+  function syncSeg(id, value) {
+    var el = $(id);
+    if (!el) return;
+    var kids = el.querySelectorAll("button");
+    for (var i = 0; i < kids.length; i++) kids[i].classList.toggle("is-on", kids[i].dataset.v === String(value));
+  }
+
+  function applyHashState() {
+    var h = location.hash.replace("#", "");
+    if (!h) return "默认态";
+    if (h === "overlay") {
+      state.layout = "overlay";
+      if (tabsWrap) tabsWrap.setAttribute("data-layout", "overlay");
+      syncSeg("segLayout", "overlay");
+      setWidth(620);
+      return "浮层方案 + 620 宽";
+    }
+    if (h === "reserve") {
+      state.layout = "reserve";
+      if (tabsWrap) tabsWrap.setAttribute("data-layout", "reserve");
+      syncSeg("segLayout", "reserve");
+      setWidth(620);
+      return "占位方案（现插件）+ 620 宽";
+    }
+    if (h === "dim") { state.endpoint = "dim"; syncSeg("segEndpoint", "dim"); setWidth(620); return "到头=变淡禁用 + 620 宽"; }
+    if (h === "hide") { state.endpoint = "hide"; syncSeg("segEndpoint", "hide"); setWidth(620); return "到头=隐藏 + 620 宽"; }
+    if (h === "steptab") { state.step = "tab"; syncSeg("segStep", "tab"); setWidth(560); return "步长=一个标签 + 560 宽"; }
+    if (h === "end") {
+      setWidth(620);
+      syncSeg("segWidth", "620");
+      return "620 宽 + 滚到最右端";
+    }
+    if (h === "mid") {
+      setWidth(620);
+      syncSeg("segWidth", "620");
+      return "620 宽 + 滚到中间";
+    }
+    if (/^w\d+$/.test(h)) { var w = parseInt(h.slice(1), 10); setWidth(w); syncSeg("segWidth", w); return "面板宽 " + w; }
+    return "未识别 hash：" + h;
+  }
+
+  function applyHashScroll() {
+    var h = location.hash.replace("#", "");
+    if (h === "end" && tabsEl) {
+      tabsEl.scrollLeft = metrics().maxScroll;
+      updateNav();
+    }
+    if (h === "mid" && tabsEl) {
+      tabsEl.scrollLeft = Math.round(metrics().maxScroll / 2);
+      updateNav();
+    }
+  }
+
+  /* ---------------- 启动 ---------------- */
+  window.addEventListener("load", function () {
+    var lines = [];
+    var variantLabel = "初始化失败";
+    try {
+      contentEl = $("content");
+      tabsWrap = $("tabsWrap");     /* 基线版里为 null */
+      navPrev = $("navPrev");
+      navNext = $("navNext");
+      tabsEl = $("tabs");
+      panelBody = $("panelBody");
+
+      buildTabs(tabsEl);
+      renderPanel();
+
+      if (navPrev) setIcon(navPrev, "chevron-left");
+      if (navNext) setIcon(navNext, "chevron-right");
+
+      if (navPrev) navPrev.addEventListener("click", function () { step(-1, false); });
+      if (navNext) navNext.addEventListener("click", function () { step(1, false); });
+      if (tabsEl) tabsEl.addEventListener("scroll", function () { updateNav(); });
+
+      updateNav();
+      check("目录已生成（真 styles.css 被链接）", !!document.styleSheets.length);
+
+      checkFn("S0 标签条是唯一的横向滚动容器", function () {
+        return getComputedStyle(tabsEl).overflowX === "auto";
+      });
+
+      /* 先记下宽面板（836 = 你现在那张截图的面板内容宽）下的标签宽度 */
+      setWidth(836);
+      tabW620 = currentTabWidths();
+      setWidth(0);
+
+      /* ⚠️ 变体的「状态部分」必须在 runTests 之前应用 */
+      variantLabel = applyHashState();
+
+      /* 两块分开 try/catch：任一块抛异常也要保证已收集的 PASS/FAIL 写进测量块，
+         否则基线页会「跑崩」而不是「跑挂」，读数就没意义了。 */
+      try { runTests(); } catch (e) { lines.push("!! runTests 抛异常: " + (e && e.message ? e.message : e)); }
+      lines = lines.concat(TEST);
+      try { lines = lines.concat(runSweep()); } catch (e) { lines.push("!! runSweep 抛异常: " + (e && e.message ? e.message : e)); }
+
+      if (window.ResizeObserver && tabsEl) {
+        new ResizeObserver(function () { updateNav(); }).observe(tabsEl);
+      }
+    } catch (err) {
+      lines.push("!! JS ERROR: " + (err && err.message ? err.message : String(err)));
+      lines.push(String(err && err.stack ? err.stack : ""));
+    }
+
+    /* 测量块必须在「hash 生效后的最终渲染」之后写，否则无头读到的永远是中间态 */
+    try {
+      applyHashScroll();
+    } catch (e) {
+      lines.push("!! hash 应用失败: " + (e && e.message ? e.message : e));
+      variantLabel = "hash 失败";
+    }
+    var finalShot = snapshot("最终渲染态 —— " + variantLabel);
+    if (finalShot) {
+      lines.push("最终态：面板 " + (state.width ? state.width + "px" : "自适应") +
+        "  溢出 " + finalShot.overflow + "px" +
+        "  左箭头 " + (finalShot.prev.shown ? "显示" : "隐藏") +
+        "（opacity " + finalShot.prev.opacity + "，class=" + finalShot.prev.cls + "）" +
+        "  右箭头 " + (finalShot.next.shown ? "显示" : "隐藏") +
+        "（opacity " + finalShot.next.opacity + "，class=" + finalShot.next.cls + "）");
+      $("measure").textContent = lines.join("\n") + "\n" + $("measure").textContent;
+    } else {
+      $("measure").textContent = lines.join("\n");
+    }
+    var bad = lines.some(function (l) {
+      return l.indexOf("FAIL") === 0 || l.indexOf("!!") === 0;
+    });
+    document.title = (bad ? "HAS-FAIL " : "ALL-PASS ") + document.title.replace(/^(HAS-FAIL|ALL-PASS) /, "");
+  });
+})();
+</script>
+</body>
+</html>
