@@ -1,10 +1,26 @@
-import { unzipSync, strFromU8 } from "fflate";
+import { unzipSync } from "fflate";
 import { Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { getSkillsDir, ensureFolder } from "../utils/aiFolder";
 import { t } from "../i18n";
 
 const MAX_ENTRIES = 1000;
+
+/**
+ * 把 fflate 解出的 Uint8Array 复制成独立的 ArrayBuffer。
+ *
+ * zip 里既有文本也有二进制（图片 / 字体 / 二进制脚本），必须按原始字节写盘。
+ * 早先走 `adapter.write(path, strFromU8(content))` 的字符串通道：内容会先按 UTF-8
+ * 解码再编码，非法字节序列被替换成 U+FFFD，写出来的图片/字体全部损坏。
+ * 另外 fflate 的切片可能只是大 buffer 上的视图，必须按 byteOffset 截取，
+ * 否则会把整块未用数据一起写出去。
+ */
+function toArrayBuffer(data: Uint8Array): ArrayBuffer {
+  return data.buffer.slice(
+    data.byteOffset,
+    data.byteOffset + data.byteLength
+  ) as ArrayBuffer;
+}
 
 export interface UploadSkillResult {
   success: boolean;
@@ -41,13 +57,13 @@ export async function uploadSkillFromZip(
     return { success: false, message: t("notice.skillUpload.invalidFormat") };
   }
 
-  const arrayBuffer = await file.arrayBuffer();
-  const data = new Uint8Array(arrayBuffer);
-
   let entries: Record<string, Uint8Array>;
   try {
-    entries = unzipSync(data);
+    const arrayBuffer = await file.arrayBuffer();
+    entries = unzipSync(new Uint8Array(arrayBuffer));
   } catch (e) {
+    // 读文件与解压都会抛（文件被占用/移动、包损坏），一并兜在这里。
+    // 不能让异常冒到事件回调之外——那样连 Notice 都弹不出来，只表现为「点了没反应」。
     return {
       success: false,
       message: t("notice.skillUpload.extractFailed", {
@@ -70,7 +86,8 @@ export async function uploadSkillFromZip(
   }
 
   for (const p of paths) {
-    if (p.includes("..") || p.startsWith("/")) {
+    // 按路径段判断穿越：p.includes("..") 会把 "foo..bar.md" 这种合法文件名也拒掉
+    if (p.split(/[\\/]/).includes("..") || p.startsWith("/")) {
       return { success: false, message: t("notice.skillUpload.unsafePath") };
     }
   }
@@ -121,37 +138,47 @@ export async function uploadSkillFromZip(
   }
 
   let writtenCount = 0;
-  for (const [path, content] of Object.entries(entries)) {
-    const normalized = path.replace(/^\//, "");
+  try {
+    for (const [path, content] of Object.entries(entries)) {
+      const normalized = path.replace(/^\//, "");
 
-    // 跳过目录条目、隐藏文件、Mac OS X 元数据
-    if (
-      normalized.endsWith("/") ||
-      normalized.startsWith("__MACOSX/") ||
-      normalized.split("/").some((part) => part.startsWith("."))
-    ) {
-      continue;
-    }
-
-    let relativePath = normalized;
-    if (stripRoot && singleRootName) {
-      const prefix = `${singleRootName}/`;
-      if (normalized.startsWith(prefix)) {
-        relativePath = normalized.slice(prefix.length);
+      // 跳过目录条目、隐藏文件、Mac OS X 元数据
+      if (
+        normalized.endsWith("/") ||
+        normalized.startsWith("__MACOSX/") ||
+        normalized.split("/").some((part) => part.startsWith("."))
+      ) {
+        continue;
       }
+
+      let relativePath = normalized;
+      if (stripRoot && singleRootName) {
+        const prefix = `${singleRootName}/`;
+        if (normalized.startsWith(prefix)) {
+          relativePath = normalized.slice(prefix.length);
+        }
+      }
+
+      if (!relativePath) continue;
+
+      const destPath = `${targetFolder}/${relativePath}`;
+      const lastSlash = destPath.lastIndexOf("/");
+      if (lastSlash > 0) {
+        const parentDir = destPath.slice(0, lastSlash);
+        await ensureFolder(vault, parentDir);
+      }
+
+      // 按原始字节写盘，不走 adapter.write 的字符串通道（原因见 toArrayBuffer）
+      await vault.adapter.writeBinary(destPath, toArrayBuffer(content));
+      writtenCount++;
     }
-
-    if (!relativePath) continue;
-
-    const destPath = `${targetFolder}/${relativePath}`;
-    const lastSlash = destPath.lastIndexOf("/");
-    if (lastSlash > 0) {
-      const parentDir = destPath.slice(0, lastSlash);
-      await ensureFolder(vault, parentDir);
-    }
-
-    await vault.adapter.write(destPath, strFromU8(content));
-    writtenCount++;
+  } catch (e) {
+    return {
+      success: false,
+      message: t("notice.skillUpload.writeFailed", {
+        error: (e as Error).message,
+      }),
+    };
   }
 
   return {

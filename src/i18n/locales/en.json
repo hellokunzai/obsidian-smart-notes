@@ -375,7 +375,9 @@
   "view.reasoning.title": "Reasoning",
 
   "notice.skillUpload.invalidFormat": "Smart Notes: please select a .zip skill package.",
-  "notice.skillUpload.extractFailed": "Smart Notes: extraction failed — {error}",
+  "notice.skillUpload.extractFailed": "Smart Notes: could not read or extract the zip package — {error}",
+  "notice.skillUpload.writeFailed": "Smart Notes: failed to write skill files — {error}",
+  "notice.skillUpload.unexpected": "Smart Notes: upload failed — {error}",
   "notice.skillUpload.empty": "Smart Notes: the zip archive is empty.",
   "notice.skillUpload.tooManyEntries": "Smart Notes: too many entries in the zip (limit {count}).",
   "notice.skillUpload.unsafePath": "Smart Notes: unsafe path detected in the zip; upload rejected.",

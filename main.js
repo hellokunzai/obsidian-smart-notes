@@ -388,7 +388,9 @@ var en_default = {
   "view.rolePicker.noResults": "No matching roles.",
   "view.reasoning.title": "Reasoning",
   "notice.skillUpload.invalidFormat": "Smart Notes: please select a .zip skill package.",
-  "notice.skillUpload.extractFailed": "Smart Notes: extraction failed \u2014 {error}",
+  "notice.skillUpload.extractFailed": "Smart Notes: could not read or extract the zip package \u2014 {error}",
+  "notice.skillUpload.writeFailed": "Smart Notes: failed to write skill files \u2014 {error}",
+  "notice.skillUpload.unexpected": "Smart Notes: upload failed \u2014 {error}",
   "notice.skillUpload.empty": "Smart Notes: the zip archive is empty.",
   "notice.skillUpload.tooManyEntries": "Smart Notes: too many entries in the zip (limit {count}).",
   "notice.skillUpload.unsafePath": "Smart Notes: unsafe path detected in the zip; upload rejected.",
@@ -749,7 +751,9 @@ var zh_default = {
   "view.rolePicker.noResults": "\u6CA1\u6709\u5339\u914D\u7684\u89D2\u8272\u3002",
   "view.reasoning.title": "\u601D\u8003\u8FC7\u7A0B",
   "notice.skillUpload.invalidFormat": "Smart Notes\uFF1A\u8BF7\u9009\u62E9 .zip \u683C\u5F0F\u7684 skill \u5305\u3002",
-  "notice.skillUpload.extractFailed": "Smart Notes\uFF1A\u89E3\u538B\u5931\u8D25 \u2014 {error}",
+  "notice.skillUpload.extractFailed": "Smart Notes\uFF1A\u65E0\u6CD5\u8BFB\u53D6\u6216\u89E3\u538B\u8BE5 zip \u5305 \u2014 {error}",
+  "notice.skillUpload.writeFailed": "Smart Notes\uFF1A\u5199\u5165 skill \u6587\u4EF6\u5931\u8D25 \u2014 {error}",
+  "notice.skillUpload.unexpected": "Smart Notes\uFF1A\u4E0A\u4F20\u51FA\u9519 \u2014 {error}",
   "notice.skillUpload.empty": "Smart Notes\uFF1A\u8BE5 zip \u5305\u4E3A\u7A7A\u3002",
   "notice.skillUpload.tooManyEntries": "Smart Notes\uFF1Azip \u5305\u5185\u6587\u4EF6\u8FC7\u591A\uFF08\u4E0A\u9650 {count} \u4E2A\uFF09\u3002",
   "notice.skillUpload.unsafePath": "Smart Notes\uFF1Azip \u5305\u5305\u542B\u4E0D\u5B89\u5168\u8DEF\u5F84\uFF0C\u5DF2\u62D2\u7EDD\u3002",
@@ -3619,6 +3623,12 @@ function unzipSync(data, opts) {
 
 // src/skills/uploadSkill.ts
 var MAX_ENTRIES = 1e3;
+function toArrayBuffer(data) {
+  return data.buffer.slice(
+    data.byteOffset,
+    data.byteOffset + data.byteLength
+  );
+}
 function sanitizeFilename(name) {
   return name.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "-");
 }
@@ -3631,11 +3641,10 @@ async function uploadSkillFromZip(plugin, file) {
   if (!file.name.toLowerCase().endsWith(".zip")) {
     return { success: false, message: t("notice.skillUpload.invalidFormat") };
   }
-  const arrayBuffer = await file.arrayBuffer();
-  const data = new Uint8Array(arrayBuffer);
   let entries;
   try {
-    entries = unzipSync(data);
+    const arrayBuffer = await file.arrayBuffer();
+    entries = unzipSync(new Uint8Array(arrayBuffer));
   } catch (e) {
     return {
       success: false,
@@ -3657,7 +3666,7 @@ async function uploadSkillFromZip(plugin, file) {
     };
   }
   for (const p of paths) {
-    if (p.includes("..") || p.startsWith("/")) {
+    if (p.split(/[\\/]/).includes("..") || p.startsWith("/")) {
       return { success: false, message: t("notice.skillUpload.unsafePath") };
     }
   }
@@ -3692,28 +3701,37 @@ async function uploadSkillFromZip(plugin, file) {
     };
   }
   let writtenCount = 0;
-  for (const [path, content] of Object.entries(entries)) {
-    const normalized = path.replace(/^\//, "");
-    if (normalized.endsWith("/") || normalized.startsWith("__MACOSX/") || normalized.split("/").some((part) => part.startsWith("."))) {
-      continue;
-    }
-    let relativePath = normalized;
-    if (stripRoot && singleRootName) {
-      const prefix = `${singleRootName}/`;
-      if (normalized.startsWith(prefix)) {
-        relativePath = normalized.slice(prefix.length);
+  try {
+    for (const [path, content] of Object.entries(entries)) {
+      const normalized = path.replace(/^\//, "");
+      if (normalized.endsWith("/") || normalized.startsWith("__MACOSX/") || normalized.split("/").some((part) => part.startsWith("."))) {
+        continue;
       }
+      let relativePath = normalized;
+      if (stripRoot && singleRootName) {
+        const prefix = `${singleRootName}/`;
+        if (normalized.startsWith(prefix)) {
+          relativePath = normalized.slice(prefix.length);
+        }
+      }
+      if (!relativePath)
+        continue;
+      const destPath = `${targetFolder}/${relativePath}`;
+      const lastSlash = destPath.lastIndexOf("/");
+      if (lastSlash > 0) {
+        const parentDir = destPath.slice(0, lastSlash);
+        await ensureFolder(vault, parentDir);
+      }
+      await vault.adapter.writeBinary(destPath, toArrayBuffer(content));
+      writtenCount++;
     }
-    if (!relativePath)
-      continue;
-    const destPath = `${targetFolder}/${relativePath}`;
-    const lastSlash = destPath.lastIndexOf("/");
-    if (lastSlash > 0) {
-      const parentDir = destPath.slice(0, lastSlash);
-      await ensureFolder(vault, parentDir);
-    }
-    await vault.adapter.write(destPath, strFromU8(content));
-    writtenCount++;
+  } catch (e) {
+    return {
+      success: false,
+      message: t("notice.skillUpload.writeFailed", {
+        error: e.message
+      })
+    };
   }
   return {
     success: true,
@@ -4586,26 +4604,45 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         void renderSkillsList();
       })
     );
+    const zipInput = bodyEl.createEl("input", {
+      cls: "ana-skill-zip-input",
+      attr: {
+        type: "file",
+        accept: ".zip,application/zip,application/x-zip-compressed"
+      }
+    });
+    let skillUploading = false;
+    zipInput.addEventListener("change", () => {
+      void (async () => {
+        var _a2, _b2;
+        const file = (_b2 = (_a2 = zipInput.files) == null ? void 0 : _a2[0]) != null ? _b2 : null;
+        zipInput.value = "";
+        if (!file || skillUploading)
+          return;
+        skillUploading = true;
+        try {
+          const result = await uploadSkillFromZip(plugin, file);
+          new import_obsidian11.Notice(result.message);
+          if (result.success)
+            await renderSkillsList();
+        } catch (e) {
+          console.error("[smart-notes] \u4E0A\u4F20 skill \u5931\u8D25", e);
+          new import_obsidian11.Notice(
+            t("notice.skillUpload.unexpected", {
+              error: e.message
+            })
+          );
+        } finally {
+          skillUploading = false;
+        }
+      })();
+    });
     new import_obsidian11.Setting(bodyEl).setName(t("settings.skills.upload.name")).setDesc(
       t("settings.skills.upload.desc") + " " + t("settings.defaultSkills.pathHint", { path: getSkillsDir(plugin) })
     ).addButton((btn) => {
       btn.setButtonText(t("settings.skills.upload.button"));
       btn.onClick(() => {
-        const input = document.createElement("input");
-        input.type = "file";
-        input.accept = ".zip,application/zip,application/x-zip-compressed";
-        input.addEventListener("change", async () => {
-          var _a2;
-          const file = (_a2 = input.files) == null ? void 0 : _a2[0];
-          if (!file)
-            return;
-          const result = await uploadSkillFromZip(plugin, file);
-          new import_obsidian11.Notice(result.message);
-          if (result.success) {
-            void renderSkillsList();
-          }
-        });
-        input.click();
+        zipInput.click();
       });
     }).addButton((btn) => {
       btn.setIcon("refresh-cw");

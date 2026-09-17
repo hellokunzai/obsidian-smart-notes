@@ -1373,6 +1373,11 @@
   padding: var(--size-4-1) 0;
 }
 
+/* 上传 skill 用的隐藏 <input type="file">：挂在设置面板内，仅作文件对话框触发器 */
+.ana-skill-zip-input {
+  display: none;
+}
+
 /* skill 列表表格 */
 .ana-skills-list {
   margin-top: var(--size-4-3);

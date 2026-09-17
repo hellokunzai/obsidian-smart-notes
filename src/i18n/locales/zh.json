@@ -375,7 +375,9 @@
   "view.reasoning.title": "思考过程",
 
   "notice.skillUpload.invalidFormat": "Smart Notes：请选择 .zip 格式的 skill 包。",
-  "notice.skillUpload.extractFailed": "Smart Notes：解压失败 — {error}",
+  "notice.skillUpload.extractFailed": "Smart Notes：无法读取或解压该 zip 包 — {error}",
+  "notice.skillUpload.writeFailed": "Smart Notes：写入 skill 文件失败 — {error}",
+  "notice.skillUpload.unexpected": "Smart Notes：上传出错 — {error}",
   "notice.skillUpload.empty": "Smart Notes：该 zip 包为空。",
   "notice.skillUpload.tooManyEntries": "Smart Notes：zip 包内文件过多（上限 {count} 个）。",
   "notice.skillUpload.unsafePath": "Smart Notes：zip 包包含不安全路径，已拒绝。",

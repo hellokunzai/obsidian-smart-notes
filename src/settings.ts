@@ -1385,6 +1385,48 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       );
 
     // 顶层：上传 skill zip（同时放置刷新按钮）
+    //
+    // 隐藏的 <input type="file"> 先挂进文档树再 click()：游离节点在 Electron 下唤起
+    // 文件对话框的行为不可靠，而且每次点击都新建节点、用完也不回收。这里一次性
+    // 创建并复用。
+    const zipInput = bodyEl.createEl("input", {
+      cls: "ana-skill-zip-input",
+      attr: {
+        type: "file",
+        accept: ".zip,application/zip,application/x-zip-compressed",
+      },
+    });
+
+    // 上传期间置锁：慢盘上连点几次会排出多次解压 + 多个重复 Notice
+    let skillUploading = false;
+
+    zipInput.addEventListener("change", () => {
+      void (async () => {
+        const file = zipInput.files?.[0] ?? null;
+        // 取到 File 引用后立刻清空：否则再次选择同一个包不会再触发 change，
+        // 用户会以为「按钮失效了」。
+        zipInput.value = "";
+        if (!file || skillUploading) return;
+
+        skillUploading = true;
+        try {
+          const result = await uploadSkillFromZip(plugin, file);
+          new Notice(result.message);
+          if (result.success) await renderSkillsList();
+        } catch (e) {
+          // 兜底：任何未预期异常都要变成可见提示，不能静默失败
+          console.error("[smart-notes] 上传 skill 失败", e);
+          new Notice(
+            t("notice.skillUpload.unexpected", {
+              error: (e as Error).message,
+            })
+          );
+        } finally {
+          skillUploading = false;
+        }
+      })();
+    });
+
     new Setting(bodyEl)
       .setName(t("settings.skills.upload.name"))
       .setDesc(
@@ -1395,19 +1437,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       .addButton((btn) => {
         btn.setButtonText(t("settings.skills.upload.button"));
         btn.onClick(() => {
-          const input = document.createElement("input");
-          input.type = "file";
-          input.accept = ".zip,application/zip,application/x-zip-compressed";
-          input.addEventListener("change", async () => {
-            const file = input.files?.[0];
-            if (!file) return;
-            const result = await uploadSkillFromZip(plugin, file);
-            new Notice(result.message);
-            if (result.success) {
-              void renderSkillsList();
-            }
-          });
-          input.click();
+          zipInput.click();
         });
       })
       .addButton((btn) => {
