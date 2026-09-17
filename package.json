@@ -1,6 +1,6 @@
 {
   "name": "smart-notes",
-  "version": "0.18.7",
+  "version": "0.18.8",
   "description": "Analyze your vault with AI to generate bidirectional links, enrich frontmatter properties, optimize notes, and provide in-editor autocompletion.",
   "main": "main.js",
   "scripts": {

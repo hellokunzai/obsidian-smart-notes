@@ -32,6 +32,7 @@ import {
   type SessionsIndex,
   type SessionMessage,
 } from "../utils/aiFolder";
+import { setCssVars } from "../utils/cssVars";
 import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex } from "../context/knowledge";
 import { buildSkillContent, buildSkillIndex, listSkills, type SkillEntry } from "../skills/skills";
 import {
@@ -456,7 +457,7 @@ export class ChatView extends ItemView {
     const onMove = (e: PointerEvent) => {
       const delta = startY - e.clientY; // 向上拖动为正
       const newH = Math.max(MIN, startH + delta);
-      input.setCssProps({ "--ana-drag-height": `${newH}px` });
+      setCssVars(input, { "--ana-drag-height": `${newH}px` });
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
@@ -2328,7 +2329,7 @@ class AttachmentPickerModal extends Modal {
       const row = this.listEl.createEl("div", {
         cls: "ana-tree-row" + (node instanceof TFolder ? " is-folder" : ""),
       });
-      row.setCssProps({ "--ana-tree-indent": `${6 + depth * 18}px` });
+      setCssVars(row, { "--ana-tree-indent": `${6 + depth * 18}px` });
 
       // 展开/折叠箭头（仅文件夹，文件用占位对齐）
       const toggle = row.createEl("span", { cls: "ana-tree-toggle" });

@@ -5034,6 +5034,15 @@ async function autopromptAtCursor(plugin, editor) {
 // src/view/chatView.ts
 var import_obsidian15 = require("obsidian");
 
+// src/utils/cssVars.ts
+function setCssVars(el, vars) {
+  for (const key in vars) {
+    if (Object.prototype.hasOwnProperty.call(vars, key)) {
+      el.style.setProperty(key, vars[key]);
+    }
+  }
+}
+
 // src/context/knowledge.ts
 var import_obsidian14 = require("obsidian");
 var STOP_WORDS = /* @__PURE__ */ new Set([
@@ -6191,7 +6200,7 @@ var ChatView = class extends import_obsidian15.ItemView {
     const onMove = (e) => {
       const delta = startY - e.clientY;
       const newH = Math.max(MIN, startH + delta);
-      input.setCssProps({ "--ana-drag-height": `${newH}px` });
+      setCssVars(input, { "--ana-drag-height": `${newH}px` });
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
@@ -7785,7 +7794,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
       const row = this.listEl.createEl("div", {
         cls: "ana-tree-row" + (node instanceof import_obsidian15.TFolder ? " is-folder" : "")
       });
-      row.setCssProps({ "--ana-tree-indent": `${6 + depth * 18}px` });
+      setCssVars(row, { "--ana-tree-indent": `${6 + depth * 18}px` });
       const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
       if (node instanceof import_obsidian15.TFolder) {
         const isOpen = this.expanded.has(node.path) || visible !== null && visible.has(node.path);
