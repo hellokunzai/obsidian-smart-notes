@@ -52,6 +52,48 @@ export const CHAT_VIEW_TYPE = "ai-note-agent-chat";
 /** 启动时预加载的最近会话数量；其余会话在点击时再懒加载。 */
 const RECENT_SESSION_COUNT = 10;
 
+/**
+ * 顶栏「会话历史」开关的两个自绘图标（对齐用户提供的两张参考图）。
+ *
+ * 参考图是**两个不同的字形**，所以按状态分工：
+ *  - SIDEBAR_COLLAPSE_ICON（图一：三条横线 + 左向三角）→ 侧栏已展开，点击把它收起来
+ *  - SIDEBAR_EXPAND_ICON（图二：四条横线 + 右向三角）→ 侧栏已收起，点击把它推出来
+ *
+ * **线宽必须两边一致**：最初照抄参考图时，收起态横杠高 `2.9`、展开态 `1.96`
+ * （参考图确实是两种粗细），切状态时会看到线条"忽粗忽细"。现统一为细的 `1.96`
+ * （圆角 `0.98`，即全圆角胶囊），横杠的左右位置与箭头尺寸都保持原样。
+ * 两个状态因此只差**横杠根数**与**箭头方向**。
+ *
+ * 竖向排布：三根/四根横杠都按"外沿对齐 + 间隙等分"摆放，字形中心落在 y=11.8（收起态）
+ * / y≈12（展开态）。改线宽时记得同步重算 y，否则间距会偏。
+ *
+ * 两者都是**实心**字形，必须在 svg 上显式写 `fill="currentColor" stroke="none"`：
+ * `addIcon` 的内容是被塞进一个外层 svg 的 innerHTML，外层属性不会覆盖内层；
+ * 而 Obsidian 的 `svg.svg-icon` 只声明尺寸与 `stroke-width`、不声明 fill，
+ * 所以填充色只能写在这层内联 svg 上（与 `smart-notes` 主图标同一手法）。
+ *
+ * 这里不写 width/height —— 尺寸统一由 styles.css 的 `.ana-chat-header-btn svg` 控制，
+ * 内联尺寸会被 CSS 静默覆盖，写了两处只会让人误判。
+ */
+export const SIDEBAR_COLLAPSE_ICON = "smart-notes-sidebar-collapse";
+export const SIDEBAR_COLLAPSE_SVG =
+  '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">' +
+  '<rect x="1" y="1.77" width="22" height="1.96" rx="0.98"/>' +
+  '<rect x="8.1" y="10.82" width="14.9" height="1.96" rx="0.98"/>' +
+  '<rect x="1" y="19.87" width="22" height="1.96" rx="0.98"/>' +
+  '<path d="M1 11.8 L5.26 8.95 L5.26 14.65 Z"/>' +
+  "</svg>";
+
+export const SIDEBAR_EXPAND_ICON = "smart-notes-sidebar-expand";
+export const SIDEBAR_EXPAND_SVG =
+  '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none">' +
+  '<rect x="1" y="2.3" width="22" height="1.96" rx="0.98"/>' +
+  '<rect x="9" y="8.06" width="14" height="1.96" rx="0.98"/>' +
+  '<rect x="9" y="14.03" width="14" height="1.96" rx="0.98"/>' +
+  '<rect x="1" y="19.66" width="22" height="1.96" rx="0.98"/>' +
+  '<path d="M1.43 8.18 L5.99 11.9 L1.43 15.65 Z"/>' +
+  "</svg>";
+
 export class ChatView extends ItemView {
   private plugin: AiNoteAgentPlugin;
 
@@ -92,6 +134,8 @@ export class ChatView extends ItemView {
   /** 当前流式请求的 AbortController，用于用户点击「停止」时中断请求。 */
   private abortCtrl: AbortController | null = null;
   private sidebarCollapsed = true;
+  /** 顶栏左侧的会话历史开关按钮（图标随展开/收起状态切换）。 */
+  private sidebarToggleBtn!: HTMLButtonElement;
 
   /**
    * 重入时临时注入的 skill 路径。
@@ -266,12 +310,12 @@ export class ChatView extends ItemView {
     const header = main.createEl("div", { cls: "ana-chat-header" });
 
     const leftGroup = header.createEl("div", { cls: "ana-chat-header-left" });
-    const toggleBtn = leftGroup.createEl("button", {
+    this.sidebarToggleBtn = leftGroup.createEl("button", {
       cls: "ana-chat-header-btn",
       attr: { "aria-label": t("view.toggleSidebar") },
     });
-    toggleBtn.setText("≡");
-    toggleBtn.addEventListener("click", () => this.toggleSidebar());
+    this.renderSidebarToggle();
+    this.sidebarToggleBtn.addEventListener("click", () => this.toggleSidebar());
 
     const titleEl = leftGroup.createEl("span", {
       text: t("view.title"),
@@ -505,6 +549,23 @@ export class ChatView extends ItemView {
   private toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
     this.sidebarEl.toggleClass("is-collapsed", this.sidebarCollapsed);
+    this.renderSidebarToggle();
+  }
+
+  /**
+   * 把开关按钮的图标与无障碍状态同步到当前的展开/收起状态。
+   * 收起时给「展开」图标（图二）、展开时给「收起」图标（图一），
+   * 让图标指向点击后侧栏移动的方向，而不是描述当前状态。
+   */
+  private renderSidebarToggle(): void {
+    setIcon(
+      this.sidebarToggleBtn,
+      this.sidebarCollapsed ? SIDEBAR_EXPAND_ICON : SIDEBAR_COLLAPSE_ICON
+    );
+    this.sidebarToggleBtn.setAttribute(
+      "aria-expanded",
+      String(!this.sidebarCollapsed)
+    );
   }
 
   // ================= 会话操作 =================

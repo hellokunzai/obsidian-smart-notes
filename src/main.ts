@@ -26,7 +26,14 @@ import {
   autopromptAtCursor,
 } from "./editor/autoprompt";
 import { initI18n, t } from "./i18n";
-import { CHAT_VIEW_TYPE, ChatView } from "./view/chatView";
+import {
+  CHAT_VIEW_TYPE,
+  ChatView,
+  SIDEBAR_COLLAPSE_ICON,
+  SIDEBAR_COLLAPSE_SVG,
+  SIDEBAR_EXPAND_ICON,
+  SIDEBAR_EXPAND_SVG,
+} from "./view/chatView";
 import { ensureAiFolder } from "./utils/aiFolder";
 import { rebuildProfileMemory } from "./memory/profileMemory";
 import { migrateSettings } from "./migrate";
@@ -121,6 +128,8 @@ export default class AiNoteAgentPlugin extends Plugin {
     initI18n(this.app);
 
     addIcon("smart-notes", ICON_SVG);
+    addIcon(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
+    addIcon(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
 
     // 自动在 vault 根目录生成 AI 数据文件夹（记忆 + skills）
     void ensureAiFolder(this);

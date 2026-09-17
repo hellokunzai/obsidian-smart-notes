@@ -5688,6 +5688,10 @@ Content: ${r.content}`
 // src/view/chatView.ts
 var CHAT_VIEW_TYPE = "ai-note-agent-chat";
 var RECENT_SESSION_COUNT = 10;
+var SIDEBAR_COLLAPSE_ICON = "smart-notes-sidebar-collapse";
+var SIDEBAR_COLLAPSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="1.77" width="22" height="1.96" rx="0.98"/><rect x="8.1" y="10.82" width="14.9" height="1.96" rx="0.98"/><rect x="1" y="19.87" width="22" height="1.96" rx="0.98"/><path d="M1 11.8 L5.26 8.95 L5.26 14.65 Z"/></svg>';
+var SIDEBAR_EXPAND_ICON = "smart-notes-sidebar-expand";
+var SIDEBAR_EXPAND_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="2.3" width="22" height="1.96" rx="0.98"/><rect x="9" y="8.06" width="14" height="1.96" rx="0.98"/><rect x="9" y="14.03" width="14" height="1.96" rx="0.98"/><rect x="1" y="19.66" width="22" height="1.96" rx="0.98"/><path d="M1.43 8.18 L5.99 11.9 L1.43 15.65 Z"/></svg>';
 var ChatView = class extends import_obsidian12.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -5851,12 +5855,12 @@ var ChatView = class extends import_obsidian12.ItemView {
     const main = body.createEl("div", { cls: "ana-chat-main" });
     const header = main.createEl("div", { cls: "ana-chat-header" });
     const leftGroup = header.createEl("div", { cls: "ana-chat-header-left" });
-    const toggleBtn = leftGroup.createEl("button", {
+    this.sidebarToggleBtn = leftGroup.createEl("button", {
       cls: "ana-chat-header-btn",
       attr: { "aria-label": t("view.toggleSidebar") }
     });
-    toggleBtn.setText("\u2261");
-    toggleBtn.addEventListener("click", () => this.toggleSidebar());
+    this.renderSidebarToggle();
+    this.sidebarToggleBtn.addEventListener("click", () => this.toggleSidebar());
     const titleEl = leftGroup.createEl("span", {
       text: t("view.title"),
       cls: "ana-chat-title"
@@ -6040,6 +6044,22 @@ var ChatView = class extends import_obsidian12.ItemView {
   toggleSidebar() {
     this.sidebarCollapsed = !this.sidebarCollapsed;
     this.sidebarEl.toggleClass("is-collapsed", this.sidebarCollapsed);
+    this.renderSidebarToggle();
+  }
+  /**
+   * 把开关按钮的图标与无障碍状态同步到当前的展开/收起状态。
+   * 收起时给「展开」图标（图二）、展开时给「收起」图标（图一），
+   * 让图标指向点击后侧栏移动的方向，而不是描述当前状态。
+   */
+  renderSidebarToggle() {
+    (0, import_obsidian12.setIcon)(
+      this.sidebarToggleBtn,
+      this.sidebarCollapsed ? SIDEBAR_EXPAND_ICON : SIDEBAR_COLLAPSE_ICON
+    );
+    this.sidebarToggleBtn.setAttribute(
+      "aria-expanded",
+      String(!this.sidebarCollapsed)
+    );
   }
   // ================= 会话操作 =================
   async newSession() {
@@ -8063,6 +8083,8 @@ var AiNoteAgentPlugin = class extends import_obsidian13.Plugin {
     this.provider = createProvider(this.app, this.settings);
     initI18n(this.app);
     (0, import_obsidian13.addIcon)("smart-notes", ICON_SVG);
+    (0, import_obsidian13.addIcon)(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
+    (0, import_obsidian13.addIcon)(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
     void ensureAiFolder(this);
     this.memoryRebuildTimeout = window.setTimeout(
       () => void rebuildProfileMemory(this),
