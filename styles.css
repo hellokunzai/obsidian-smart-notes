@@ -334,6 +334,11 @@
   border-bottom: 1px solid var(--background-modifier-border);
   flex-shrink: 0;
   gap: var(--size-4-2);
+  /* 头部自身作为容器查询上下文：面板被拖窄（或展开侧栏后主区变窄）时，
+   * 下面的 @container 规则会按**头部真实宽度**决定要不要隐藏标题。
+   * 这里的宽度来自父级 `.ana-chat-main` 的拉伸，与自身内容无关，
+   * 所以 inline-size 包含不会反过来影响布局。 */
+  container-type: inline-size;
 }
 
 .ana-chat-header-left {
@@ -352,6 +357,26 @@
 .ana-chat-title {
   font-weight: var(--font-semibold);
   color: var(--text-normal);
+  /* 标题永远不折行：面板很窄时宁可被省略 / 隐藏，
+   * 也不要竖着堆成「AI / 对 / 话」三行把头部整个撑高。 */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 空间不够时把标题整条隐藏掉（头部只剩侧栏开关 + 右侧 ＋ / 🗑）。
+ *
+ * 阈值怎么算的：头部内容盒要一行放下全部元素需要
+ *   图标按钮 22 + 间距 gap 8×2 + 标题 ≈ 56（中文 "AI 对话" ≈ 52，给英文 "AI Chat" 留量）
+ *   + 右侧组 22+8+22 = 52  →  ≈ 146px，
+ * 再留 10px 余量取 **156px** 作为隐藏线；换算成头部外框约 180px
+ * （左右各 12px 内边距）。
+ * 实测：容器查询量的是**内容盒**，不是外框 —— 所以这里写 156，不要写 180。 */
+@container (max-width: 156px) {
+  .ana-chat-title {
+    display: none;
+  }
 }
 
 /* 自绘纯图标按钮：全部挂 Obsidian 自己的 `clickable-icon` 类（见 chatView.ts）。
