@@ -72,7 +72,10 @@
   display: none;
 }
 
-button.ana-settings-tab {
+/* 设置页页签：加父级前缀把特异性从 (0,1,1) 提到 (0,2,1)。
+ * (0,1,1) 与 Obsidian 的 `button:not(.clickable-icon)` 同分，只是靠「插件样式表后加载」侥幸赢，
+ * 换主题/换加载顺序就可能翻车，这里显式压住。 */
+.ana-settings-tabs button.ana-settings-tab {
   display: inline-flex;
   align-items: center;
   gap: var(--size-4-1);
@@ -91,17 +94,17 @@ button.ana-settings-tab {
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-button.ana-settings-tab:hover {
+.ana-settings-tabs button.ana-settings-tab:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-button.ana-settings-tab:active {
+.ana-settings-tabs button.ana-settings-tab:active {
   background: var(--background-modifier-active-hover);
   box-shadow: none;
 }
 
-button.ana-settings-tab.is-active {
+.ana-settings-tabs button.ana-settings-tab.is-active {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
   font-weight: var(--font-semibold);
@@ -195,21 +198,36 @@ button.ana-settings-tab.is-active {
   text-overflow: ellipsis;
 }
 
+/* 侧栏「新建会话」：与顶栏那个 ＋ 是同一个动作，改用同一套原生图标按钮外观。
+ * 原先的 `form-field` 底色 + 1px 边框是「被默认样式盖住」之后的找补，
+ * 结果是同一个「新建会话」在侧栏是个灰盒子、在顶栏是另一个样子。 */
 .ana-chat-sidebar-new {
-  font-size: var(--font-ui-small);
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 22px;
   height: 22px;
+  padding: 0;
+  border: none;
   border-radius: var(--radius-s);
-  background: var(--background-modifier-form-field);
-  color: var(--text-normal);
-  border: 1px solid var(--background-modifier-border);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
   cursor: pointer;
   flex-shrink: 0;
 }
 
+.ana-chat-sidebar-new svg,
+.ana-chat-sidebar-new .svg-icon {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px !important;
+  min-height: 15px !important;
+}
+
 .ana-chat-sidebar-new:hover {
   background: var(--background-modifier-hover);
+  color: var(--text-normal);
 }
 
 .ana-chat-session-list {
@@ -267,16 +285,27 @@ button.ana-settings-tab.is-active {
 }
 
 .ana-chat-session-action {
-  font-size: var(--font-smallest);
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 18px;
   height: 18px;
   padding: 0;
   border: none;
   background: transparent;
+  box-shadow: none;
   color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-s);
+}
+
+/* 重命名 / 删除由文本字符 ✎ 🗑 换成真图标后，尺寸得自己定（图标不再吃 font-size） */
+.ana-chat-session-action svg,
+.ana-chat-session-action .svg-icon {
+  width: 13px !important;
+  height: 13px !important;
+  min-width: 13px !important;
+  min-height: 13px !important;
 }
 
 .ana-chat-session-action:hover {
@@ -325,12 +354,27 @@ button.ana-settings-tab.is-active {
   color: var(--text-normal);
 }
 
+/* 自绘纯图标按钮：全部挂 Obsidian 自己的 `clickable-icon` 类（见 chatView.ts）。
+ *
+ * 为什么必须挂：Obsidian `app.css` 里的
+ *   button:not(.clickable-icon) { color: var(--text-color); background-color: var(--interactive-normal); box-shadow: var(--input-shadow) }
+ * 特异性 (0,1,1)，而我们的单类名规则是 (0,1,0) —— 同属性正面冲突必输，
+ * 于是按钮被硬塞成「主题灰底 + 1px 内描边」的方块（与加载顺序无关）。
+ * 挂上 `clickable-icon` 后那条规则**直接不匹配**，我们的 transparent 才生效，
+ * 同时白拿 --icon-color / hover 反馈 / svg 透明度过渡。
+ *
+ * 代价是 `.clickable-icon` 自带 `padding: var(--size-2-2) var(--size-2-3)`，
+ * 会把固定的 22×22 方块内容区压到只剩 6px，所以下面每条都显式 `padding: 0` 清掉。
+ * 同一约定适用于 .ana-chat-model-btn / .ana-chat-action / .ana-chat-role-btn /
+ * .ana-chat-send / .ana-chat-stop / .ana-chat-sidebar-new / .ana-chat-session-action /
+ * .ana-chat-chip-x / .ana-model-link-action-btn。 */
 .ana-chat-header-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
+  padding: 0;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -877,6 +921,7 @@ button.ana-settings-tab.is-active {
   justify-content: center;
   width: 22px;
   height: 22px;
+  padding: 0;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -929,6 +974,7 @@ button.ana-settings-tab.is-active {
   justify-content: center;
   width: 22px;
   height: 22px;
+  padding: 0;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -963,6 +1009,7 @@ button.ana-settings-tab.is-active {
   justify-content: center;
   width: 22px;
   height: 22px;
+  padding: 0;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -999,6 +1046,7 @@ button.ana-settings-tab.is-active {
   justify-content: center;
   width: 22px;
   height: 22px;
+  padding: 0;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -1065,10 +1113,9 @@ button.ana-settings-tab.is-active {
 .ana-chat-chip-x {
   border: none;
   background: none;
+  box-shadow: none;
   color: var(--text-faint);
   cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
   padding: 0;
   margin: 0;
   border-radius: 0;
@@ -1081,6 +1128,15 @@ button.ana-settings-tab.is-active {
   height: auto;
   min-width: 16px;
   min-height: 16px;
+}
+
+/* 关闭由文本字符 × 换成真图标（chip 里其它图标都是 SVG，混排会不一致） */
+.ana-chat-chip-x svg,
+.ana-chat-chip-x .svg-icon {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
 }
 
 .ana-chat-chip-x:hover {
@@ -1513,7 +1569,11 @@ button.ana-settings-tab.is-active {
   font-style: italic;
 }
 
-.ana-model-link-btn {
+/* 文字按钮（自带底色 + 边框的设计）：不改外观，只把特异性从 (0,1,0) 提到 (0,2,0)，
+ * 让它自己的 --background-primary / 边框真正生效，而不是被默认的 --interactive-normal 顶掉。
+ * 它同时出现在设置页和 Modal 里，祖先链不固定，所以用「重复类名」而不是父级前缀。
+ * 状态规则一并提权并保持写在基础规则之后。 */
+.ana-model-link-btn.ana-model-link-btn {
   font-size: var(--font-small);
   padding: 3px 10px;
   border-radius: var(--radius-s);
@@ -1523,16 +1583,16 @@ button.ana-settings-tab.is-active {
   cursor: pointer;
 }
 
-.ana-model-link-btn:hover {
+.ana-model-link-btn.ana-model-link-btn:hover {
   background: var(--background-modifier-hover);
 }
 
-.ana-model-link-btn.is-active {
+.ana-model-link-btn.ana-model-link-btn.is-active {
   border-color: var(--interactive-accent);
   color: var(--interactive-accent);
 }
 
-.ana-model-link-btn.danger:hover {
+.ana-model-link-btn.ana-model-link-btn.danger:hover {
   border-color: var(--background-modifier-error);
   color: var(--text-error);
 }
@@ -2251,6 +2311,7 @@ button.ana-settings-tab.is-active {
   justify-content: center;
   width: 22px;
   height: 22px;
+  padding: 0;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;

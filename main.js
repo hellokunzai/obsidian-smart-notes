@@ -3898,7 +3898,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "ana-model-link-col-actions"
       });
       const defaultBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn" + (isDefault ? " is-active" : "")
+        cls: "clickable-icon ana-model-link-action-btn" + (isDefault ? " is-active" : "")
       });
       defaultBtn.setAttribute("aria-label", isDefault ? t("settings.modelLinks.defaultActive") : t("settings.modelLinks.setDefault"));
       (0, import_obsidian8.setIcon)(defaultBtn, "star");
@@ -3908,7 +3908,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         this.renderModelLinkList(container, query);
       });
       const editBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn"
+        cls: "clickable-icon ana-model-link-action-btn"
       });
       editBtn.setAttribute("aria-label", t("settings.modelLinks.edit"));
       (0, import_obsidian8.setIcon)(editBtn, "pencil");
@@ -3921,7 +3921,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         ).open();
       });
       const delBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn danger"
+        cls: "clickable-icon ana-model-link-action-btn danger"
       });
       delBtn.setAttribute("aria-label", t("settings.modelLinks.delete"));
       (0, import_obsidian8.setIcon)(delBtn, "trash");
@@ -3981,7 +3981,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         cls: "ana-model-link-col-actions"
       });
       const defaultBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn" + (isDefault ? " is-active" : "")
+        cls: "clickable-icon ana-model-link-action-btn" + (isDefault ? " is-active" : "")
       });
       defaultBtn.setAttribute("aria-label", isDefault ? t("settings.roles.defaultActive") : t("settings.roles.setDefault"));
       (0, import_obsidian8.setIcon)(defaultBtn, "star");
@@ -3991,7 +3991,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         this.renderRoleList(container, query);
       });
       const editBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn"
+        cls: "clickable-icon ana-model-link-action-btn"
       });
       editBtn.setAttribute("aria-label", t("settings.roles.edit"));
       (0, import_obsidian8.setIcon)(editBtn, "pencil");
@@ -4004,7 +4004,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian8.PluginSettingTab {
         ).open();
       });
       const delBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn danger"
+        cls: "clickable-icon ana-model-link-action-btn danger"
       });
       delBtn.setAttribute("aria-label", t("settings.roles.delete"));
       (0, import_obsidian8.setIcon)(delBtn, "trash");
@@ -5856,7 +5856,7 @@ var ChatView = class extends import_obsidian12.ItemView {
     const header = main.createEl("div", { cls: "ana-chat-header" });
     const leftGroup = header.createEl("div", { cls: "ana-chat-header-left" });
     this.sidebarToggleBtn = leftGroup.createEl("button", {
-      cls: "ana-chat-header-btn",
+      cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.toggleSidebar") }
     });
     this.renderSidebarToggle();
@@ -5867,13 +5867,13 @@ var ChatView = class extends import_obsidian12.ItemView {
     });
     const rightGroup = header.createEl("div", { cls: "ana-chat-header-right" });
     const newBtn = rightGroup.createEl("button", {
-      cls: "ana-chat-header-btn",
+      cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.newSession") }
     });
     (0, import_obsidian12.setIcon)(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
     const clearBtn = rightGroup.createEl("button", {
-      cls: "ana-chat-header-btn",
+      cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.clearCurrent") }
     });
     (0, import_obsidian12.setIcon)(clearBtn, "trash");
@@ -5883,31 +5883,31 @@ var ChatView = class extends import_obsidian12.ItemView {
     const footer = main.createEl("div", { cls: "ana-chat-footer" });
     const attachRow = footer.createEl("div", { cls: "ana-chat-attach-row" });
     this.modelBtn = attachRow.createEl("button", {
-      cls: "ana-chat-model-btn",
+      cls: "clickable-icon ana-chat-model-btn",
       attr: { "aria-label": t("view.modelSelect") }
     });
     (0, import_obsidian12.setIcon)(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
     this.attachBtn = attachRow.createEl("button", {
-      cls: "ana-chat-action ana-chat-attach-action",
+      cls: "clickable-icon ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") }
     });
     (0, import_obsidian12.setIcon)(this.attachBtn, "paperclip");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
     this.roleBtn = attachRow.createEl("button", {
-      cls: "ana-chat-role-btn",
+      cls: "clickable-icon ana-chat-role-btn",
       attr: { "aria-label": t("view.roleSelect") }
     });
     (0, import_obsidian12.setIcon)(this.roleBtn, "user");
     this.roleBtn.addEventListener("click", () => void this.openRolePicker());
     this.skillBtn = attachRow.createEl("button", {
-      cls: "ana-chat-action",
+      cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.manageSkills") }
     });
     (0, import_obsidian12.setIcon)(this.skillBtn, "puzzle");
     this.skillBtn.addEventListener("click", () => this.openSkillPicker());
     this.webToggleBtn = attachRow.createEl("button", {
-      cls: "ana-chat-action",
+      cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.webToggle") }
     });
     (0, import_obsidian12.setIcon)(this.webToggleBtn, "globe");
@@ -5936,13 +5936,13 @@ var ChatView = class extends import_obsidian12.ItemView {
     this.renderModelSelect();
     const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
     this.sendBtn = rightActions.createEl("button", {
-      cls: "ana-chat-send",
+      cls: "clickable-icon ana-chat-send",
       attr: { "aria-label": t("view.send") }
     });
     (0, import_obsidian12.setIcon)(this.sendBtn, "send");
     this.sendBtn.addEventListener("click", () => void this.handleSend());
     this.stopBtn = rightActions.createEl("button", {
-      cls: "ana-chat-stop",
+      cls: "clickable-icon ana-chat-stop",
       attr: { "aria-label": t("view.stop") }
     });
     (0, import_obsidian12.setIcon)(this.stopBtn, "square");
@@ -5990,10 +5990,10 @@ var ChatView = class extends import_obsidian12.ItemView {
       cls: "ana-chat-sidebar-title"
     });
     const newBtn = head.createEl("button", {
-      cls: "ana-chat-sidebar-new",
+      cls: "clickable-icon ana-chat-sidebar-new",
       attr: { "aria-label": t("view.newSession") }
     });
-    newBtn.setText("+");
+    (0, import_obsidian12.setIcon)(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
     this.sessionListEl = this.sidebarEl.createEl("div", {
       cls: "ana-chat-session-list"
@@ -6022,19 +6022,19 @@ var ChatView = class extends import_obsidian12.ItemView {
       label.setAttribute("title", s.title || t("view.defaultTitle"));
       const actions = item.createEl("div", { cls: "ana-chat-session-actions" });
       const renameBtn = actions.createEl("button", {
-        cls: "ana-chat-session-action",
+        cls: "clickable-icon ana-chat-session-action",
         attr: { "aria-label": t("view.renameSession") }
       });
-      renameBtn.setText("\u270E");
+      (0, import_obsidian12.setIcon)(renameBtn, "pencil");
       renameBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         this.renameSession(s);
       });
       const delBtn = actions.createEl("button", {
-        cls: "ana-chat-session-action ana-chat-session-del",
+        cls: "clickable-icon ana-chat-session-action ana-chat-session-del",
         attr: { "aria-label": t("view.deleteSession") }
       });
-      delBtn.setText("\u{1F5D1}");
+      (0, import_obsidian12.setIcon)(delBtn, "trash-2");
       delBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         this.confirmDeleteSession(s);
@@ -6173,10 +6173,10 @@ var ChatView = class extends import_obsidian12.ItemView {
       (0, import_obsidian12.setIcon)(iconSpan, icon);
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
-        cls: "ana-chat-chip-x",
+        cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeAttachment") }
       });
-      x.setText("\xD7");
+      (0, import_obsidian12.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeAttachment(i));
     }
     for (let i = 0; i < s.skills.length; i++) {
@@ -6188,10 +6188,10 @@ var ChatView = class extends import_obsidian12.ItemView {
       (0, import_obsidian12.setIcon)(iconSpan, "puzzle");
       chip.createSpan({ text: path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
-        cls: "ana-chat-chip-x",
+        cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeSkill") }
       });
-      x.setText("\xD7");
+      (0, import_obsidian12.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeSkill(i));
     }
   }

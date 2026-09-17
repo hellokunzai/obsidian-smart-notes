@@ -488,7 +488,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
       // 设为默认按钮
       const defaultBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn" + (isDefault ? " is-active" : ""),
+        cls: "clickable-icon ana-model-link-action-btn" + (isDefault ? " is-active" : ""),
       });
       defaultBtn.setAttribute("aria-label", isDefault
           ? t("settings.modelLinks.defaultActive")
@@ -502,7 +502,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
       // 编辑按钮
       const editBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn",
+        cls: "clickable-icon ana-model-link-action-btn",
       });
       editBtn.setAttribute("aria-label", t("settings.modelLinks.edit"));
       setIcon(editBtn, "pencil");
@@ -514,7 +514,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
       // 删除按钮
       const delBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn danger",
+        cls: "clickable-icon ana-model-link-action-btn danger",
       });
       delBtn.setAttribute("aria-label", t("settings.modelLinks.delete"));
       setIcon(delBtn, "trash");
@@ -592,7 +592,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
       // 设为默认按钮
       const defaultBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn" + (isDefault ? " is-active" : ""),
+        cls: "clickable-icon ana-model-link-action-btn" + (isDefault ? " is-active" : ""),
       });
       defaultBtn.setAttribute("aria-label", isDefault
           ? t("settings.roles.defaultActive")
@@ -606,7 +606,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
       // 编辑按钮
       const editBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn",
+        cls: "clickable-icon ana-model-link-action-btn",
       });
       editBtn.setAttribute("aria-label", t("settings.roles.edit"));
       setIcon(editBtn, "pencil");
@@ -618,7 +618,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
       // 删除按钮
       const delBtn = tdActions.createEl("button", {
-        cls: "ana-model-link-action-btn danger",
+        cls: "clickable-icon ana-model-link-action-btn danger",
       });
       delBtn.setAttribute("aria-label", t("settings.roles.delete"));
       setIcon(delBtn, "trash");

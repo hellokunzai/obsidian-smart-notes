@@ -310,8 +310,12 @@ export class ChatView extends ItemView {
     const header = main.createEl("div", { cls: "ana-chat-header" });
 
     const leftGroup = header.createEl("div", { cls: "ana-chat-header-left" });
+    // 本视图的「纯图标按钮」一律加 Obsidian 自己的 `clickable-icon` 类：
+    // `button:not(.clickable-icon)`（特异性 (0,1,1)）会给按钮塞主题灰底 + input-shadow，
+    // 而我们的规则是单类名 (0,1,0)，同属性正面冲突必输 —— 加了这类之后那条规则**直接不匹配**，
+    // 我们的 `background: transparent` 才能生效，同时白拿 --icon-color 与 hover 反馈。
     this.sidebarToggleBtn = leftGroup.createEl("button", {
-      cls: "ana-chat-header-btn",
+      cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.toggleSidebar") },
     });
     this.renderSidebarToggle();
@@ -326,14 +330,14 @@ export class ChatView extends ItemView {
     const rightGroup = header.createEl("div", { cls: "ana-chat-header-right" });
 
     const newBtn = rightGroup.createEl("button", {
-      cls: "ana-chat-header-btn",
+      cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.newSession") },
     });
     setIcon(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
 
     const clearBtn = rightGroup.createEl("button", {
-      cls: "ana-chat-header-btn",
+      cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.clearCurrent") },
     });
     setIcon(clearBtn, "trash");
@@ -349,7 +353,7 @@ export class ChatView extends ItemView {
 
     // 模型选择按钮（普通图标按钮）
     this.modelBtn = attachRow.createEl("button", {
-      cls: "ana-chat-model-btn",
+      cls: "clickable-icon ana-chat-model-btn",
       attr: { "aria-label": t("view.modelSelect") },
     });
     setIcon(this.modelBtn, "sparkle");
@@ -357,7 +361,7 @@ export class ChatView extends ItemView {
 
     // 附件按钮（模型右侧）
     this.attachBtn = attachRow.createEl("button", {
-      cls: "ana-chat-action ana-chat-attach-action",
+      cls: "clickable-icon ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") },
     });
     setIcon(this.attachBtn, "paperclip");
@@ -365,7 +369,7 @@ export class ChatView extends ItemView {
 
     // 角色选择按钮（附件右侧）
     this.roleBtn = attachRow.createEl("button", {
-      cls: "ana-chat-role-btn",
+      cls: "clickable-icon ana-chat-role-btn",
       attr: { "aria-label": t("view.roleSelect") },
     });
     setIcon(this.roleBtn, "user");
@@ -373,7 +377,7 @@ export class ChatView extends ItemView {
 
     // Skill 按钮（角色右侧）
     this.skillBtn = attachRow.createEl("button", {
-      cls: "ana-chat-action",
+      cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.manageSkills") },
     });
     setIcon(this.skillBtn, "puzzle");
@@ -381,7 +385,7 @@ export class ChatView extends ItemView {
 
     // 联网搜索开关（Skill 右侧）
     this.webToggleBtn = attachRow.createEl("button", {
-      cls: "ana-chat-action",
+      cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.webToggle") },
     });
     setIcon(this.webToggleBtn, "globe");
@@ -420,7 +424,7 @@ export class ChatView extends ItemView {
     const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
 
     this.sendBtn = rightActions.createEl("button", {
-      cls: "ana-chat-send",
+      cls: "clickable-icon ana-chat-send",
       attr: { "aria-label": t("view.send") },
     });
     setIcon(this.sendBtn, "send");
@@ -428,7 +432,7 @@ export class ChatView extends ItemView {
 
     // 停止按钮：与发送按钮同位置，仅在流式输出时显示
     this.stopBtn = rightActions.createEl("button", {
-      cls: "ana-chat-stop",
+      cls: "clickable-icon ana-chat-stop",
       attr: { "aria-label": t("view.stop") },
     });
     setIcon(this.stopBtn, "square"); // Obsidian 内置 square 图标表示停止
@@ -483,10 +487,12 @@ export class ChatView extends ItemView {
       cls: "ana-chat-sidebar-title",
     });
     const newBtn = head.createEl("button", {
-      cls: "ana-chat-sidebar-new",
+      cls: "clickable-icon ana-chat-sidebar-new",
       attr: { "aria-label": t("view.newSession") },
     });
-    newBtn.setText("+");
+    // 原先用文本 "+" 当图标（项目里的历史遗留写法）。它与顶栏的「新建会话」是同一个动作，
+    // 换成同一个 `plus` 图标，两处才能长得一样。
+    setIcon(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
 
     this.sessionListEl = this.sidebarEl.createEl("div", {
@@ -525,20 +531,20 @@ export class ChatView extends ItemView {
       const actions = item.createEl("div", { cls: "ana-chat-session-actions" });
 
       const renameBtn = actions.createEl("button", {
-        cls: "ana-chat-session-action",
+        cls: "clickable-icon ana-chat-session-action",
         attr: { "aria-label": t("view.renameSession") },
       });
-      renameBtn.setText("✎");
+      setIcon(renameBtn, "pencil");
       renameBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         this.renameSession(s);
       });
 
       const delBtn = actions.createEl("button", {
-        cls: "ana-chat-session-action ana-chat-session-del",
+        cls: "clickable-icon ana-chat-session-action ana-chat-session-del",
         attr: { "aria-label": t("view.deleteSession") },
       });
-      delBtn.setText("🗑");
+      setIcon(delBtn, "trash-2");
       delBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         this.confirmDeleteSession(s);
@@ -695,10 +701,10 @@ export class ChatView extends ItemView {
       setIcon(iconSpan, icon);
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
-        cls: "ana-chat-chip-x",
+        cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeAttachment") },
       });
-      x.setText("×");
+      setIcon(x, "x");
       x.addEventListener("click", () => void this.removeAttachment(i));
     }
 
@@ -711,10 +717,10 @@ export class ChatView extends ItemView {
       setIcon(iconSpan, "puzzle");
       chip.createSpan({ text: path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
-        cls: "ana-chat-chip-x",
+        cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeSkill") },
       });
-      x.setText("×");
+      setIcon(x, "x");
       x.addEventListener("click", () => void this.removeSkill(i));
     }
   }
