@@ -162,9 +162,9 @@ export default class AiNoteAgentPlugin extends Plugin {
         const active = this.app.workspace.getActiveFile();
         if (!active || active.extension !== "md") return false;
         if (!checking) {
-          void this.runWithNotice(t("notice.optimizing"), () =>
-            this.optimizeCommand(active)
-          );
+          // optimizeCommand 内部自带常驻 Notice（完成后 hide 并打开对比弹窗）
+          // 与 try/catch 错误提示，这里不能再套 runWithNotice，否则会同时弹出两个「正在优化笔记……」
+          void this.optimizeCommand(active);
         }
         return true;
       },

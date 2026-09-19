@@ -6216,7 +6216,7 @@ var ChatView = class extends import_obsidian15.ItemView {
       cls: "clickable-icon ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") }
     });
-    (0, import_obsidian15.setIcon)(this.attachBtn, "paperclip");
+    (0, import_obsidian15.setIcon)(this.attachBtn, "folder-open");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
     this.propBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
@@ -8547,10 +8547,7 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
         if (!active || active.extension !== "md")
           return false;
         if (!checking) {
-          void this.runWithNotice(
-            t("notice.optimizing"),
-            () => this.optimizeCommand(active)
-          );
+          void this.optimizeCommand(active);
         }
         return true;
       }

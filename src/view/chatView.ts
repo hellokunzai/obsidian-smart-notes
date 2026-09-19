@@ -400,7 +400,8 @@ export class ChatView extends ItemView {
       cls: "clickable-icon ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") },
     });
-    setIcon(this.attachBtn, "paperclip");
+    // 图标用 folder-open：表示「从库中浏览并选择文件」，比 paperclip（偏附件/上传）更贴语义
+    setIcon(this.attachBtn, "folder-open");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
 
     // 选择属性按钮（附件右侧）：为本对话挑选要注入的 Frontmatter 属性
