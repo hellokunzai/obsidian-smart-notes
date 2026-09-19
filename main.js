@@ -283,6 +283,8 @@ var en_default = {
   "settings.historyMaxMessages.desc": "Only send the most recent N history messages to the model; earlier turns are compressed into a summary and injected. Set to 0 to disable (send full history, token usage grows linearly with conversation length).",
   "settings.includeFrontmatterIndex.name": "Enable property index",
   "settings.includeFrontmatterIndex.desc": "When enabled, the AI can search Frontmatter metadata (tags, category, summary, etc.) on demand via the search_vault_frontmatter tool instead of having all metadata injected into the system prompt. Only metadata is searched \u2014 file contents are NOT loaded; contents still require explicit attach or reference. Off by default.",
+  "settings.propertySelectEnabled.name": "Enable property selection",
+  "settings.propertySelectEnabled.desc": 'Show the "Select properties" button in the AI chat panel so you can pick which Frontmatter properties to inject into the current conversation, temporarily overriding the "Properties to index" whitelist below. When disabled, the button is hidden (same behavior as "Enable file selection" \u2192 attach button).',
   "settings.vaultIndexMaxFiles.name": "Max files in file index",
   "settings.vaultIndexMaxFiles.desc": "When Enable file index is on, the search tool returns at most this many file paths (0 = unlimited). Prevents huge vaults from returning too many results.",
   "settings.frontmatterIndexMaxFiles.name": "Max files in Frontmatter index",
@@ -382,6 +384,15 @@ var en_default = {
   "view.roleAvatarAria": "Current role: {name}",
   "view.noModel": "No model",
   "view.noRole": "No role",
+  "view.selectProperties": "Select properties",
+  "view.propertyChipKind": "Prop",
+  "view.removeProperty": "Remove property {key}",
+  "view.propertyPicker.title": "Select properties",
+  "view.propertyPicker.desc": 'Check the Frontmatter properties to inject into this conversation. Selected properties temporarily override the "Properties to index" whitelist in settings, and apply only to this chat. Clearing all selections restores the global setting.',
+  "view.propertyPicker.searchPlaceholder": "Search properties\u2026",
+  "view.propertyPicker.confirm": "Apply properties",
+  "view.propertyPicker.empty": "No Frontmatter properties found in the vault.",
+  "view.propertyPicker.usage": "used by {count} notes",
   "view.roleFallback": "Assistant",
   "view.modelPicker.title": "Select Model",
   "view.modelPicker.desc": "Choose the AI model for this conversation. Models are grouped by link.",
@@ -654,6 +665,8 @@ var zh_default = {
   "settings.historyMaxMessages.desc": "\u53EA\u53D1\u9001\u6700\u8FD1 N \u6761\u5386\u53F2\u6D88\u606F\u7ED9\u6A21\u578B\uFF0C\u66F4\u65E9\u7684\u5BF9\u8BDD\u4F1A\u88AB\u538B\u7F29\u6210\u6458\u8981\u6CE8\u5165\u3002\u8BBE\u4E3A 0 \u8868\u793A\u4E0D\u9650\u5236\uFF08\u53D1\u9001\u5168\u90E8\u5386\u53F2\uFF0Ctoken \u6D88\u8017\u968F\u5BF9\u8BDD\u53D8\u957F\u7EBF\u6027\u589E\u957F\uFF09\u3002",
   "settings.includeFrontmatterIndex.name": "\u542F\u7528\u5C5E\u6027\u7D22\u5F15",
   "settings.includeFrontmatterIndex.desc": "\u542F\u7528\u540E\uFF0CAI \u53EF\u901A\u8FC7 search_vault_frontmatter \u5DE5\u5177\u6309\u9700\u641C\u7D22 Frontmatter \u5143\u6570\u636E\uFF08tags\u3001category\u3001summary \u7B49\uFF09\uFF0C\u4E0D\u518D\u81EA\u52A8\u5C06\u5168\u90E8\u5143\u6570\u636E\u6CE8\u5165 system prompt\u3002\u4EC5\u641C\u7D22\u5143\u6570\u636E\uFF0C\u4E0D\u52A0\u8F7D\u6B63\u6587\uFF1B\u6B63\u6587\u4ECD\u9700\u901A\u8FC7\u9644\u52A0\u6216\u70B9\u540D\u53D1\u9001\u3002\u9ED8\u8BA4\u5173\u95ED\u3002",
+  "settings.propertySelectEnabled.name": "\u542F\u7528\u5C5E\u6027\u9009\u62E9\u529F\u80FD",
+  "settings.propertySelectEnabled.desc": "\u5728 AI \u5BF9\u8BDD\u6846\u663E\u793A\u300C\u9009\u62E9\u5C5E\u6027\u300D\u6309\u94AE\uFF0C\u5141\u8BB8\u4E3A\u5F53\u524D\u5BF9\u8BDD\u6311\u9009\u8981\u6CE8\u5165\u7684 Frontmatter \u5C5E\u6027\uFF0C\u4E34\u65F6\u8986\u76D6\u4E0B\u65B9\u300C\u8981\u7D22\u5F15\u7684\u5C5E\u6027\u300D\u767D\u540D\u5355\u3002\u5173\u95ED\u540E\u8BE5\u6309\u94AE\u9690\u85CF\uFF08\u4E0E\u300C\u542F\u7528\u6587\u4EF6\u9009\u62E9\u529F\u80FD \u2192 \u9644\u4EF6\u6309\u94AE\u300D\u884C\u4E3A\u4E00\u81F4\uFF09\u3002",
   "settings.vaultIndexMaxFiles.name": "\u6587\u4EF6\u7D22\u5F15\u6700\u591A\u6587\u4EF6\u6570",
   "settings.vaultIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u6587\u4EF6\u7D22\u5F15\u300D\u540E\uFF0CAI \u8C03\u7528\u641C\u7D22\u5DE5\u5177\u65F6\u6700\u591A\u8FD4\u56DE\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u8DEF\u5F84\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002\u9632\u6B62\u5927\u5E93\u8FD4\u56DE\u7ED3\u679C\u8FC7\u591A\u3002",
   "settings.frontmatterIndexMaxFiles.name": "Frontmatter \u7D22\u5F15\u6700\u591A\u6587\u4EF6\u6570",
@@ -751,6 +764,15 @@ var zh_default = {
   "view.roleAvatarAria": "\u5F53\u524D\u89D2\u8272\uFF1A{name}",
   "view.noModel": "\u65E0\u6A21\u578B",
   "view.noRole": "\u65E0\u89D2\u8272",
+  "view.selectProperties": "\u9009\u62E9\u5C5E\u6027",
+  "view.propertyChipKind": "\u5C5E\u6027",
+  "view.removeProperty": "\u79FB\u9664\u5C5E\u6027 {key}",
+  "view.propertyPicker.title": "\u9009\u62E9\u5C5E\u6027",
+  "view.propertyPicker.desc": "\u52FE\u9009\u8981\u6CE8\u5165\u672C\u5BF9\u8BDD\u7684 Frontmatter \u5C5E\u6027\u3002\u9009\u4E2D\u540E\u5C06\u4E34\u65F6\u8986\u76D6\u8BBE\u7F6E\u91CC\u7684\u300C\u8981\u7D22\u5F15\u7684\u5C5E\u6027\u300D\u767D\u540D\u5355\uFF0C\u4EC5\u5BF9\u672C\u5BF9\u8BDD\u751F\u6548\uFF1B\u6E05\u7A7A\u5168\u90E8\u9009\u4E2D\u5219\u6062\u590D\u5168\u5C40\u8BBE\u7F6E\u3002",
+  "view.propertyPicker.searchPlaceholder": "\u641C\u7D22\u5C5E\u6027\u2026\u2026",
+  "view.propertyPicker.confirm": "\u5E94\u7528\u5C5E\u6027",
+  "view.propertyPicker.empty": "\u5E93\u5185\u6CA1\u6709\u53D1\u73B0\u4EFB\u4F55 Frontmatter \u5C5E\u6027\u3002",
+  "view.propertyPicker.usage": "{count} \u7BC7\u7B14\u8BB0\u4F7F\u7528",
   "view.roleFallback": "\u52A9\u624B",
   "view.modelPicker.title": "\u9009\u62E9\u6A21\u578B",
   "view.modelPicker.desc": "\u9009\u62E9\u5F53\u524D\u5BF9\u8BDD\u4F7F\u7528\u7684 AI \u6A21\u578B\u3002\u6309\u94FE\u63A5\u540D\u79F0\u5206\u7EC4\u663E\u793A\u3002",
@@ -2383,7 +2405,8 @@ function createSession(title = "\u65B0\u5BF9\u8BDD") {
     messages: [],
     attachments: [],
     skills: [],
-    webSearch: false
+    webSearch: false,
+    frontmatterProps: []
   };
 }
 
@@ -3834,6 +3857,7 @@ var DEFAULT_SETTINGS = {
   chatContextMaxChars: 8e3,
   historyMaxMessages: 20,
   chatActivityTimeout: 60,
+  propertySelectEnabled: true,
   includeFrontmatterIndex: false,
   frontmatterIndexMaxFiles: 200,
   frontmatterIndexKeys: "",
@@ -4221,6 +4245,12 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
     let fmKeysSetting;
     let fmMaxCharsSetting;
     let fmMaxFilesSetting;
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.propertySelectEnabled.name")).setDesc(t("settings.propertySelectEnabled.desc")).addToggle(
+      (t2) => t2.setValue(this.plugin.settings.propertySelectEnabled).onChange(async (v) => {
+        this.plugin.settings.propertySelectEnabled = v;
+        await this.plugin.saveSettings();
+      })
+    );
     new import_obsidian11.Setting(bodyEl).setName(t("settings.includeFrontmatterIndex.name")).setDesc(t("settings.includeFrontmatterIndex.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.includeFrontmatterIndex).onChange(async (v) => {
         this.plugin.settings.includeFrontmatterIndex = v;
@@ -5541,6 +5571,21 @@ function buildFrontmatterIndex(app, enabled, keysRaw, maxChars, maxFiles = 0, qu
 function parseKeyWhitelist(raw) {
   return raw.split(/[\n,，]/).map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0);
 }
+function collectFrontmatterKeys(app) {
+  var _a2, _b2;
+  const counts = /* @__PURE__ */ new Map();
+  for (const f of app.vault.getMarkdownFiles()) {
+    const fm = (_a2 = app.metadataCache.getFileCache(f)) == null ? void 0 : _a2.frontmatter;
+    if (!fm)
+      continue;
+    for (const k of Object.keys(fm)) {
+      if (k === "position")
+        continue;
+      counts.set(k, ((_b2 = counts.get(k)) != null ? _b2 : 0) + 1);
+    }
+  }
+  return Array.from(counts.entries()).map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+}
 function formatFrontmatterValue(v, maxChars) {
   let s;
   if (Array.isArray(v)) {
@@ -6038,7 +6083,8 @@ var ChatView = class extends import_obsidian15.ItemView {
       messages: [],
       attachments: [],
       skills: [],
-      webSearch: false
+      webSearch: false,
+      frontmatterProps: []
     }));
     this.activeId = index.activeSessionId;
     this.loadedIds.clear();
@@ -6176,6 +6222,12 @@ var ChatView = class extends import_obsidian15.ItemView {
     });
     (0, import_obsidian15.setIcon)(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
+    this.propBtn = attachRow.createEl("button", {
+      cls: "clickable-icon ana-chat-action",
+      attr: { "aria-label": t("view.selectProperties") }
+    });
+    (0, import_obsidian15.setIcon)(this.propBtn, "tag");
+    this.propBtn.addEventListener("click", () => this.openPropertyPicker());
     const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
     this.inputWrapEl = inputArea.createEl("div", { cls: "ana-chat-input-wrap" });
     this.resizeHandleEl = this.inputWrapEl.createEl("div", {
@@ -6425,6 +6477,7 @@ var ChatView = class extends import_obsidian15.ItemView {
   // ================= Chips（显示在输入框内部） =================
   /** 渲染所有已选上下文 chip（附件 + skill）到输入框内部。 */
   renderChips() {
+    var _a2;
     this.chipsEl.empty();
     const s = this.activeSession;
     if (!s)
@@ -6457,6 +6510,24 @@ var ChatView = class extends import_obsidian15.ItemView {
       });
       (0, import_obsidian15.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeSkill(i));
+    }
+    const props = (_a2 = s.frontmatterProps) != null ? _a2 : [];
+    for (let i = 0; i < props.length; i++) {
+      const key = props[i];
+      const chip = this.chipsEl.createEl("div", {
+        cls: "ana-chat-chip ana-chat-chip-prop"
+      });
+      chip.createSpan({
+        text: t("view.propertyChipKind"),
+        cls: "ana-chat-chip-kind"
+      });
+      chip.createSpan({ text: key, cls: "ana-chat-chip-label" });
+      const x = chip.createEl("button", {
+        cls: "clickable-icon ana-chat-chip-x",
+        attr: { "aria-label": t("view.removeProperty", { key }) }
+      });
+      (0, import_obsidian15.setIcon)(x, "x");
+      x.addEventListener("click", () => void this.removeFrontmatterProp(i));
     }
   }
   /** 打开对话面板时，自动把当前 Markdown 笔记作为附件加入当前会话。 */
@@ -6577,6 +6648,44 @@ var ChatView = class extends import_obsidian15.ItemView {
       (paths) => void this.addSkills(paths)
     ).open();
   }
+  // ================= 选择属性操作 =================
+  /** 打开属性选择器：列出全库 Frontmatter 属性（带使用篇数），支持搜索与多选。 */
+  openPropertyPicker() {
+    var _a2;
+    const s = this.activeSession;
+    if (!s)
+      return;
+    new PropertyPickerModal(
+      this.plugin.app,
+      this.plugin,
+      (_a2 = s.frontmatterProps) != null ? _a2 : [],
+      (keys) => void this.setFrontmatterProps(keys)
+    ).open();
+  }
+  /** 设定本对话要注入的 Frontmatter 属性（覆盖全局白名单；空数组表示沿用全局）。 */
+  async setFrontmatterProps(keys) {
+    const s = this.activeSession;
+    if (!s)
+      return;
+    s.frontmatterProps = [...keys];
+    s.updatedAt = Date.now();
+    this.invalidateContextCache();
+    await this.persist();
+    this.renderChips();
+    this.renderActions();
+  }
+  /** 移除本对话中第 index 个已选属性。 */
+  async removeFrontmatterProp(index) {
+    const s = this.activeSession;
+    if (!s || !s.frontmatterProps)
+      return;
+    s.frontmatterProps.splice(index, 1);
+    s.updatedAt = Date.now();
+    this.invalidateContextCache();
+    await this.persist();
+    this.renderChips();
+    this.renderActions();
+  }
   /**
    * 解析助手回复中的 `@use-skill: <path>` 标记。
    * 仅找出被 AI 声明调用、且确实存在于 skills/ 目录中的 skill 路径；**不**写入
@@ -6694,16 +6803,19 @@ var ChatView = class extends import_obsidian15.ItemView {
   // ================= 联网搜索开关 =================
   /** 渲染图标按钮：更新各图标 active 状态与 tooltip。 */
   renderActions() {
+    var _a2, _b2;
     const s = this.activeSession;
     if (!s)
       return;
     this.attachBtn.classList.toggle("is-active", s.attachments.length > 0);
     this.skillBtn.classList.toggle("is-active", s.skills.length > 0);
+    this.propBtn.classList.toggle("is-active", ((_b2 = (_a2 = s.frontmatterProps) == null ? void 0 : _a2.length) != null ? _b2 : 0) > 0);
     this.attachBtn.classList.toggle("is-hidden", !this.plugin.settings.fileSelectionEnabled);
     this.skillBtn.classList.toggle("is-hidden", !this.plugin.settings.skillsEnabled);
     this.roleBtn.classList.toggle("is-hidden", !this.plugin.settings.rolesEnabled);
     const globallyEnabled = this.plugin.settings.webSearchEnabled;
     this.webToggleBtn.classList.toggle("is-hidden", !globallyEnabled);
+    this.propBtn.classList.toggle("is-hidden", !this.plugin.settings.propertySelectEnabled);
     const on = s.webSearch;
     this.webToggleBtn.classList.toggle("is-active", on);
   }
@@ -7190,9 +7302,10 @@ var ChatView = class extends import_obsidian15.ItemView {
       return { needsReenter: false, reenterPaths: [], assistantRowEl: void 0 };
     }
     const system = await this.buildSystem(this.lastUserText);
+    const attachmentsForContext = this.plugin.settings.includeVaultIndex ? this.effectiveAttachments() : [];
     const noteContext = await buildAttachmentContext(
       this.plugin.app,
-      this.effectiveAttachments(),
+      attachmentsForContext,
       this.lastUserText,
       this.plugin.settings.chatContextMaxChars
     );
@@ -7578,38 +7691,41 @@ ${extra}` : text
   /** 按 settings + 当前 query 指纹重算三个开销型索引。
    *  当用户消息变化时，若其中包含有效关键词，索引会自动过滤为相关条目，减少 token 消耗。 */
   async refreshContextIndexes(query) {
-    var _a2, _b2, _c;
+    var _a2, _b2, _c, _d, _e;
     const st = this.plugin.settings;
+    const sessionProps = (_b2 = (_a2 = this.activeSession) == null ? void 0 : _a2.frontmatterProps) != null ? _b2 : [];
+    const fmKeys = sessionProps.length > 0 ? sessionProps.join("\n") : st.frontmatterIndexKeys;
     const sig = JSON.stringify([
       st.includeVaultIndex,
       st.vaultIndexMaxFiles,
       st.includeFrontmatterIndex,
-      st.frontmatterIndexKeys,
+      fmKeys,
       st.frontmatterIndexMaxChars,
       st.frontmatterIndexMaxFiles,
       st.defaultSkills,
       st.aiFolderName,
       st.skillsEnabled,
+      sessionProps,
       query
     ]);
     if (sig === this.ctxCacheSig)
       return;
     this.ctxCacheSig = sig;
-    this.ctxCacheKnowledge = st.includeVaultIndex ? (_a2 = buildKnowledgeIndex(
+    this.ctxCacheKnowledge = st.includeVaultIndex ? (_c = buildKnowledgeIndex(
       this.plugin.app,
       st.includeVaultIndex,
       st.vaultIndexMaxFiles,
       query
-    )) != null ? _a2 : void 0 : void 0;
-    this.ctxCacheFrontmatter = st.includeFrontmatterIndex ? (_b2 = buildFrontmatterIndex(
+    )) != null ? _c : void 0 : void 0;
+    this.ctxCacheFrontmatter = st.includeFrontmatterIndex ? (_d = buildFrontmatterIndex(
       this.plugin.app,
       st.includeFrontmatterIndex,
-      st.frontmatterIndexKeys,
+      fmKeys,
       st.frontmatterIndexMaxChars,
       st.frontmatterIndexMaxFiles,
       query
-    )) != null ? _b2 : void 0 : void 0;
-    this.ctxCacheSkillIndex = st.skillsEnabled ? (_c = await buildSkillIndex(this.plugin, this.plugin.app, st.defaultSkills)) != null ? _c : void 0 : void 0;
+    )) != null ? _d : void 0 : void 0;
+    this.ctxCacheSkillIndex = st.skillsEnabled ? (_e = await buildSkillIndex(this.plugin, this.plugin.app, st.defaultSkills)) != null ? _e : void 0 : void 0;
   }
   /** 构造 system prompt：基础助手提示 + 用户自定义指令 + 知识库索引 + skill 上下文。
    *  @param query 当前用户消息文本，用于动态过滤索引条目以减少 token 消耗
@@ -7647,6 +7763,10 @@ ${extra}` : text
     await this.refreshContextIndexes(query);
     if (this.ctxCacheSkillIndex)
       parts.push(this.ctxCacheSkillIndex);
+    if (this.ctxCacheKnowledge)
+      parts.push(this.ctxCacheKnowledge);
+    if (this.ctxCacheFrontmatter)
+      parts.push(this.ctxCacheFrontmatter);
     const skillPaths = this.effectiveSkills();
     const skillContent = await buildSkillContent(
       this.plugin,
@@ -8095,6 +8215,67 @@ var SkillPickerModal = class extends BaseListPickerModal {
     });
     row.createSpan({ text: `\u{1F9E9} ${e.name}`, cls: "ana-picker-name" });
     row.createEl("span", { text: e.path, cls: "ana-picker-path" });
+  }
+};
+var PropertyPickerModal = class extends BaseListPickerModal {
+  constructor(app, plugin, initialSelected, onSubmit) {
+    super(app);
+    this.selected = /* @__PURE__ */ new Set();
+    this.all = [];
+    this.plugin = plugin;
+    this.onSubmit = onSubmit;
+    this.selected = new Set(initialSelected);
+  }
+  getModalTitle() {
+    return t("view.propertyPicker.title");
+  }
+  getModalDesc() {
+    return t("view.propertyPicker.desc");
+  }
+  getSearchPlaceholder() {
+    return t("view.propertyPicker.searchPlaceholder");
+  }
+  getEmptyText() {
+    return t("view.propertyPicker.empty");
+  }
+  getItems() {
+    return this.all;
+  }
+  getItemFilterText(e) {
+    return e.key.toLowerCase();
+  }
+  hasConfirmButton() {
+    return true;
+  }
+  getConfirmButtonText() {
+    return t("view.propertyPicker.confirm");
+  }
+  onConfirm() {
+    this.onSubmit(Array.from(this.selected));
+  }
+  async loadItems() {
+    try {
+      this.all = collectFrontmatterKeys(this.plugin.app);
+    } catch (e) {
+      this.all = [];
+    }
+  }
+  renderRow(e, listEl) {
+    const row = listEl.createEl("label", { cls: "ana-picker-row" });
+    const cb = row.createEl("input", { attr: { type: "checkbox" } });
+    cb.checked = this.selected.has(e.key);
+    cb.addEventListener("change", () => {
+      if (cb.checked)
+        this.selected.add(e.key);
+      else
+        this.selected.delete(e.key);
+    });
+    const name = row.createSpan({ cls: "ana-picker-name" });
+    name.textContent = e.key;
+    row.createEl("span", {
+      text: t("view.propertyPicker.usage", { count: String(e.count) }),
+      cls: "ana-picker-path"
+    });
   }
 };
 var ModelPickerModal = class extends BaseListPickerModal {

@@ -152,6 +152,8 @@ export interface AiNoteAgentSettings {
   // 对话：流式响应活动超时（秒）。只要收到任意 SSE chunk（content / reasoning）就重置计时器；
   // 连续 N 秒无数据才判定为超时。默认 60 秒，最小 10 秒。
   chatActivityTimeout: number;
+  // 对话：是否启用「选择属性」功能（对话框「选择属性」按钮，允许为本对话临时挑选要注入的 Frontmatter 属性）
+  propertySelectEnabled: boolean;
   // 对话：是否启用 Frontmatter 索引（仅元数据，不含正文），让 AI 通过属性了解库内结构
   includeFrontmatterIndex: boolean;
   // 对话：Frontmatter 索引最多注入的文件数（防止大库撑爆 token）；0 = 不限制
@@ -222,6 +224,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   chatContextMaxChars: 8000,
   historyMaxMessages: 20,
   chatActivityTimeout: 60,
+  propertySelectEnabled: true,
   includeFrontmatterIndex: false,
   frontmatterIndexMaxFiles: 200,
   frontmatterIndexKeys: "",
@@ -724,6 +727,18 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     let fmKeysSetting: Setting | undefined;
     let fmMaxCharsSetting: Setting | undefined;
     let fmMaxFilesSetting: Setting | undefined;
+
+    new Setting(bodyEl)
+      .setName(t("settings.propertySelectEnabled.name"))
+      .setDesc(t("settings.propertySelectEnabled.desc"))
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.propertySelectEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.propertySelectEnabled = v;
+            await this.plugin.saveSettings();
+          })
+      );
 
     new Setting(bodyEl)
       .setName(t("settings.includeFrontmatterIndex.name"))

@@ -1170,6 +1170,15 @@
   background: none;
 }
 
+/* chip 内的「属性」前缀小标签（如 属性 / Prop） */
+.ana-chat-chip-kind {
+  color: var(--text-faint);
+  font-size: var(--font-smallest);
+  opacity: 0.7;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
 /* 附件选择器弹窗 */
 .ana-picker {
   display: flex;

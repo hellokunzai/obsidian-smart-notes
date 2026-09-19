@@ -230,6 +230,27 @@ function parseKeyWhitelist(raw: string): string[] {
     .filter((s) => s.length > 0);
 }
 
+/**
+ * 扫描全库 Markdown 文件的 Frontmatter，收集所有出现过的属性键及其使用篇数。
+ * 用于「选择属性」弹窗的平铺列表展示。结果按使用篇数降序、键名升序排序。
+ */
+export function collectFrontmatterKeys(
+  app: App
+): { key: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const f of app.vault.getMarkdownFiles()) {
+    const fm = app.metadataCache.getFileCache(f)?.frontmatter;
+    if (!fm) continue;
+    for (const k of Object.keys(fm)) {
+      if (k === "position") continue; // Obsidian 内部位置标记，无意义
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+  }
+  return Array.from(counts.entries())
+    .map(([key, count]) => ({ key, count }))
+    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+}
+
 /** 把 Frontmatter 值格式化为可读字符串，并按 maxChars 截断（超长标注 ...）。 */
 function formatFrontmatterValue(v: unknown, maxChars: number): string {
   let s: string;

@@ -33,7 +33,7 @@ import {
   type SessionMessage,
 } from "../utils/aiFolder";
 import { setCssVars } from "../utils/cssVars";
-import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex } from "../context/knowledge";
+import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex, collectFrontmatterKeys } from "../context/knowledge";
 import { buildSkillContent, buildSkillIndex, listSkills, type SkillEntry } from "../skills/skills";
 import {
   createVaultToolDefinitions,
@@ -118,6 +118,8 @@ export class ChatView extends ItemView {
   private chipsEl!: HTMLElement;
   private resizeHandleEl!: HTMLElement;
   private webToggleBtn!: HTMLButtonElement;
+  /** 选择属性按钮（globe 右侧；受「启用属性选择功能」开关控制） */
+  private propBtn!: HTMLButtonElement;
   private attachBtn!: HTMLButtonElement;
   private skillBtn!: HTMLButtonElement;
   /** 角色选择按钮（点击弹出选择弹窗） */
@@ -209,6 +211,7 @@ export class ChatView extends ItemView {
       attachments: [],
       skills: [],
       webSearch: false,
+      frontmatterProps: [],
     }));
     this.activeId = index.activeSessionId;
     this.loadedIds.clear();
@@ -393,6 +396,14 @@ export class ChatView extends ItemView {
     });
     setIcon(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
+
+    // 选择属性按钮（联网右侧）：为本对话挑选要注入的 Frontmatter 属性
+    this.propBtn = attachRow.createEl("button", {
+      cls: "clickable-icon ana-chat-action",
+      attr: { "aria-label": t("view.selectProperties") },
+    });
+    setIcon(this.propBtn, "tag");
+    this.propBtn.addEventListener("click", () => this.openPropertyPicker());
 
     // 输入区：包裹层 + 底部操作栏
     const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
@@ -726,6 +737,25 @@ export class ChatView extends ItemView {
       setIcon(x, "x");
       x.addEventListener("click", () => void this.removeSkill(i));
     }
+
+    const props = s.frontmatterProps ?? [];
+    for (let i = 0; i < props.length; i++) {
+      const key = props[i];
+      const chip = this.chipsEl.createEl("div", {
+        cls: "ana-chat-chip ana-chat-chip-prop",
+      });
+      chip.createSpan({
+        text: t("view.propertyChipKind"),
+        cls: "ana-chat-chip-kind",
+      });
+      chip.createSpan({ text: key, cls: "ana-chat-chip-label" });
+      const x = chip.createEl("button", {
+        cls: "clickable-icon ana-chat-chip-x",
+        attr: { "aria-label": t("view.removeProperty", { key }) },
+      });
+      setIcon(x, "x");
+      x.addEventListener("click", () => void this.removeFrontmatterProp(i));
+    }
   }
 
   /** 打开对话面板时，自动把当前 Markdown 笔记作为附件加入当前会话。 */
@@ -842,6 +872,44 @@ export class ChatView extends ItemView {
       s.skills,
       (paths) => void this.addSkills(paths)
     ).open();
+  }
+
+  // ================= 选择属性操作 =================
+
+  /** 打开属性选择器：列出全库 Frontmatter 属性（带使用篇数），支持搜索与多选。 */
+  private openPropertyPicker(): void {
+    const s = this.activeSession;
+    if (!s) return;
+    new PropertyPickerModal(
+      this.plugin.app,
+      this.plugin,
+      s.frontmatterProps ?? [],
+      (keys) => void this.setFrontmatterProps(keys)
+    ).open();
+  }
+
+  /** 设定本对话要注入的 Frontmatter 属性（覆盖全局白名单；空数组表示沿用全局）。 */
+  private async setFrontmatterProps(keys: string[]): Promise<void> {
+    const s = this.activeSession;
+    if (!s) return;
+    s.frontmatterProps = [...keys];
+    s.updatedAt = Date.now();
+    this.invalidateContextCache();
+    await this.persist();
+    this.renderChips();
+    this.renderActions();
+  }
+
+  /** 移除本对话中第 index 个已选属性。 */
+  private async removeFrontmatterProp(index: number): Promise<void> {
+    const s = this.activeSession;
+    if (!s || !s.frontmatterProps) return;
+    s.frontmatterProps.splice(index, 1);
+    s.updatedAt = Date.now();
+    this.invalidateContextCache();
+    await this.persist();
+    this.renderChips();
+    this.renderActions();
   }
 
   /**
@@ -987,6 +1055,7 @@ export class ChatView extends ItemView {
 
     this.attachBtn.classList.toggle("is-active", s.attachments.length > 0);
     this.skillBtn.classList.toggle("is-active", s.skills.length > 0);
+    this.propBtn.classList.toggle("is-active", (s.frontmatterProps?.length ?? 0) > 0);
 
     // 全局关闭「启用文件选择功能」时隐藏附件按钮，开启时才显示
     this.attachBtn.classList.toggle("is-hidden", !this.plugin.settings.fileSelectionEnabled);
@@ -1000,6 +1069,9 @@ export class ChatView extends ItemView {
     const globallyEnabled = this.plugin.settings.webSearchEnabled;
     // 全局关闭时隐藏 🌐 按钮，开启时才显示
     this.webToggleBtn.classList.toggle("is-hidden", !globallyEnabled);
+
+    // 全局关闭「启用属性选择功能」时隐藏选择属性按钮，开启时才显示
+    this.propBtn.classList.toggle("is-hidden", !this.plugin.settings.propertySelectEnabled);
 
     const on = s.webSearch;
     this.webToggleBtn.classList.toggle("is-active", on);
@@ -1579,10 +1651,16 @@ export class ChatView extends ItemView {
     }
 
     const system = await this.buildSystem(this.lastUserText);
-    // 仅按用户显式附加的附件 + 消息中点名的文件读取内容（不自动加载任何文件）
+    // 附件注入依赖「启用文件索引」(includeVaultIndex)：关闭时即使本对话选了文件也不注入。
+    // 与「属性选择依赖启用属性索引」保持一致的语义——fileSelectionEnabled 只控制按钮显隐，
+    // 真正决定是否生效的是 includeVaultIndex（控制全库文件索引的那个开关）。
+    const attachmentsForContext = this.plugin.settings.includeVaultIndex
+      ? this.effectiveAttachments()
+      : [];
+    // 仅按用户显式附加的附件读取内容（不自动加载任何文件）
     const noteContext = await buildAttachmentContext(
       this.plugin.app,
-      this.effectiveAttachments(),
+      attachmentsForContext,
       this.lastUserText,
       this.plugin.settings.chatContextMaxChars
     );
@@ -2038,16 +2116,21 @@ export class ChatView extends ItemView {
    *  当用户消息变化时，若其中包含有效关键词，索引会自动过滤为相关条目，减少 token 消耗。 */
   private async refreshContextIndexes(query?: string): Promise<void> {
     const st = this.plugin.settings;
+    // 本对话挑选的属性会临时覆盖全局「要索引的属性」白名单
+    const sessionProps = this.activeSession?.frontmatterProps ?? [];
+    const fmKeys =
+      sessionProps.length > 0 ? sessionProps.join("\n") : st.frontmatterIndexKeys;
     const sig = JSON.stringify([
       st.includeVaultIndex,
       st.vaultIndexMaxFiles,
       st.includeFrontmatterIndex,
-      st.frontmatterIndexKeys,
+      fmKeys,
       st.frontmatterIndexMaxChars,
       st.frontmatterIndexMaxFiles,
       st.defaultSkills,
       st.aiFolderName,
       st.skillsEnabled,
+      sessionProps,
       query,
     ]);
     if (sig === this.ctxCacheSig) return;
@@ -2065,7 +2148,7 @@ export class ChatView extends ItemView {
       ? buildFrontmatterIndex(
           this.plugin.app,
           st.includeFrontmatterIndex,
-          st.frontmatterIndexKeys,
+          fmKeys,
           st.frontmatterIndexMaxChars,
           st.frontmatterIndexMaxFiles,
           query
@@ -2123,6 +2206,9 @@ export class ChatView extends ItemView {
     // skill 索引和 skill 内容仍然直接注入（不属于文件索引）
     await this.refreshContextIndexes(query);
     if (this.ctxCacheSkillIndex) parts.push(this.ctxCacheSkillIndex);
+    // 文件索引 / Frontmatter 索引：按需注入（受「启用文件索引」「启用属性索引」开关控制）
+    if (this.ctxCacheKnowledge) parts.push(this.ctxCacheKnowledge);
+    if (this.ctxCacheFrontmatter) parts.push(this.ctxCacheFrontmatter);
 
     const skillPaths = this.effectiveSkills();
     const skillContent = await buildSkillContent(
@@ -2662,6 +2748,82 @@ class SkillPickerModal extends BaseListPickerModal<SkillEntry> {
     });
     row.createSpan({ text: `🧩 ${e.name}`, cls: "ana-picker-name" });
     row.createEl("span", { text: e.path, cls: "ana-picker-path" });
+  }
+}
+
+/**
+ * 属性选择器：列出全库 Frontmatter 属性（带使用篇数），支持搜索与多选。
+ * 勾选的属性键回传给回调，用于为本对话临时覆盖「要索引的属性」白名单。
+ */
+class PropertyPickerModal extends BaseListPickerModal<{ key: string; count: number }> {
+  private plugin: AiNoteAgentPlugin;
+  private onSubmit: (keys: string[]) => void;
+  private selected = new Set<string>();
+  private all: { key: string; count: number }[] = [];
+
+  constructor(
+    app: import("obsidian").App,
+    plugin: AiNoteAgentPlugin,
+    initialSelected: string[],
+    onSubmit: (keys: string[]) => void
+  ) {
+    super(app);
+    this.plugin = plugin;
+    this.onSubmit = onSubmit;
+    this.selected = new Set(initialSelected);
+  }
+
+  protected getModalTitle() {
+    return t("view.propertyPicker.title");
+  }
+  protected getModalDesc() {
+    return t("view.propertyPicker.desc");
+  }
+  protected getSearchPlaceholder() {
+    return t("view.propertyPicker.searchPlaceholder");
+  }
+  protected getEmptyText() {
+    return t("view.propertyPicker.empty");
+  }
+  protected getItems() {
+    return this.all;
+  }
+  protected getItemFilterText(e: { key: string; count: number }) {
+    return e.key.toLowerCase();
+  }
+  protected hasConfirmButton() {
+    return true;
+  }
+  protected getConfirmButtonText() {
+    return t("view.propertyPicker.confirm");
+  }
+  protected onConfirm() {
+    this.onSubmit(Array.from(this.selected));
+  }
+  protected async loadItems() {
+    try {
+      this.all = collectFrontmatterKeys(this.plugin.app);
+    } catch {
+      this.all = [];
+    }
+  }
+  protected renderRow(
+    e: { key: string; count: number },
+    listEl: HTMLElement
+  ): void {
+    const row = listEl.createEl("label", { cls: "ana-picker-row" });
+    const cb = row.createEl("input", { attr: { type: "checkbox" } });
+    cb.checked = this.selected.has(e.key);
+    cb.addEventListener("change", () => {
+      if (cb.checked) this.selected.add(e.key);
+      else this.selected.delete(e.key);
+    });
+    const name = row.createSpan({ cls: "ana-picker-name" });
+    name.textContent = e.key;
+    row.createEl("span", {
+      text: t("view.propertyPicker.usage", { count: String(e.count) }),
+      cls: "ana-picker-path",
+    });
   }
 }
 

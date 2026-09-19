@@ -84,6 +84,8 @@ export interface Session {
   skills: string[];
   /** 当前会话是否开启联网搜索（仅开启时发消息才会调用外部搜索 API）。 */
   webSearch: boolean;
+  /** 当前会话为本对话临时挑选的 Frontmatter 属性（覆盖设置里的「要索引的属性」白名单）；空数组/缺省表示沿用全局设置。 */
+  frontmatterProps?: string[];
 }
 
 /** 会话元数据（仅存于 index.json，不含对话内容）。 */
@@ -537,6 +539,7 @@ export function createSession(title = "新对话"): Session {
     attachments: [],
     skills: [],
     webSearch: false,
+    frontmatterProps: [],
   };
 }
 
