@@ -1057,8 +1057,11 @@ export class ChatView extends ItemView {
     this.skillBtn.classList.toggle("is-active", s.skills.length > 0);
     this.propBtn.classList.toggle("is-active", (s.frontmatterProps?.length ?? 0) > 0);
 
-    // 全局关闭「启用文件选择功能」时隐藏附件按钮，开启时才显示
-    this.attachBtn.classList.toggle("is-hidden", !this.plugin.settings.fileSelectionEnabled);
+    // 「启用文件选择功能」关闭，或「启用文件索引」关闭（选择功能依赖索引才生效）时，隐藏附件按钮
+    this.attachBtn.classList.toggle(
+      "is-hidden",
+      !this.plugin.settings.fileSelectionEnabled || !this.plugin.settings.includeVaultIndex
+    );
 
     // 全局关闭「启用技能」时隐藏 Skill 按钮，开启时才显示
     this.skillBtn.classList.toggle("is-hidden", !this.plugin.settings.skillsEnabled);
@@ -1070,8 +1073,11 @@ export class ChatView extends ItemView {
     // 全局关闭时隐藏 🌐 按钮，开启时才显示
     this.webToggleBtn.classList.toggle("is-hidden", !globallyEnabled);
 
-    // 全局关闭「启用属性选择功能」时隐藏选择属性按钮，开启时才显示
-    this.propBtn.classList.toggle("is-hidden", !this.plugin.settings.propertySelectEnabled);
+    // 「启用属性选择功能」关闭，或「启用属性索引」关闭（选择功能依赖索引才生效）时，隐藏选择属性按钮
+    this.propBtn.classList.toggle(
+      "is-hidden",
+      !this.plugin.settings.propertySelectEnabled || !this.plugin.settings.includeFrontmatterIndex
+    );
 
     const on = s.webSearch;
     this.webToggleBtn.classList.toggle("is-active", on);

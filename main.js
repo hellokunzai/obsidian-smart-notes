@@ -4201,18 +4201,19 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
   // ===== 标签页：知识库 =====
   renderKnowledgeTab(bodyEl) {
     this.createGroupHeader(bodyEl, "settings.knowledgeGroup.files");
-    new import_obsidian11.Setting(bodyEl).setName(t("settings.fileSelectionEnabled.name")).setDesc(t("settings.fileSelectionEnabled.desc")).addToggle(
-      (t2) => t2.setValue(this.plugin.settings.fileSelectionEnabled).onChange(async (v) => {
-        this.plugin.settings.fileSelectionEnabled = v;
-        await this.plugin.saveSettings();
-      })
-    );
     const includeVaultIndexSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.includeVaultIndex.name")).setDesc(t("settings.includeVaultIndex.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.includeVaultIndex).onChange(async (v) => {
         this.plugin.settings.includeVaultIndex = v;
         await this.plugin.saveSettings();
         maxCharsSetting.setDisabled(!v);
         vaultIndexMaxFilesSetting == null ? void 0 : vaultIndexMaxFilesSetting.setDisabled(!v);
+        fileSelectSetting.setDisabled(!v);
+      })
+    );
+    const fileSelectSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.fileSelectionEnabled.name")).setDesc(t("settings.fileSelectionEnabled.desc")).setDisabled(!this.plugin.settings.includeVaultIndex).addToggle(
+      (t2) => t2.setValue(this.plugin.settings.fileSelectionEnabled).onChange(async (v) => {
+        this.plugin.settings.fileSelectionEnabled = v;
+        await this.plugin.saveSettings();
       })
     );
     const vaultIndexMaxFilesSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.vaultIndexMaxFiles.name")).setDesc(t("settings.vaultIndexMaxFiles.desc")).setDisabled(!this.plugin.settings.includeVaultIndex).addText((t2) => {
@@ -4245,18 +4246,19 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
     let fmKeysSetting;
     let fmMaxCharsSetting;
     let fmMaxFilesSetting;
-    new import_obsidian11.Setting(bodyEl).setName(t("settings.propertySelectEnabled.name")).setDesc(t("settings.propertySelectEnabled.desc")).addToggle(
-      (t2) => t2.setValue(this.plugin.settings.propertySelectEnabled).onChange(async (v) => {
-        this.plugin.settings.propertySelectEnabled = v;
-        await this.plugin.saveSettings();
-      })
-    );
     new import_obsidian11.Setting(bodyEl).setName(t("settings.includeFrontmatterIndex.name")).setDesc(t("settings.includeFrontmatterIndex.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.includeFrontmatterIndex).onChange(async (v) => {
         this.plugin.settings.includeFrontmatterIndex = v;
         fmKeysSetting == null ? void 0 : fmKeysSetting.setDisabled(!v);
         fmMaxCharsSetting == null ? void 0 : fmMaxCharsSetting.setDisabled(!v);
         fmMaxFilesSetting == null ? void 0 : fmMaxFilesSetting.setDisabled(!v);
+        propertySelectSetting.setDisabled(!v);
+        await this.plugin.saveSettings();
+      })
+    );
+    const propertySelectSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.propertySelectEnabled.name")).setDesc(t("settings.propertySelectEnabled.desc")).setDisabled(!this.plugin.settings.includeFrontmatterIndex).addToggle(
+      (t2) => t2.setValue(this.plugin.settings.propertySelectEnabled).onChange(async (v) => {
+        this.plugin.settings.propertySelectEnabled = v;
         await this.plugin.saveSettings();
       })
     );
@@ -6810,12 +6812,18 @@ var ChatView = class extends import_obsidian15.ItemView {
     this.attachBtn.classList.toggle("is-active", s.attachments.length > 0);
     this.skillBtn.classList.toggle("is-active", s.skills.length > 0);
     this.propBtn.classList.toggle("is-active", ((_b2 = (_a2 = s.frontmatterProps) == null ? void 0 : _a2.length) != null ? _b2 : 0) > 0);
-    this.attachBtn.classList.toggle("is-hidden", !this.plugin.settings.fileSelectionEnabled);
+    this.attachBtn.classList.toggle(
+      "is-hidden",
+      !this.plugin.settings.fileSelectionEnabled || !this.plugin.settings.includeVaultIndex
+    );
     this.skillBtn.classList.toggle("is-hidden", !this.plugin.settings.skillsEnabled);
     this.roleBtn.classList.toggle("is-hidden", !this.plugin.settings.rolesEnabled);
     const globallyEnabled = this.plugin.settings.webSearchEnabled;
     this.webToggleBtn.classList.toggle("is-hidden", !globallyEnabled);
-    this.propBtn.classList.toggle("is-hidden", !this.plugin.settings.propertySelectEnabled);
+    this.propBtn.classList.toggle(
+      "is-hidden",
+      !this.plugin.settings.propertySelectEnabled || !this.plugin.settings.includeFrontmatterIndex
+    );
     const on = s.webSearch;
     this.webToggleBtn.classList.toggle("is-active", on);
   }

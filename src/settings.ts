@@ -655,19 +655,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     // --- 文件 ---
     this.createGroupHeader(bodyEl, "settings.knowledgeGroup.files");
 
-    // 启用文件选择功能
-    new Setting(bodyEl)
-      .setName(t("settings.fileSelectionEnabled.name"))
-      .setDesc(t("settings.fileSelectionEnabled.desc"))
-      .addToggle((t2) =>
-        t2
-          .setValue(this.plugin.settings.fileSelectionEnabled)
-          .onChange(async (v) => {
-            this.plugin.settings.fileSelectionEnabled = v;
-            await this.plugin.saveSettings();
-          })
-      );
-
     const includeVaultIndexSetting = new Setting(bodyEl)
       .setName(t("settings.includeVaultIndex.name"))
       .setDesc(t("settings.includeVaultIndex.desc"))
@@ -679,6 +666,22 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
             maxCharsSetting.setDisabled(!v);
             vaultIndexMaxFilesSetting?.setDisabled(!v);
+            // 文件索引关闭时，「启用文件选择功能」同步禁用（选择功能依赖索引才生效）
+            fileSelectSetting.setDisabled(!v);
+          })
+      );
+
+    // 启用文件选择功能（放在「启用文件索引」之后，与「属性选择→属性索引」顺序一致）
+    const fileSelectSetting = new Setting(bodyEl)
+      .setName(t("settings.fileSelectionEnabled.name"))
+      .setDesc(t("settings.fileSelectionEnabled.desc"))
+      .setDisabled(!this.plugin.settings.includeVaultIndex)
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.fileSelectionEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.fileSelectionEnabled = v;
+            await this.plugin.saveSettings();
           })
       );
 
@@ -729,18 +732,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     let fmMaxFilesSetting: Setting | undefined;
 
     new Setting(bodyEl)
-      .setName(t("settings.propertySelectEnabled.name"))
-      .setDesc(t("settings.propertySelectEnabled.desc"))
-      .addToggle((t2) =>
-        t2
-          .setValue(this.plugin.settings.propertySelectEnabled)
-          .onChange(async (v) => {
-            this.plugin.settings.propertySelectEnabled = v;
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(bodyEl)
       .setName(t("settings.includeFrontmatterIndex.name"))
       .setDesc(t("settings.includeFrontmatterIndex.desc"))
       .addToggle((t2) =>
@@ -751,6 +742,22 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             fmKeysSetting?.setDisabled(!v);
             fmMaxCharsSetting?.setDisabled(!v);
             fmMaxFilesSetting?.setDisabled(!v);
+            // 属性索引关闭时，「启用属性选择功能」同步禁用（选择功能依赖索引才生效）
+            propertySelectSetting.setDisabled(!v);
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // 启用属性选择功能（放在「启用属性索引」之后，与「文件选择→文件索引」顺序一致）
+    const propertySelectSetting = new Setting(bodyEl)
+      .setName(t("settings.propertySelectEnabled.name"))
+      .setDesc(t("settings.propertySelectEnabled.desc"))
+      .setDisabled(!this.plugin.settings.includeFrontmatterIndex)
+      .addToggle((t2) =>
+        t2
+          .setValue(this.plugin.settings.propertySelectEnabled)
+          .onChange(async (v) => {
+            this.plugin.settings.propertySelectEnabled = v;
             await this.plugin.saveSettings();
           })
       );
