@@ -6251,6 +6251,16 @@ var ChatView = class extends import_obsidian15.ItemView {
     this.modelLabelEl = inputBar.createEl("span", {
       cls: "ana-chat-model-label"
     });
+    this.modelLabelPartEl = this.modelLabelEl.createEl("span", {
+      cls: "ana-chat-model-part"
+    });
+    this.modelLabelSepEl = this.modelLabelEl.createEl("span", {
+      cls: "ana-chat-model-sep",
+      text: "/"
+    });
+    this.modelLabelRoleEl = this.modelLabelEl.createEl("span", {
+      cls: "ana-chat-role-part"
+    });
     this.renderModelSelect();
     const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
     this.sendBtn = rightActions.createEl("button", {
@@ -6735,46 +6745,50 @@ var ChatView = class extends import_obsidian15.ItemView {
     }
   }
   /** 截断文本至指定最大字符数，超出时末尾追加 ".."（总长度不超过 maxChars）。 */
-  truncate(text, maxChars) {
-    if (text.length <= maxChars)
-      return text;
-    const keep = Math.max(0, maxChars - 2);
-    return text.slice(0, keep) + "..";
-  }
-  /** 渲染模型选择状态：更新底部标签 "模型名/角色名"。 */
+  /** 渲染模型选择状态：更新底部标签 "模型名/角色名"。两段各占一半宽度，超出由 CSS 省略号截断。 */
   renderModelSelect() {
     const links = this.plugin.settings.modelLinks;
     if (links.length === 0 || !this.selectedModelValue) {
-      this.modelLabelEl.setText(t("view.noModel"));
-      this.modelLabelEl.setAttribute("title", t("view.noModel"));
+      this.renderModelLabelParts(t("view.noModel"), null);
       return;
     }
     const pipeIdx = this.selectedModelValue.indexOf("|");
     if (pipeIdx < 0) {
-      this.modelLabelEl.setText(t("view.noModel"));
-      this.modelLabelEl.setAttribute("title", t("view.noModel"));
+      this.renderModelLabelParts(t("view.noModel"), null);
       return;
     }
     const linkId = this.selectedModelValue.slice(0, pipeIdx);
     const modelName = this.selectedModelValue.slice(pipeIdx + 1);
     const link = links.find((l) => l.id === linkId);
     if (!link || !link.models.includes(modelName)) {
-      this.modelLabelEl.setText(t("view.noModel"));
-      this.modelLabelEl.setAttribute("title", t("view.noModel"));
+      this.renderModelLabelParts(t("view.noModel"), null);
       return;
     }
     const role = this.plugin.settings.roles.find(
       (r) => r.id === this.selectedRoleId
     );
-    const roleName = role ? role.name : t("view.noRole");
-    const truncatedModel = this.truncate(modelName, 15);
     if (this.plugin.settings.rolesEnabled) {
-      const truncatedRole = this.truncate(roleName, 8);
-      this.modelLabelEl.setText(`${truncatedModel}/${truncatedRole}`);
-      this.modelLabelEl.setAttribute("title", `${modelName} / ${roleName}`);
+      const roleName = role ? role.name : t("view.noRole");
+      this.renderModelLabelParts(modelName, roleName);
     } else {
-      this.modelLabelEl.setText(truncatedModel);
-      this.modelLabelEl.setAttribute("title", modelName);
+      this.renderModelLabelParts(modelName, null);
+    }
+  }
+  /**
+   * 写入标签的两段文本：模型名 + "/" + 角色名。
+   * 角色名为 null 时隐藏分隔符与角色段，模型名独占整行；
+   * 完整信息保留到 title 属性，鼠标悬停可查看。
+   */
+  renderModelLabelParts(modelText, roleText) {
+    this.modelLabelPartEl.setText(modelText);
+    const hasRole = roleText !== null;
+    this.modelLabelSepEl.classList.toggle("is-hidden", !hasRole);
+    this.modelLabelRoleEl.classList.toggle("is-hidden", !hasRole);
+    if (hasRole) {
+      this.modelLabelRoleEl.setText(roleText);
+      this.modelLabelEl.setAttribute("title", `${modelText} / ${roleText}`);
+    } else {
+      this.modelLabelEl.setAttribute("title", modelText);
     }
   }
   /** 打开模型选择弹窗。 */

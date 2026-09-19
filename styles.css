@@ -970,17 +970,34 @@
   color: var(--interactive-accent);
 }
 
-/* 输入框底部模型名/角色名标签（左下，红框位置） */
+/* 输入框底部模型名/角色名标签（左下，红框位置）：两段紧挨靠左，超长各自省略 */
 .ana-chat-model-label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1 1 0;
+  min-width: 0;
   font-size: var(--font-smallest);
   color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 220px;
   line-height: 1;
-  flex-shrink: 1;
+}
+
+/* 模型名/角色名段：按内容自然宽度紧挨排列，各限整行一半，超出省略 */
+.ana-chat-model-part,
+.ana-chat-role-part {
+  flex: 0 1 auto;
+  max-width: 50%;
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* "/" 分隔符：不参与宽度分配，仅占自身宽度 */
+.ana-chat-model-sep {
+  flex: 0 0 auto;
+  padding: 0 1px;
+  opacity: 0.8;
 }
 
 /* 右侧操作区：发送按钮 */
