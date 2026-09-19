@@ -360,9 +360,6 @@ var en_default = {
   "view.picker.searchPlaceholder": "Search files and folders\u2026",
   "view.picker.confirm": "Attach selected",
   "view.picker.empty": "No matching files or folders.",
-  "view.picker.expandAll": "Expand all",
-  "view.picker.collapseAll": "Collapse all",
-  "view.picker.selectedCount": "{{count}} selected",
   "view.manageSkills": "Skills",
   "view.removeSkill": "Remove skill",
   "view.clearSkills": "Clear skills",
@@ -740,9 +737,6 @@ var zh_default = {
   "view.picker.searchPlaceholder": "\u641C\u7D22\u6587\u4EF6\u4E0E\u6587\u4EF6\u5939\u2026\u2026",
   "view.picker.confirm": "\u9644\u52A0\u6240\u9009",
   "view.picker.empty": "\u6CA1\u6709\u5339\u914D\u7684\u6587\u4EF6\u6216\u6587\u4EF6\u5939\u3002",
-  "view.picker.expandAll": "\u5168\u90E8\u5C55\u5F00",
-  "view.picker.collapseAll": "\u5168\u90E8\u6298\u53E0",
-  "view.picker.selectedCount": "\u5DF2\u9009 {{count}} \u9879",
   "view.manageSkills": "Skill \u6280\u80FD",
   "view.removeSkill": "\u79FB\u9664 skill",
   "view.clearSkills": "\u6E05\u7A7A skill",
@@ -7833,31 +7827,6 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
       this.query = this.searchEl.value;
       this.render();
     });
-    const toolbar = contentEl.createEl("div", { cls: "ana-picker-toolbar" });
-    const expandAll = toolbar.createEl("button", {
-      cls: "ana-picker-tool-btn",
-      text: t("view.picker.expandAll")
-    });
-    expandAll.addEventListener("click", () => {
-      this.vaultRoot().children.forEach((c) => {
-        if (c instanceof import_obsidian15.TFolder)
-          this.walkFolders(c, (f) => this.expanded.add(f.path));
-      });
-      this.render();
-    });
-    const collapseAll = toolbar.createEl("button", {
-      cls: "ana-picker-tool-btn",
-      text: t("view.picker.collapseAll")
-    });
-    collapseAll.addEventListener("click", () => {
-      this.expanded.clear();
-      this.vaultRoot().children.forEach((c) => {
-        if (c instanceof import_obsidian15.TFolder)
-          this.expanded.add(c.path);
-      });
-      this.render();
-    });
-    this.countEl = toolbar.createEl("span", { cls: "ana-picker-count" });
     this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
     this.vaultRoot().children.forEach((c) => {
       if (c instanceof import_obsidian15.TFolder)
@@ -8098,14 +8067,10 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
     };
     return walk(this.vaultRoot());
   }
+  /** 同步「附加所选」按钮可用态：未选任何项时禁用。 */
   updateCount() {
-    const n = this.selected.size;
-    this.countEl.empty();
-    this.countEl.append(
-      document.createTextNode(t("view.picker.selectedCount", { count: String(n) }))
-    );
     if (this.confirmBtn)
-      this.confirmBtn.setDisabled(n === 0);
+      this.confirmBtn.setDisabled(this.selected.size === 0);
   }
   onClose() {
     this.contentEl.empty();

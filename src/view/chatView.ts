@@ -2277,7 +2277,6 @@ class AttachmentPickerModal extends Modal {
   private query = "";
   private listEl!: HTMLElement;
   private searchEl!: HTMLInputElement;
-  private countEl!: HTMLElement;
   private confirmBtn!: ButtonComponent;
 
   constructor(
@@ -2310,32 +2309,6 @@ class AttachmentPickerModal extends Modal {
       this.query = this.searchEl.value;
       this.render();
     });
-
-    // 工具栏：全部展开 / 全部折叠 / 已选计数
-    const toolbar = contentEl.createEl("div", { cls: "ana-picker-toolbar" });
-    const expandAll = toolbar.createEl("button", {
-      cls: "ana-picker-tool-btn",
-      text: t("view.picker.expandAll"),
-    });
-    expandAll.addEventListener("click", () => {
-      this.vaultRoot().children.forEach((c) => {
-        if (c instanceof TFolder) this.walkFolders(c, (f) => this.expanded.add(f.path));
-      });
-      this.render();
-    });
-    const collapseAll = toolbar.createEl("button", {
-      cls: "ana-picker-tool-btn",
-      text: t("view.picker.collapseAll"),
-    });
-    collapseAll.addEventListener("click", () => {
-      this.expanded.clear();
-      // 折叠后保留第一级展开，与初始状态一致
-      this.vaultRoot().children.forEach((c) => {
-        if (c instanceof TFolder) this.expanded.add(c.path);
-      });
-      this.render();
-    });
-    this.countEl = toolbar.createEl("span", { cls: "ana-picker-count" });
 
     // 列表容器
     this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
@@ -2594,13 +2567,9 @@ class AttachmentPickerModal extends Modal {
     return walk(this.vaultRoot());
   }
 
+  /** 同步「附加所选」按钮可用态：未选任何项时禁用。 */
   private updateCount(): void {
-    const n = this.selected.size;
-    this.countEl.empty();
-    this.countEl.append(
-      document.createTextNode(t("view.picker.selectedCount", { count: String(n) }))
-    );
-    if (this.confirmBtn) this.confirmBtn.setDisabled(n === 0);
+    if (this.confirmBtn) this.confirmBtn.setDisabled(this.selected.size === 0);
   }
 
   onClose(): void {
