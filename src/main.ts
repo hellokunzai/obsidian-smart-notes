@@ -135,10 +135,13 @@ export default class AiNoteAgentPlugin extends Plugin {
     void ensureAiFolder(this);
 
     // 后台静默整理长期画像记忆：读取全部会话历史，生成/更新 memory/MEMORY.md 与 memory/yyyy-mm-dd.md
-    this.memoryRebuildTimeout = window.setTimeout(
-      () => void rebuildProfileMemory(this),
-      3000
-    );
+    // 仅当「更新方式 = 启动时更新」才在启动后自动整理；「对话时更新」改由每次对话结束触发。
+    if (this.settings.memoryProfileEnabled && this.settings.profileUpdateMode === "startup") {
+      this.memoryRebuildTimeout = window.setTimeout(
+        () => void rebuildProfileMemory(this),
+        3000
+      );
+    }
 
     this.addSettingTab(new AiNoteAgentSettingTab(this.app, this));
 

@@ -1,0 +1,9 @@
+﻿
+> smart-notes@0.18.8 build
+> tsc -noEmit -skipLibCheck && node esbuild.config.mjs production
+
+System.Management.Automation.RemoteException
+  main.js  326.9kb
+System.Management.Automation.RemoteException
+Done in 35ms
+EXIT=0

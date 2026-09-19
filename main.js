@@ -227,6 +227,12 @@ var en_default = {
   "settings.memoryGroup.profile": "User profile",
   "settings.memoryProfileEnabled.name": "Enable user profile memory",
   "settings.memoryProfileEnabled.desc": "When enabled, the AI extracts key facts from chat history into memory/MEMORY.md and injects it as background context for each chat. When disabled, extraction and injection stop.",
+  "settings.profileUpdateMode.name": "Update mode",
+  "settings.profileUpdateMode.desc": "Choose when the AI organizes the user profile from chat history.",
+  "settings.profileUpdateMode.chat": "Update per chat",
+  "settings.profileUpdateMode.startup": "Update on startup",
+  "settings.profileRefresh.desc": "Organize the user profile from chat history now",
+  "settings.profileRefresh.started": "Started organizing user profile\u2026\u2026",
   "settings.roles.title": "Role info",
   "settings.rolesEnabled.name": "Enable roles",
   "settings.rolesEnabled.desc": `Show the "Role" button in the chat panel and allow switching the current conversation's role. When off, the button is hidden and the default role no longer injects into the system prompt.`,
@@ -590,6 +596,12 @@ var zh_default = {
   "settings.memoryGroup.profile": "\u7528\u6237\u753B\u50CF",
   "settings.memoryProfileEnabled.name": "\u542F\u7528\u7528\u6237\u753B\u50CF",
   "settings.memoryProfileEnabled.desc": "\u5F00\u542F\u540E\uFF0CAI \u4F1A\u4ECE\u4F1A\u8BDD\u5386\u53F2\u4E2D\u63D0\u53D6\u5173\u952E\u4FE1\u606F\u6574\u7406\u8FDB memory/MEMORY.md\uFF0C\u5E76\u5728\u6BCF\u6B21\u5BF9\u8BDD\u65F6\u4F5C\u4E3A\u80CC\u666F\u6CE8\u5165\u3002\u5173\u95ED\u540E\u505C\u6B62\u6574\u7406\u4E0E\u6CE8\u5165\u3002",
+  "settings.profileUpdateMode.name": "\u66F4\u65B0\u65B9\u5F0F",
+  "settings.profileUpdateMode.desc": "\u9009\u62E9 AI \u4F55\u65F6\u4ECE\u4F1A\u8BDD\u5386\u53F2\u4E2D\u6574\u7406\u7528\u6237\u753B\u50CF\u3002",
+  "settings.profileUpdateMode.chat": "\u5BF9\u8BDD\u65F6\u66F4\u65B0",
+  "settings.profileUpdateMode.startup": "\u542F\u52A8\u65F6\u66F4\u65B0",
+  "settings.profileRefresh.desc": "\u7ACB\u5373\u4ECE\u4F1A\u8BDD\u5386\u53F2\u6574\u7406\u4E00\u6B21\u7528\u6237\u753B\u50CF",
+  "settings.profileRefresh.started": "\u5DF2\u5F00\u59CB\u6574\u7406\u7528\u6237\u753B\u50CF\u2026\u2026",
   "settings.roles.title": "\u89D2\u8272\u4FE1\u606F",
   "settings.rolesEnabled.name": "\u542F\u7528\u89D2\u8272\u529F\u80FD",
   "settings.rolesEnabled.desc": "\u5728 AI \u5BF9\u8BDD\u6846\u663E\u793A\u300C\u89D2\u8272\u300D\u6309\u94AE\uFF0C\u5141\u8BB8\u5207\u6362\u5F53\u524D\u5BF9\u8BDD\u7684\u89D2\u8272\u3002\u5173\u95ED\u540E\u6309\u94AE\u9690\u85CF\uFF0C\u4E14\u9ED8\u8BA4\u89D2\u8272\u4E0D\u518D\u6CE8\u5165 system prompt\u3002",
@@ -3813,6 +3825,7 @@ var DEFAULT_SETTINGS = {
   frontmatterTemplate: "",
   aiFolderName: ".smartnotes",
   memoryProfileEnabled: true,
+  profileUpdateMode: "chat",
   memoryProfileCategories: "",
   profileMemoryMaxChars: 4e3,
   fileSelectionEnabled: true,
@@ -4253,20 +4266,47 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
   }
   // ===== 标签页：用户画像 =====
   renderProfileTab(bodyEl) {
-    this.createGroupHeader(bodyEl, "settings.memoryGroup.profile");
     let categoriesSetting;
     let memoryFileSetting;
+    let updateModeSetting;
+    let maxCharsSetting;
     new import_obsidian11.Setting(bodyEl).setName(t("settings.memoryProfileEnabled.name")).setDesc(t("settings.memoryProfileEnabled.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.memoryProfileEnabled).onChange(async (v) => {
         this.plugin.settings.memoryProfileEnabled = v;
         categoriesSetting == null ? void 0 : categoriesSetting.setDisabled(!v);
         memoryFileSetting == null ? void 0 : memoryFileSetting.setDisabled(!v);
+        updateModeSetting == null ? void 0 : updateModeSetting.setDisabled(!v);
+        maxCharsSetting == null ? void 0 : maxCharsSetting.setDisabled(!v);
         await this.plugin.saveSettings();
         if (v) {
           void rebuildProfileMemory(this.plugin);
         }
       })
     );
+    updateModeSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.profileUpdateMode.name")).setDesc(t("settings.profileUpdateMode.desc")).setDisabled(!this.plugin.settings.memoryProfileEnabled).addDropdown(
+      (dd) => dd.addOption("chat", t("settings.profileUpdateMode.chat")).addOption("startup", t("settings.profileUpdateMode.startup")).setValue(this.plugin.settings.profileUpdateMode).onChange(async (v) => {
+        this.plugin.settings.profileUpdateMode = v;
+        await this.plugin.saveSettings();
+      })
+    ).addExtraButton(
+      (btn) => btn.setIcon("refresh-cw").setTooltip(t("settings.profileRefresh.desc")).setDisabled(!this.plugin.settings.memoryProfileEnabled).onClick(() => {
+        new import_obsidian11.Notice(t("settings.profileRefresh.started"));
+        void rebuildProfileMemory(this.plugin);
+      })
+    );
+    maxCharsSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.profileMemoryMaxChars.name")).setDesc(t("settings.profileMemoryMaxChars.desc")).setDisabled(!this.plugin.settings.memoryProfileEnabled).addText((t2) => {
+      t2.inputEl.type = "number";
+      t2.inputEl.min = "1";
+      t2.inputEl.step = "1";
+      t2.inputEl.inputMode = "numeric";
+      t2.setPlaceholder("4000").setValue(String(this.plugin.settings.profileMemoryMaxChars)).onChange(async (v) => {
+        const n = parseInt(v, 10);
+        if (!isNaN(n) && n > 0) {
+          this.plugin.settings.profileMemoryMaxChars = n;
+          await this.plugin.saveSettings();
+        }
+      });
+    });
     categoriesSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.memoryProfileCategories.name")).setDesc(t("settings.memoryProfileCategories.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
       ta.setPlaceholder(t("settings.memoryProfileCategories.placeholder")).setValue(this.plugin.settings.memoryProfileCategories).onChange(async (v) => {
         this.plugin.settings.memoryProfileCategories = v;
@@ -4288,19 +4328,6 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         ta.setValue(content);
       });
     }).setDisabled(!this.plugin.settings.memoryProfileEnabled);
-    new import_obsidian11.Setting(bodyEl).setName(t("settings.profileMemoryMaxChars.name")).setDesc(t("settings.profileMemoryMaxChars.desc")).setDisabled(!this.plugin.settings.memoryProfileEnabled).addText((t2) => {
-      t2.inputEl.type = "number";
-      t2.inputEl.min = "1";
-      t2.inputEl.step = "1";
-      t2.inputEl.inputMode = "numeric";
-      t2.setPlaceholder("4000").setValue(String(this.plugin.settings.profileMemoryMaxChars)).onChange(async (v) => {
-        const n = parseInt(v, 10);
-        if (!isNaN(n) && n > 0) {
-          this.plugin.settings.profileMemoryMaxChars = n;
-          await this.plugin.saveSettings();
-        }
-      });
-    });
   }
   // ===== 标签页：角色信息 =====
   renderRolesTab(bodyEl) {
@@ -7138,6 +7165,15 @@ var ChatView = class extends import_obsidian15.ItemView {
       this.transientSkillPaths = [];
     }
     this.activeTurnContext = null;
+    if (this.plugin.settings.memoryProfileEnabled && this.plugin.settings.profileUpdateMode === "chat") {
+      if (this.profileRebuildTimer !== void 0) {
+        window.clearTimeout(this.profileRebuildTimer);
+      }
+      this.profileRebuildTimer = window.setTimeout(() => {
+        this.profileRebuildTimer = void 0;
+        void rebuildProfileMemory(this.plugin);
+      }, 4e3);
+    }
   }
   /**
    * 执行一轮模型请求（构造 system + 消息、流式渲染、持久化）。
@@ -8323,10 +8359,12 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
     (0, import_obsidian16.addIcon)(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
     (0, import_obsidian16.addIcon)(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
     void ensureAiFolder(this);
-    this.memoryRebuildTimeout = window.setTimeout(
-      () => void rebuildProfileMemory(this),
-      3e3
-    );
+    if (this.settings.memoryProfileEnabled && this.settings.profileUpdateMode === "startup") {
+      this.memoryRebuildTimeout = window.setTimeout(
+        () => void rebuildProfileMemory(this),
+        3e3
+      );
+    }
     this.addSettingTab(new AiNoteAgentSettingTab(this.app, this));
     this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
     this.registerEditorExtension(createRealtimeExtension(this));

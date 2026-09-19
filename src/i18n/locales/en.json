@@ -205,6 +205,12 @@
   "settings.memoryGroup.profile": "User profile",
   "settings.memoryProfileEnabled.name": "Enable user profile memory",
   "settings.memoryProfileEnabled.desc": "When enabled, the AI extracts key facts from chat history into memory/MEMORY.md and injects it as background context for each chat. When disabled, extraction and injection stop.",
+  "settings.profileUpdateMode.name": "Update mode",
+  "settings.profileUpdateMode.desc": "Choose when the AI organizes the user profile from chat history.",
+  "settings.profileUpdateMode.chat": "Update per chat",
+  "settings.profileUpdateMode.startup": "Update on startup",
+  "settings.profileRefresh.desc": "Organize the user profile from chat history now",
+  "settings.profileRefresh.started": "Started organizing user profile……",
 
   "settings.roles.title": "Role info",
   "settings.rolesEnabled.name": "Enable roles",

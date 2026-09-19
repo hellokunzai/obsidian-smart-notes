@@ -133,6 +133,8 @@ export interface AiNoteAgentSettings {
   aiFolderName: string;
   // 长期画像记忆：总开关（关闭后不整理、不注入）
   memoryProfileEnabled: boolean;
+  // 长期画像记忆：自动整理时机（chat = 每次对话后；startup = 仅插件启动时）
+  profileUpdateMode: "chat" | "startup";
   // 长期画像记忆：AI 自动提取的维度（每行一个）
   memoryProfileCategories: string;
   // 长期画像记忆：注入 system prompt 前截断到的字符数（防止无限膨胀撑爆 token）
@@ -211,6 +213,7 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   frontmatterTemplate: "",
   aiFolderName: ".smartnotes",
   memoryProfileEnabled: true,
+  profileUpdateMode: "chat",
   memoryProfileCategories: "",
   profileMemoryMaxChars: 4000,
   fileSelectionEnabled: true,
@@ -797,11 +800,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
   // ===== 标签页：用户画像 =====
   private renderProfileTab(bodyEl: HTMLElement): void {
-    // --- 用户画像 ---
-    this.createGroupHeader(bodyEl, "settings.memoryGroup.profile");
-
     let categoriesSetting: Setting | undefined;
     let memoryFileSetting: Setting | undefined;
+    let updateModeSetting: Setting | undefined;
+    let maxCharsSetting: Setting | undefined;
 
     new Setting(bodyEl)
       .setName(t("settings.memoryProfileEnabled.name"))
@@ -813,6 +815,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             this.plugin.settings.memoryProfileEnabled = v;
             categoriesSetting?.setDisabled(!v);
             memoryFileSetting?.setDisabled(!v);
+            updateModeSetting?.setDisabled(!v);
+            maxCharsSetting?.setDisabled(!v);
             await this.plugin.saveSettings();
             if (v) {
               // 开启时立即在后台触发一次整理，避免用户等到下次重启
@@ -820,6 +824,51 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             }
           })
       );
+
+    updateModeSetting = new Setting(bodyEl)
+      .setName(t("settings.profileUpdateMode.name"))
+      .setDesc(t("settings.profileUpdateMode.desc"))
+      .setDisabled(!this.plugin.settings.memoryProfileEnabled)
+      .addDropdown((dd) =>
+        dd
+          .addOption("chat", t("settings.profileUpdateMode.chat"))
+          .addOption("startup", t("settings.profileUpdateMode.startup"))
+          .setValue(this.plugin.settings.profileUpdateMode)
+          .onChange(async (v) => {
+            this.plugin.settings.profileUpdateMode = v as "chat" | "startup";
+            await this.plugin.saveSettings();
+          })
+      )
+      .addExtraButton((btn) =>
+        btn
+          .setIcon("refresh-cw")
+          .setTooltip(t("settings.profileRefresh.desc"))
+          .setDisabled(!this.plugin.settings.memoryProfileEnabled)
+          .onClick(() => {
+            new Notice(t("settings.profileRefresh.started"));
+            void rebuildProfileMemory(this.plugin);
+          })
+      );
+
+    maxCharsSetting = new Setting(bodyEl)
+      .setName(t("settings.profileMemoryMaxChars.name"))
+      .setDesc(t("settings.profileMemoryMaxChars.desc"))
+      .setDisabled(!this.plugin.settings.memoryProfileEnabled)
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "1";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("4000")
+          .setValue(String(this.plugin.settings.profileMemoryMaxChars))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.profileMemoryMaxChars = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      });
 
     categoriesSetting = new Setting(bodyEl)
       .setName(t("settings.memoryProfileCategories.name"))
@@ -858,26 +907,6 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         });
       })
       .setDisabled(!this.plugin.settings.memoryProfileEnabled);
-
-    new Setting(bodyEl)
-      .setName(t("settings.profileMemoryMaxChars.name"))
-      .setDesc(t("settings.profileMemoryMaxChars.desc"))
-      .setDisabled(!this.plugin.settings.memoryProfileEnabled)
-      .addText((t2) => {
-        t2.inputEl.type = "number";
-        t2.inputEl.min = "1";
-        t2.inputEl.step = "1";
-        t2.inputEl.inputMode = "numeric";
-        t2.setPlaceholder("4000")
-          .setValue(String(this.plugin.settings.profileMemoryMaxChars))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n > 0) {
-              this.plugin.settings.profileMemoryMaxChars = n;
-              await this.plugin.saveSettings();
-            }
-          });
-      });
 
   }
 

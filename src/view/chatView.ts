@@ -41,7 +41,7 @@ import {
 } from "../context/tools";
 import { WebSearchService, type SearchProviderConfig } from "../search/search";
 import { buildWebSearchContext } from "../search/prompt";
-import { getProfileMemoryContext } from "../memory/profileMemory";
+import { getProfileMemoryContext, rebuildProfileMemory } from "../memory/profileMemory";
 import {
   getActiveModelLink,
   createProviderFromLink,
@@ -132,6 +132,8 @@ export class ChatView extends ItemView {
   private selectedRoleId = "";
 
   private isStreaming = false;
+  /** 「对话时更新」模式下，对话结束后防抖触发画像整理用的定时器。 */
+  private profileRebuildTimer?: number;
   /** 当前流式请求的 AbortController，用于用户点击「停止」时中断请求。 */
   private abortCtrl: AbortController | null = null;
   private sidebarCollapsed = true;
@@ -1540,6 +1542,20 @@ export class ChatView extends ItemView {
       this.transientSkillPaths = [];
     }
     this.activeTurnContext = null;
+
+    // 「对话时更新」模式：本轮对话结束后，防抖触发一次画像整理（合并连续对话，减少 token 消耗）
+    if (
+      this.plugin.settings.memoryProfileEnabled &&
+      this.plugin.settings.profileUpdateMode === "chat"
+    ) {
+      if (this.profileRebuildTimer !== undefined) {
+        window.clearTimeout(this.profileRebuildTimer);
+      }
+      this.profileRebuildTimer = window.setTimeout(() => {
+        this.profileRebuildTimer = undefined;
+        void rebuildProfileMemory(this.plugin);
+      }, 4000);
+    }
   }
 
   /**
