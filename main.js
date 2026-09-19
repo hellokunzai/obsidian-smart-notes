@@ -8470,6 +8470,8 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
      * null 表示尚未添加或已主动 remove。
      */
     this.ribbonEl = null;
+    /** 二级菜单能力探测结果缓存：null = 尚未探测（运行期不会变，探一次即可）。 */
+    this.submenuProbe = null;
   }
   /**
    * 同步「打开 AI 对话面板」入口的总开关。
@@ -8503,21 +8505,9 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
     this.ribbonEl = this.addRibbonIcon("smart-notes", t("plugin.name"), () => {
       void this.openChatView();
     });
-    this.addCommand({
-      id: "open-chat",
-      name: t("cmd.openChat"),
-      checkCallback: (checking) => {
-        if (!this.settings.chatPanelEnabled)
-          return false;
-        if (!checking) {
-          const active = this.app.workspace.getActiveFile();
-          void this.openChatView(
-            active instanceof import_obsidian16.TFile ? active : void 0
-          );
-        }
-        return true;
-      }
-    });
+    const openChat = this.commandSpecs().find((s) => s.id === "open-chat");
+    if (openChat)
+      this.addSpecCommand(openChat);
   }
   async onload() {
     await this.loadSettings();
@@ -8537,58 +8527,8 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
     this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this));
     this.registerEditorExtension(createRealtimeExtension(this));
     this.refreshChatPanelAccess();
-    this.addCommand({
-      id: "optimize-current",
-      name: t("cmd.optimizeCurrent"),
-      checkCallback: (checking) => {
-        if (!this.settings.optimizeCurrentEnabled)
-          return false;
-        const active = this.app.workspace.getActiveFile();
-        if (!active || active.extension !== "md")
-          return false;
-        if (!checking) {
-          void this.optimizeCommand(active);
-        }
-        return true;
-      }
-    });
-    this.addCommand({
-      id: "autoprompt",
-      name: t("cmd.autoprompt"),
-      checkCallback: (checking) => {
-        if (!this.settings.realtimeEnabled)
-          return false;
-        const view = this.app.workspace.getActiveViewOfType(import_obsidian16.MarkdownView);
-        if (!view || !view.editor)
-          return false;
-        if (!checking) {
-          const editor = view.editor;
-          void this.runWithNotice(
-            t("notice.thinking"),
-            () => autopromptAtCursor(this, editor)
-          );
-        }
-        return true;
-      }
-    });
-    this.addCommand({
-      id: "generate-frontmatter",
-      name: t("cmd.generateFrontmatter"),
-      checkCallback: (checking) => {
-        const active = this.app.workspace.getActiveFile();
-        if (!active || active.extension !== "md")
-          return false;
-        if (!this.settings.frontmatterGenerationEnabled)
-          return false;
-        if (!checking) {
-          void this.runWithNotice(
-            t("notice.generatingFrontmatter"),
-            () => this.generateFrontmatterCommand(active)
-          );
-        }
-        return true;
-      }
-    });
+    this.registerSpecCommands();
+    this.registerEditorContextMenu();
   }
   async openChatView(file) {
     if (!this.settings.chatPanelEnabled) {
@@ -8731,5 +8671,175 @@ date: ${today}
     }
     await this.app.vault.modify(file, `${finalYaml}
 ${body}`);
+  }
+  // ----------------------------------------------------------- 命令表 / 右键菜单
+  /**
+   * 命令单一数据源：命令面板、斜杠菜单、编辑器右键菜单三处都从这张表生成。
+   * 新增命令时只在这里加一条，三处入口自动同步「可用性判定 + 执行体」。
+   */
+  commandSpecs() {
+    return [
+      {
+        id: "optimize-current",
+        nameKey: "cmd.optimizeCurrent",
+        alwaysRegistered: true,
+        isAvailable: (ctx) => {
+          var _a2;
+          return !!this.settings.optimizeCurrentEnabled && ((_a2 = ctx.file) == null ? void 0 : _a2.extension) === "md";
+        },
+        run: (ctx) => {
+          if (ctx.file)
+            void this.optimizeCommand(ctx.file);
+        }
+      },
+      {
+        id: "autoprompt",
+        nameKey: "cmd.autoprompt",
+        alwaysRegistered: true,
+        isAvailable: (ctx) => !!this.settings.realtimeEnabled && !!ctx.editor,
+        run: (ctx) => {
+          const editor = ctx.editor;
+          if (!editor)
+            return;
+          void this.runWithNotice(
+            t("notice.thinking"),
+            () => autopromptAtCursor(this, editor)
+          );
+        }
+      },
+      {
+        id: "open-chat",
+        nameKey: "cmd.openChat",
+        // 由 refreshChatPanelAccess 按开关动态注册/移除，避免关闭后仍出现在「全部命令」视图里
+        alwaysRegistered: false,
+        isAvailable: () => !!this.settings.chatPanelEnabled,
+        run: (ctx) => {
+          var _a2;
+          void this.openChatView((_a2 = ctx.file) != null ? _a2 : void 0);
+        }
+      },
+      {
+        id: "generate-frontmatter",
+        nameKey: "cmd.generateFrontmatter",
+        alwaysRegistered: true,
+        isAvailable: (ctx) => {
+          var _a2;
+          return !!this.settings.frontmatterGenerationEnabled && ((_a2 = ctx.file) == null ? void 0 : _a2.extension) === "md";
+        },
+        run: (ctx) => {
+          if (ctx.file) {
+            void this.runWithNotice(
+              t("notice.generatingFrontmatter"),
+              () => this.generateFrontmatterCommand(ctx.file)
+            );
+          }
+        }
+      }
+    ];
+  }
+  /** 命令面板路径的上下文：以当前活动文件 / 活动 Markdown 视图为准。 */
+  activeCommandContext() {
+    var _a2, _b2, _c;
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian16.MarkdownView);
+    return {
+      file: (_b2 = (_a2 = this.app.workspace.getActiveFile()) != null ? _a2 : view == null ? void 0 : view.file) != null ? _b2 : null,
+      editor: (_c = view == null ? void 0 : view.editor) != null ? _c : null,
+      view
+    };
+  }
+  /** 把一条 spec 注册成命令（命令面板与斜杠菜单共用这一条注册路径）。 */
+  addSpecCommand(spec) {
+    this.addCommand({
+      id: spec.id,
+      name: t(spec.nameKey),
+      checkCallback: (checking) => {
+        const ctx = this.activeCommandContext();
+        if (!spec.isAvailable(ctx))
+          return false;
+        if (!checking)
+          void spec.run(ctx);
+        return true;
+      }
+    });
+  }
+  registerSpecCommands() {
+    for (const spec of this.commandSpecs()) {
+      if (spec.alwaysRegistered)
+        this.addSpecCommand(spec);
+    }
+  }
+  /**
+   * 探测 MenuItem.setSubmenu 是否可用。
+   * 该方法不在 Obsidian 官方 typings 里（未公开 API），只能运行时试探：
+   * 用一个不会入场的 Menu 试调一次，确认拿到的确实是能 addItem 的子菜单对象。
+   * 探测结果缓存在实例上——运行期不会变，没必要每次右键都试。
+   */
+  supportsSubmenu() {
+    if (this.submenuProbe === null) {
+      let supported = false;
+      try {
+        new import_obsidian16.Menu().addItem((item) => {
+          const fn = item.setSubmenu;
+          if (typeof fn !== "function")
+            return;
+          const sub = fn.call(item);
+          supported = !!sub && typeof sub.addItem === "function";
+        });
+      } catch (e) {
+        console.error("[Smart Notes] \u4E8C\u7EA7\u83DC\u5355\u80FD\u529B\u63A2\u6D4B\u5931\u8D25\uFF0C\u5C06\u964D\u7EA7\u4E3A\u5E73\u94FA\u83DC\u5355\uFF1A", e);
+        supported = false;
+      }
+      this.submenuProbe = supported;
+    }
+    return this.submenuProbe;
+  }
+  /**
+   * 编辑器右键菜单：父项「Smart Notes」+ 二级菜单（4 条命令）。
+   * 探测不到 setSubmenu 时整体降级为平铺在同一层——宁可丑一点，也不让移动端/旧版丢功能。
+   */
+  registerEditorContextMenu() {
+    this.registerEvent(
+      this.app.workspace.on("editor-menu", (menu, editor, info) => {
+        var _a2;
+        const specs = this.commandSpecs();
+        const ctx = {
+          editor,
+          file: (_a2 = info.file) != null ? _a2 : null,
+          view: info instanceof import_obsidian16.MarkdownView ? info : null
+        };
+        if (!this.supportsSubmenu()) {
+          this.addMenuItems(menu, specs, ctx, true);
+          return;
+        }
+        let populated = false;
+        menu.addItem((item) => {
+          item.setTitle(t("plugin.name")).setIcon("smart-notes");
+          try {
+            const submenu = item.setSubmenu();
+            if (submenu && typeof submenu.addItem === "function") {
+              this.addMenuItems(submenu, specs, ctx, false);
+              populated = true;
+            }
+          } catch (e) {
+            console.error("[Smart Notes] \u4E8C\u7EA7\u83DC\u5355\u521B\u5EFA\u5931\u8D25\uFF0C\u964D\u7EA7\u4E3A\u5E73\u94FA\u83DC\u5355\uFF1A", e);
+          }
+        });
+        if (!populated)
+          this.addMenuItems(menu, specs, ctx, true);
+      })
+    );
+  }
+  /**
+   * 往菜单里逐条加命令项。
+   * @param prefix 平铺降级时补「插件名: 」前缀——四项混在编辑器原生菜单里，靠前缀标明归属；
+   *               二级菜单里父项已表达归属，无需前缀。
+   */
+  addMenuItems(menu, specs, ctx, prefix) {
+    for (const spec of specs) {
+      const title = t(spec.nameKey);
+      menu.addItem(
+        (item) => item.setTitle(prefix ? `${t("plugin.name")}: ${title}` : title).setDisabled(!spec.isAvailable(ctx)).onClick(() => void spec.run(ctx))
+      );
+    }
   }
 };

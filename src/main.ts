@@ -4,8 +4,11 @@ import {
   TFile,
   WorkspaceLeaf,
   MarkdownView,
+  Menu,
   addIcon,
   Events,
+  type Editor,
+  type MarkdownFileInfo,
 } from "obsidian";
 import {
   DEFAULT_SETTINGS,
@@ -48,6 +51,29 @@ import { migrateSettings } from "./migrate";
 const SLASH_TRIGGER_LINE = /^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/;
 const SLASH_TRIGGER_STANDALONE = /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm;
 
+/**
+ * 一次命令调用的现场。可用性判定与执行体看到同一份上下文，
+ * 避免「判定时算的是活动文件、执行时又重新取一次」导致的不一致。
+ */
+interface CommandContext {
+  file: TFile | null;
+  editor: Editor | null;
+  view: MarkdownView | null;
+}
+
+/**
+ * 命令单一数据源：命令面板（checkCallback）与编辑器右键菜单都从这张表生成，
+ * 避免「可用性判定」和「执行体」在两处各写一遍后漂移。
+ */
+interface CommandSpec {
+  id: string;
+  nameKey: string;
+  /** true：onload 时无条件注册；false：由 refreshChatPanelAccess 按开关动态注册/移除。 */
+  alwaysRegistered: boolean;
+  isAvailable(ctx: CommandContext): boolean;
+  run(ctx: CommandContext): void | Promise<void>;
+}
+
 const ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg>`;
 
 export default class AiNoteAgentPlugin extends Plugin {
@@ -61,6 +87,8 @@ export default class AiNoteAgentPlugin extends Plugin {
    * null 表示尚未添加或已主动 remove。
    */
   private ribbonEl: HTMLElement | null = null;
+  /** 二级菜单能力探测结果缓存：null = 尚未探测（运行期不会变，探一次即可）。 */
+  private submenuProbe: boolean | null = null;
 
   /**
    * 同步「打开 AI 对话面板」入口的总开关。
@@ -106,20 +134,8 @@ export default class AiNoteAgentPlugin extends Plugin {
     this.ribbonEl = this.addRibbonIcon("smart-notes", t("plugin.name"), () => {
       void this.openChatView();
     });
-    this.addCommand({
-      id: "open-chat",
-      name: t("cmd.openChat"),
-      checkCallback: (checking) => {
-        if (!this.settings.chatPanelEnabled) return false;
-        if (!checking) {
-          const active = this.app.workspace.getActiveFile();
-          void this.openChatView(
-            active instanceof TFile ? active : undefined
-          );
-        }
-        return true;
-      },
-    });
+    const openChat = this.commandSpecs().find((s) => s.id === "open-chat");
+    if (openChat) this.addSpecCommand(openChat);
   }
 
   async onload() {
@@ -154,54 +170,11 @@ export default class AiNoteAgentPlugin extends Plugin {
     // ribbon / open-chat 命令入口由 refreshChatPanelAccess 统一管控（toggle off 时不创建）
     this.refreshChatPanelAccess();
 
-    this.addCommand({
-      id: "optimize-current",
-      name: t("cmd.optimizeCurrent"),
-      checkCallback: (checking) => {
-        if (!this.settings.optimizeCurrentEnabled) return false;
-        const active = this.app.workspace.getActiveFile();
-        if (!active || active.extension !== "md") return false;
-        if (!checking) {
-          // optimizeCommand 内部自带常驻 Notice（完成后 hide 并打开对比弹窗）
-          // 与 try/catch 错误提示，这里不能再套 runWithNotice，否则会同时弹出两个「正在优化笔记……」
-          void this.optimizeCommand(active);
-        }
-        return true;
-      },
-    });
+    // 命令面板与斜杠菜单入口
+    this.registerSpecCommands();
 
-    this.addCommand({
-      id: "autoprompt",
-      name: t("cmd.autoprompt"),
-      checkCallback: (checking) => {
-        if (!this.settings.realtimeEnabled) return false;
-        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!view || !view.editor) return false;
-        if (!checking) {
-          const editor = view.editor;
-          void this.runWithNotice(t("notice.thinking"), () =>
-            autopromptAtCursor(this, editor)
-          );
-        }
-        return true;
-      },
-    });
-
-    this.addCommand({
-      id: "generate-frontmatter",
-      name: t("cmd.generateFrontmatter"),
-      checkCallback: (checking) => {
-        const active = this.app.workspace.getActiveFile();
-        if (!active || active.extension !== "md") return false;
-        if (!this.settings.frontmatterGenerationEnabled) return false;
-        if (!checking) {
-          void this.runWithNotice(t("notice.generatingFrontmatter"), () =>
-            this.generateFrontmatterCommand(active)
-          );
-        }
-        return true;
-      },
-    });
+    // 编辑器右键菜单：父项「Smart Notes」+ 二级菜单
+    this.registerEditorContextMenu();
   }
 
   private async openChatView(file?: TFile): Promise<void> {
@@ -376,4 +349,183 @@ export default class AiNoteAgentPlugin extends Plugin {
     await this.app.vault.modify(file, `${finalYaml}\n${body}`);
   }
 
+  // ----------------------------------------------------------- 命令表 / 右键菜单
+
+  /**
+   * 命令单一数据源：命令面板、斜杠菜单、编辑器右键菜单三处都从这张表生成。
+   * 新增命令时只在这里加一条，三处入口自动同步「可用性判定 + 执行体」。
+   */
+  private commandSpecs(): CommandSpec[] {
+    return [
+      {
+        id: "optimize-current",
+        nameKey: "cmd.optimizeCurrent",
+        alwaysRegistered: true,
+        isAvailable: (ctx) =>
+          !!this.settings.optimizeCurrentEnabled && ctx.file?.extension === "md",
+        run: (ctx) => {
+          // optimizeCommand 内部自带常驻 Notice（完成后 hide 并打开对比弹窗）
+          // 与 try/catch 错误提示，这里不能再套 runWithNotice，否则会同时弹出两个「正在优化笔记……」
+          if (ctx.file) void this.optimizeCommand(ctx.file);
+        },
+      },
+      {
+        id: "autoprompt",
+        nameKey: "cmd.autoprompt",
+        alwaysRegistered: true,
+        isAvailable: (ctx) => !!this.settings.realtimeEnabled && !!ctx.editor,
+        run: (ctx) => {
+          const editor = ctx.editor;
+          if (!editor) return;
+          void this.runWithNotice(t("notice.thinking"), () =>
+            autopromptAtCursor(this, editor)
+          );
+        },
+      },
+      {
+        id: "open-chat",
+        nameKey: "cmd.openChat",
+        // 由 refreshChatPanelAccess 按开关动态注册/移除，避免关闭后仍出现在「全部命令」视图里
+        alwaysRegistered: false,
+        isAvailable: () => !!this.settings.chatPanelEnabled,
+        run: (ctx) => {
+          void this.openChatView(ctx.file ?? undefined);
+        },
+      },
+      {
+        id: "generate-frontmatter",
+        nameKey: "cmd.generateFrontmatter",
+        alwaysRegistered: true,
+        isAvailable: (ctx) =>
+          !!this.settings.frontmatterGenerationEnabled &&
+          ctx.file?.extension === "md",
+        run: (ctx) => {
+          if (ctx.file) {
+            void this.runWithNotice(t("notice.generatingFrontmatter"), () =>
+              this.generateFrontmatterCommand(ctx.file as TFile)
+            );
+          }
+        },
+      },
+    ];
+  }
+
+  /** 命令面板路径的上下文：以当前活动文件 / 活动 Markdown 视图为准。 */
+  private activeCommandContext(): CommandContext {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    return {
+      file: this.app.workspace.getActiveFile() ?? view?.file ?? null,
+      editor: view?.editor ?? null,
+      view,
+    };
+  }
+
+  /** 把一条 spec 注册成命令（命令面板与斜杠菜单共用这一条注册路径）。 */
+  private addSpecCommand(spec: CommandSpec): void {
+    this.addCommand({
+      id: spec.id,
+      name: t(spec.nameKey),
+      checkCallback: (checking) => {
+        const ctx = this.activeCommandContext();
+        if (!spec.isAvailable(ctx)) return false;
+        if (!checking) void spec.run(ctx);
+        return true;
+      },
+    });
+  }
+
+  private registerSpecCommands(): void {
+    for (const spec of this.commandSpecs()) {
+      if (spec.alwaysRegistered) this.addSpecCommand(spec);
+    }
+  }
+
+  /**
+   * 探测 MenuItem.setSubmenu 是否可用。
+   * 该方法不在 Obsidian 官方 typings 里（未公开 API），只能运行时试探：
+   * 用一个不会入场的 Menu 试调一次，确认拿到的确实是能 addItem 的子菜单对象。
+   * 探测结果缓存在实例上——运行期不会变，没必要每次右键都试。
+   */
+  private supportsSubmenu(): boolean {
+    if (this.submenuProbe === null) {
+      let supported = false;
+      try {
+        new Menu().addItem((item) => {
+          const fn = (item as unknown as { setSubmenu?: () => unknown })
+            .setSubmenu;
+          if (typeof fn !== "function") return;
+          const sub = fn.call(item) as { addItem?: unknown } | undefined;
+          supported = !!sub && typeof sub.addItem === "function";
+        });
+      } catch (e) {
+        console.error("[Smart Notes] 二级菜单能力探测失败，将降级为平铺菜单：", e);
+        supported = false;
+      }
+      this.submenuProbe = supported;
+    }
+    return this.submenuProbe;
+  }
+
+  /**
+   * 编辑器右键菜单：父项「Smart Notes」+ 二级菜单（4 条命令）。
+   * 探测不到 setSubmenu 时整体降级为平铺在同一层——宁可丑一点，也不让移动端/旧版丢功能。
+   */
+  private registerEditorContextMenu(): void {
+    this.registerEvent(
+      this.app.workspace.on("editor-menu", (menu, editor, info) => {
+        const specs = this.commandSpecs();
+        const ctx: CommandContext = {
+          editor,
+          file: info.file ?? null,
+          view: info instanceof MarkdownView ? info : null,
+        };
+
+        if (!this.supportsSubmenu()) {
+          this.addMenuItems(menu, specs, ctx, true);
+          return;
+        }
+
+        let populated = false;
+        menu.addItem((item) => {
+          item.setTitle(t("plugin.name")).setIcon("smart-notes");
+          try {
+            // 见 supportsSubmenu：setSubmenu 未公开，返回值才是子菜单 Menu
+            const submenu = (
+              item as unknown as { setSubmenu: () => Menu }
+            ).setSubmenu();
+            if (submenu && typeof submenu.addItem === "function") {
+              this.addMenuItems(submenu, specs, ctx, false);
+              populated = true;
+            }
+          } catch (e) {
+            console.error("[Smart Notes] 二级菜单创建失败，降级为平铺菜单：", e);
+          }
+        });
+        // 万一子菜单没建成，父项会变成点不动的空壳，这里补一次平铺保证功能可达
+        if (!populated) this.addMenuItems(menu, specs, ctx, true);
+      })
+    );
+  }
+
+  /**
+   * 往菜单里逐条加命令项。
+   * @param prefix 平铺降级时补「插件名: 」前缀——四项混在编辑器原生菜单里，靠前缀标明归属；
+   *               二级菜单里父项已表达归属，无需前缀。
+   */
+  private addMenuItems(
+    menu: Menu,
+    specs: CommandSpec[],
+    ctx: CommandContext,
+    prefix: boolean
+  ): void {
+    for (const spec of specs) {
+      const title = t(spec.nameKey);
+      menu.addItem((item) =>
+        item
+          .setTitle(prefix ? `${t("plugin.name")}: ${title}` : title)
+          .setDisabled(!spec.isAvailable(ctx))
+          .onClick(() => void spec.run(ctx))
+      );
+    }
+  }
 }
