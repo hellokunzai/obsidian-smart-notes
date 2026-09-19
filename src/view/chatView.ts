@@ -365,15 +365,7 @@ export class ChatView extends ItemView {
     setIcon(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
 
-    // 附件按钮（模型右侧）
-    this.attachBtn = attachRow.createEl("button", {
-      cls: "clickable-icon ana-chat-action ana-chat-attach-action",
-      attr: { "aria-label": t("view.addAttachment") },
-    });
-    setIcon(this.attachBtn, "paperclip");
-    this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
-
-    // 角色选择按钮（附件右侧）
+    // 角色选择按钮（模型右侧）
     this.roleBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-role-btn",
       attr: { "aria-label": t("view.roleSelect") },
@@ -397,7 +389,15 @@ export class ChatView extends ItemView {
     setIcon(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
 
-    // 选择属性按钮（联网右侧）：为本对话挑选要注入的 Frontmatter 属性
+    // 附件按钮（联网右侧、选择属性之前）
+    this.attachBtn = attachRow.createEl("button", {
+      cls: "clickable-icon ana-chat-action ana-chat-attach-action",
+      attr: { "aria-label": t("view.addAttachment") },
+    });
+    setIcon(this.attachBtn, "paperclip");
+    this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
+
+    // 选择属性按钮（附件右侧）：为本对话挑选要注入的 Frontmatter 属性
     this.propBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.selectProperties") },
@@ -744,10 +744,11 @@ export class ChatView extends ItemView {
       const chip = this.chipsEl.createEl("div", {
         cls: "ana-chat-chip ana-chat-chip-prop",
       });
-      chip.createSpan({
-        text: t("view.propertyChipKind"),
-        cls: "ana-chat-chip-kind",
+      // 「属性」前缀用 tag 图标替代文字，与工具栏「选择属性」按钮一致
+      const kindIcon = chip.createSpan({
+        cls: "ana-chat-chip-kind ana-chat-chip-kind-icon",
       });
+      setIcon(kindIcon, "tag");
       chip.createSpan({ text: key, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",

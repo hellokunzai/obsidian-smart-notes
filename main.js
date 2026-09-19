@@ -6200,12 +6200,6 @@ var ChatView = class extends import_obsidian15.ItemView {
     });
     (0, import_obsidian15.setIcon)(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
-    this.attachBtn = attachRow.createEl("button", {
-      cls: "clickable-icon ana-chat-action ana-chat-attach-action",
-      attr: { "aria-label": t("view.addAttachment") }
-    });
-    (0, import_obsidian15.setIcon)(this.attachBtn, "paperclip");
-    this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
     this.roleBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-role-btn",
       attr: { "aria-label": t("view.roleSelect") }
@@ -6224,6 +6218,12 @@ var ChatView = class extends import_obsidian15.ItemView {
     });
     (0, import_obsidian15.setIcon)(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
+    this.attachBtn = attachRow.createEl("button", {
+      cls: "clickable-icon ana-chat-action ana-chat-attach-action",
+      attr: { "aria-label": t("view.addAttachment") }
+    });
+    (0, import_obsidian15.setIcon)(this.attachBtn, "paperclip");
+    this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
     this.propBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.selectProperties") }
@@ -6519,10 +6519,10 @@ var ChatView = class extends import_obsidian15.ItemView {
       const chip = this.chipsEl.createEl("div", {
         cls: "ana-chat-chip ana-chat-chip-prop"
       });
-      chip.createSpan({
-        text: t("view.propertyChipKind"),
-        cls: "ana-chat-chip-kind"
+      const kindIcon = chip.createSpan({
+        cls: "ana-chat-chip-kind ana-chat-chip-kind-icon"
       });
+      (0, import_obsidian15.setIcon)(kindIcon, "tag");
       chip.createSpan({ text: key, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",

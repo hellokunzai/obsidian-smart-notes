@@ -1179,6 +1179,17 @@
   letter-spacing: 0.02em;
 }
 
+/* 属性 chip 的「属性」前缀图标（tag），替代原文字 */
+.ana-chat-chip-kind-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.ana-chat-chip-kind-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
 /* 附件选择器弹窗 */
 .ana-picker {
   display: flex;
