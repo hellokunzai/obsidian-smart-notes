@@ -182,6 +182,13 @@ var en_default = {
   "view.renameSession": "Rename session",
   "view.deleteSession": "Delete session",
   "view.confirmDelete": 'Delete session "{title}"? This cannot be undone.',
+  "view.batchActions": "Batch actions",
+  "view.exitBatch": "Exit batch mode",
+  "view.batchSelected": "{count} / {total}",
+  "view.batchSelectAll": "Select all",
+  "view.batchClearAll": "Clear selection",
+  "view.batchDelete": "Delete selected sessions",
+  "view.batchConfirmDelete": "Delete {count} selected sessions? This cannot be undone.",
   "view.error": "Error: {error}",
   "view.timeout": "Request overall timeout (no completion response within 10 minutes). Please check if the model configuration is correct and the network is reachable.",
   "view.activityTimeout": 'Request activity timeout (no data for {seconds}s). Reasoning models like DeepSeek-R1 may need more time; increase "Activity timeout" in Settings \u2192 Smart Notes \u2192 Interaction \u2192 AI Chat Panel.',
@@ -528,6 +535,13 @@ var zh_default = {
   "view.renameSession": "\u91CD\u547D\u540D\u4F1A\u8BDD",
   "view.deleteSession": "\u5220\u9664\u4F1A\u8BDD",
   "view.confirmDelete": "\u786E\u5B9A\u5220\u9664\u4F1A\u8BDD\u300C{title}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
+  "view.batchActions": "\u6279\u91CF\u64CD\u4F5C",
+  "view.exitBatch": "\u9000\u51FA\u6279\u91CF\u64CD\u4F5C",
+  "view.batchSelected": "\u5DF2\u9009 {count} / {total}",
+  "view.batchSelectAll": "\u5168\u9009",
+  "view.batchClearAll": "\u53D6\u6D88\u5168\u9009",
+  "view.batchDelete": "\u5220\u9664\u9009\u4E2D\u4F1A\u8BDD",
+  "view.batchConfirmDelete": "\u786E\u5B9A\u5220\u9664\u9009\u4E2D\u7684 {count} \u4E2A\u4F1A\u8BDD\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
   "view.error": "\u51FA\u9519\uFF1A{error}",
   "view.timeout": "\u8BF7\u6C42\u603B\u8D85\u65F6\uFF0810 \u5206\u949F\u5185\u65E0\u4EFB\u4F55\u5B8C\u6210\u54CD\u5E94\uFF09\u3002\u8BF7\u68C0\u67E5\u6A21\u578B\u914D\u7F6E\u662F\u5426\u6B63\u786E\uFF0C\u6216\u7F51\u7EDC\u662F\u5426\u53EF\u8FBE\u3002",
   "view.activityTimeout": "\u8BF7\u6C42\u6D3B\u52A8\u8D85\u65F6\uFF08\u8FDE\u7EED {seconds} \u79D2\u65E0\u54CD\u5E94\uFF09\u3002DeepSeek-R1 \u7B49\u63A8\u7406\u6A21\u578B\u601D\u8003\u65F6\u95F4\u8F83\u957F\uFF0C\u53EF\u5728\u8BBE\u7F6E \u2192 Smart Notes \u2192 \u4EA4\u4E92\u8BBE\u7F6E \u2192 AI \u5BF9\u8BDD\u9762\u677F \u4E2D\u8C03\u5927\u300C\u6D3B\u52A8\u8D85\u65F6\u300D\u3002",
@@ -5041,8 +5055,17 @@ var LONG_PRESS_MOVE_TOLERANCE = 8;
 var NATIVE_MENU_SUPPRESS_MS = 800;
 function buildSessionRowMenu(opts) {
   const menu = new import_obsidian14.Menu();
+  if (opts.batchMode) {
+    menu.addItem(
+      (item) => item.setTitle(t("view.exitBatch")).setIcon("x").onClick(opts.onExitBatch)
+    );
+    return menu;
+  }
   menu.addItem(
     (item) => item.setTitle(t("view.renameSession")).setIcon("pencil").onClick(opts.onRename)
+  );
+  menu.addItem(
+    (item) => item.setTitle(t("view.batchActions")).setIcon("list-checks").onClick(opts.onBatch)
   );
   menu.addSeparator();
   menu.addItem(
@@ -6030,6 +6053,12 @@ var ChatView = class extends import_obsidian16.ItemView {
     /** 当前流式请求的 AbortController，用于用户点击「停止」时中断请求。 */
     this.abortCtrl = null;
     this.sidebarCollapsed = true;
+    /** 批量操作模式：为 true 时列表进入多选态，点整行是勾选而非切换会话。 */
+    this.batchMode = false;
+    /** 批量操作下已勾选的会话 id。 */
+    this.batchSelected = /* @__PURE__ */ new Set();
+    /** 批量模式下按 Esc 退出的 document 监听器（onClose 里摘掉）。 */
+    this.batchEscHandler = null;
     /**
      * 重入时临时注入的 skill 路径。
      * AI 在回复中声明 `@use-skill` 后，插件自动把这些 skill 的完整内容注入下一轮请求的
@@ -6137,6 +6166,7 @@ var ChatView = class extends import_obsidian16.ItemView {
     }
     this.initDefaultModelAndRole();
     this.renderLayout();
+    this.installBatchEscHandler();
     this.registerEvent(
       this.plugin.settingsEvents.on("settings-changed", () => {
         try {
@@ -6163,6 +6193,33 @@ var ChatView = class extends import_obsidian16.ItemView {
       this.sessions.push(full);
   }
   async onClose() {
+    this.removeBatchEscHandler();
+  }
+  /**
+   * 装载「批量模式下按 Esc 退出」的监听器。
+   *
+   * 挂 document 而不是 contentEl：勾选走的是整行点击，点过之后焦点落到 body，
+   * 挂在 contentEl 上的监听器再也收不到键盘事件。非批量态直接放行（不 preventDefault），
+   * 免得抢掉 Obsidian 自己的 Esc 行为。
+   *
+   * 拆成独立方法（而不是内联在 onOpen 里）是为了能在离线冒烟测试里直接驱动它 ——
+   * 键盘退出口是这个功能唯一的「无鼠标」逃生通道，值得有断言守着。
+   */
+  installBatchEscHandler() {
+    if (this.batchEscHandler)
+      return;
+    this.batchEscHandler = (evt) => {
+      if (!this.batchMode || evt.key !== "Escape")
+        return;
+      this.setBatchMode(false);
+    };
+    document.addEventListener("keydown", this.batchEscHandler);
+  }
+  removeBatchEscHandler() {
+    if (!this.batchEscHandler)
+      return;
+    document.removeEventListener("keydown", this.batchEscHandler);
+    this.batchEscHandler = null;
   }
   // ================= 布局 =================
   renderLayout() {
@@ -6320,24 +6377,74 @@ var ChatView = class extends import_obsidian16.ItemView {
   }
   // ================= 侧栏 =================
   renderSidebar() {
+    if (this.batchMode && this.sessions.length === 0) {
+      this.batchMode = false;
+      this.batchSelected.clear();
+    }
     this.sidebarEl.empty();
-    const head = this.sidebarEl.createEl("div", { cls: "ana-chat-sidebar-head" });
-    head.createEl("span", {
-      text: t("view.history"),
-      cls: "ana-chat-sidebar-title"
+    this.sidebarHeadEl = this.sidebarEl.createEl("div", {
+      cls: "ana-chat-sidebar-head"
     });
-    const newBtn = head.createEl("button", {
-      cls: "clickable-icon ana-chat-sidebar-new",
-      attr: { "aria-label": t("view.newSession") }
-    });
-    (0, import_obsidian16.setIcon)(newBtn, "plus");
-    newBtn.addEventListener("click", () => void this.newSession());
     this.sessionListEl = this.sidebarEl.createEl("div", {
       cls: "ana-chat-session-list"
     });
+    this.refreshSessions();
+  }
+  /**
+   * 刷新侧栏头部：普通态是「会话历史」标题，批量态换成「已选 N / M」计数 + 删除按钮。
+   *
+   * 两种模式下头部的元素完全不同（标题是 span、计数是可点的 button），所以走整块重建
+   * 而不是改文案；代价只有两个字节点，换来的是不必维护两套状态的同步。
+   *
+   * 普通态下头部**不放任何按钮**：那个位置原先的 ＋（新建会话）与右侧顶栏的 ＋ 是同一个动作，
+   * 侧栏这枚去掉之后功能没有净损失，而腾出来的位置正好留给批量态的删除入口。
+   */
+  renderSidebarHead() {
+    this.sidebarHeadEl.empty();
+    if (!this.batchMode) {
+      this.sidebarHeadEl.createEl("span", {
+        text: t("view.history"),
+        cls: "ana-chat-sidebar-title"
+      });
+      return;
+    }
+    this.sidebarHeadEl.createEl("button", {
+      cls: "ana-chat-batch-count",
+      text: t("view.batchSelected", {
+        count: String(this.batchSelected.size),
+        total: String(this.sessions.length)
+      }),
+      attr: {
+        "aria-label": this.allSelected ? t("view.batchClearAll") : t("view.batchSelectAll")
+      }
+    }).addEventListener("click", () => this.toggleSelectAll());
+    const delBtn = this.sidebarHeadEl.createEl("button", {
+      // clickable-icon 不能省：少了它，app.css 的 `button:not(.clickable-icon)`
+      // 会把 input-shadow 与主题灰底压到我们这枚透明图标按钮上。
+      cls: "clickable-icon ana-chat-header-btn ana-chat-batch-del",
+      attr: { "aria-label": t("view.batchDelete") }
+    });
+    (0, import_obsidian16.setIcon)(delBtn, "trash-2");
+    delBtn.disabled = this.batchSelected.size === 0;
+    delBtn.addEventListener("click", () => this.confirmDeleteSelected());
+  }
+  /** 是否所有会话都已勾选（列表为空时为 false，免得空列表上标签在「全选/取消全选」之间乱翻）。 */
+  get allSelected() {
+    return this.sessions.length > 0 && this.sessions.every((s) => this.batchSelected.has(s.id));
+  }
+  /**
+   * 侧栏的统一刷新入口：头部 + 列表一起重建。
+   *
+   * 批量态下头部的计数（已选 N / M）依赖会话总数，所以列表每重建一次就顺带对齐一次头部，
+   * 否则会出现「新建了一个会话、头部还写着 / 8」这种不同步。
+   * 所有改动会话的路径都走这里，不要再单独调 renderSessionList。
+   */
+  refreshSessions() {
+    this.renderSidebarHead();
     this.renderSessionList();
   }
   renderSessionList() {
+    const scrollTop = this.sessionListEl.scrollTop;
     this.sessionListEl.empty();
     if (this.sessions.length === 0) {
       this.sessionListEl.createEl("div", {
@@ -6348,9 +6455,17 @@ var ChatView = class extends import_obsidian16.ItemView {
     }
     const ordered = [...this.sessions].sort((a, b) => b.updatedAt - a.updatedAt);
     for (const s of ordered) {
+      const selected = this.batchMode && this.batchSelected.has(s.id);
       const item = this.sessionListEl.createEl("div", {
-        cls: "ana-chat-session-item" + (s.id === this.activeId ? " is-active" : "")
+        // 批量态下不渲染 is-active：此刻的高亮全指勾选，
+        // 让「当前会话」再占一层底色只会让人分不清哪个是勾了哪个是正在看
+        cls: "ana-chat-session-item" + (selected ? " is-selected" : "") + (!this.batchMode && s.id === this.activeId ? " is-active" : "")
       });
+      if (this.batchMode) {
+        item.createEl("span", {
+          cls: "ana-chat-session-check" + (selected ? " is-checked" : "")
+        });
+      }
       const label = item.createEl("span", {
         text: s.title || t("view.defaultTitle"),
         cls: "ana-chat-session-label"
@@ -6358,13 +6473,22 @@ var ChatView = class extends import_obsidian16.ItemView {
       label.setAttribute("title", s.title || t("view.defaultTitle"));
       attachSessionRowTrigger(item, {
         enableLongPress: import_obsidian16.Platform.isMobile,
-        onSelect: () => void this.selectSession(s.id),
+        onSelect: () => {
+          if (this.batchMode)
+            this.toggleBatchSelection(s.id);
+          else
+            void this.selectSession(s.id);
+        },
         createMenu: () => buildSessionRowMenu({
+          batchMode: this.batchMode,
           onRename: () => this.renameSession(s),
-          onDelete: () => this.confirmDeleteSession(s)
+          onDelete: () => this.confirmDeleteSession(s),
+          onBatch: () => this.setBatchMode(true),
+          onExitBatch: () => this.setBatchMode(false)
         })
       });
     }
+    this.sessionListEl.scrollTop = scrollTop;
   }
   toggleSidebar() {
     this.sidebarCollapsed = !this.sidebarCollapsed;
@@ -6393,7 +6517,7 @@ var ChatView = class extends import_obsidian16.ItemView {
     this.activeId = s.id;
     this.loadedIds.add(s.id);
     await this.persist();
-    this.renderSessionList();
+    this.refreshSessions();
     this.renderMessages();
     this.renderChips();
     this.renderActions();
@@ -6411,7 +6535,7 @@ var ChatView = class extends import_obsidian16.ItemView {
     }
     this.activeId = id;
     await this.persist();
-    this.renderSessionList();
+    this.refreshSessions();
     this.renderMessages();
     this.renderChips();
     this.renderActions();
@@ -6430,7 +6554,7 @@ var ChatView = class extends import_obsidian16.ItemView {
       s.updatedAt = Date.now();
       modal.close();
       await this.persist();
-      this.renderSessionList();
+      this.refreshSessions();
       if (s.id === this.activeId)
         this.renderMessages();
     });
@@ -6445,25 +6569,7 @@ var ChatView = class extends import_obsidian16.ItemView {
     new import_obsidian16.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
     new import_obsidian16.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
       modal.close();
-      this.sessions = this.sessions.filter((x) => x.id !== s.id);
-      this.metaSnapshot.delete(s.id);
-      this.loadedIds.delete(s.id);
-      await deleteSessionFile(this.plugin, s.id);
-      if (this.activeId === s.id) {
-        const next = this.sessions[0];
-        if (next) {
-          this.activeId = next.id;
-        } else {
-          const fresh = createSession(t("view.defaultTitle"));
-          this.sessions.push(fresh);
-          this.activeId = fresh.id;
-        }
-      }
-      await this.persist();
-      this.renderSessionList();
-      this.renderMessages();
-      this.renderChips();
-      this.renderActions();
+      await this.deleteSessions([s.id]);
     });
     modal.open();
   }
@@ -6478,7 +6584,78 @@ var ChatView = class extends import_obsidian16.ItemView {
     s.updatedAt = Date.now();
     await this.persist();
     this.renderMessages();
-    this.renderSessionList();
+    this.refreshSessions();
+    this.renderChips();
+    this.renderActions();
+  }
+  // ================= 批量操作 =================
+  /**
+   * 进入 / 退出批量操作模式，并清空上一次的勾选。
+   *
+   * 「批量操作」只从会话行的右键菜单（移动端长按）进入，所以进入时列表必然非空；
+   * 退出时一并清空勾选，免得下次进来还挂着上次的选中项。
+   */
+  setBatchMode(on) {
+    if (this.batchMode === on)
+      return;
+    this.batchMode = on;
+    this.batchSelected.clear();
+    this.refreshSessions();
+  }
+  toggleBatchSelection(id) {
+    if (this.batchSelected.has(id))
+      this.batchSelected.delete(id);
+    else
+      this.batchSelected.add(id);
+    this.refreshSessions();
+  }
+  toggleSelectAll() {
+    this.batchSelected = this.allSelected ? /* @__PURE__ */ new Set() : new Set(this.sessions.map((s) => s.id));
+    this.refreshSessions();
+  }
+  confirmDeleteSelected() {
+    const ids = this.sessions.filter((s) => this.batchSelected.has(s.id)).map((s) => s.id);
+    if (ids.length === 0)
+      return;
+    const modal = new import_obsidian16.Modal(this.plugin.app);
+    modal.titleEl.setText(t("view.batchDelete"));
+    modal.contentEl.createEl("p", {
+      text: t("view.batchConfirmDelete", { count: String(ids.length) })
+    });
+    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new import_obsidian16.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
+    new import_obsidian16.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
+      modal.close();
+      await this.deleteSessions(ids);
+    });
+    modal.open();
+  }
+  /**
+   * 删除若干会话（单条删除也走这里，只是数组长度为 1）。
+   * 清理项与原单条删除完全一致：内存数组 / 元数据快照 / 懒加载标记 / 磁盘文件。
+   */
+  async deleteSessions(ids) {
+    const doomed = new Set(ids);
+    this.sessions = this.sessions.filter((s) => !doomed.has(s.id));
+    for (const id of doomed) {
+      this.metaSnapshot.delete(id);
+      this.loadedIds.delete(id);
+      this.batchSelected.delete(id);
+      await deleteSessionFile(this.plugin, id);
+    }
+    const next = this.sessions[0];
+    if (!next) {
+      const fresh = createSession(t("view.defaultTitle"));
+      this.sessions.push(fresh);
+      this.activeId = fresh.id;
+    } else if (this.activeId === null || doomed.has(this.activeId)) {
+      this.activeId = next.id;
+    }
+    await this.persist();
+    this.batchMode = false;
+    this.batchSelected.clear();
+    this.renderSidebar();
+    this.renderMessages();
     this.renderChips();
     this.renderActions();
   }
@@ -7493,7 +7670,7 @@ ${extra}` : text
         }
       }
       await this.persist();
-      this.renderSessionList();
+      this.refreshSessions();
       return { needsReenter, reenterPaths: detected, assistantRowEl };
     } catch (e) {
       this.clearStreamingState();

@@ -15,18 +15,29 @@ const NATIVE_MENU_SUPPRESS_MS = 800;
 
 /** 构建会话行菜单所需的回调。 */
 export interface SessionRowMenuOptions {
+  /**
+   * 是否已处于批量操作模式。
+   * 为 true 时菜单整体换形（只留「退出批量操作」）——批量态下点整行是勾选、
+   * 不再是切换会话，此时再摆出「重命名 / 删除会话」只会让人以为删的是当前这条。
+   */
+  batchMode: boolean;
   /** 选中「重命名会话」。 */
   onRename: () => void;
   /** 选中「删除会话」（二次确认由调用方负责）。 */
   onDelete: () => void;
+  /** 选中「批量操作」：进入多选态。 */
+  onBatch: () => void;
+  /** 选中「退出批量操作」。 */
+  onExitBatch: () => void;
 }
 
 /**
  * 构建会话列表某一行的菜单。
  *
- * 顺序：重命名在上、删除在下，中间一条分隔线把危险操作隔开
- * （删除项挂 `setWarning(true)`，主题会给它 --text-error 配色）——
- * 与本插件设置页 skill 行的菜单（`skills/skillRowMenu.ts`）保持同一套约定。
+ * 普通态顺序：重命名 → 批量操作 → 分隔线 → 删除（挂 `setWarning(true)`，
+ * 主题会给它 --text-error 配色，与本插件设置页 skill 行的菜单
+ * （`skills/skillRowMenu.ts`）保持同一套约定）。
+ * 批量态顺序：只有「退出批量操作」一条 —— 它是除 Esc 之外唯一的退出口。
  *
  * 拆成独立函数而不是内联在 chatView 里：菜单项的构成 / 顺序 / 图标
  * 正是静态检查查不出、又最容易被后续重构悄悄改坏的部分，
@@ -34,11 +45,25 @@ export interface SessionRowMenuOptions {
  */
 export function buildSessionRowMenu(opts: SessionRowMenuOptions): Menu {
   const menu = new Menu();
+
+  if (opts.batchMode) {
+    menu.addItem((item) =>
+      item.setTitle(t("view.exitBatch")).setIcon("x").onClick(opts.onExitBatch)
+    );
+    return menu;
+  }
+
   menu.addItem((item) =>
     item
       .setTitle(t("view.renameSession"))
       .setIcon("pencil")
       .onClick(opts.onRename)
+  );
+  menu.addItem((item) =>
+    item
+      .setTitle(t("view.batchActions"))
+      .setIcon("list-checks")
+      .onClick(opts.onBatch)
   );
   menu.addSeparator();
   menu.addItem((item) =>

@@ -198,36 +198,48 @@
   text-overflow: ellipsis;
 }
 
-/* 侧栏「新建会话」：与顶栏那个 ＋ 是同一个动作，改用同一套原生图标按钮外观。
- * 原先的 `form-field` 底色 + 1px 边框是「被默认样式盖住」之后的找补，
- * 结果是同一个「新建会话」在侧栏是个灰盒子、在顶栏是另一个样子。 */
-.ana-chat-sidebar-new {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
+/* 批量操作下侧栏头部左侧的「已选 N / M」计数：点它全选 / 取消全选。
+ *
+ * 这是个真 <button>，要同时顶掉两条核心样式：
+ *   button:not(.clickable-icon) → (0,1,1)，会塞主题灰底 + input-shadow；
+ *   button { height: var(--input-height) } → (0,0,1)，会把高度锁死在 30px。
+ * 所以用父级前缀把选择器提到 (0,2,0)，并显式写 height: auto —— 少任何一条
+ * 都会退化成「30px 高的主题灰底方块」。不要用 !important。 */
+.ana-chat-sidebar-head .ana-chat-batch-count {
+  height: auto;
+  min-height: 0;
   padding: 0;
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
+  font-size: var(--font-smaller);
+  font-weight: var(--font-semibold);
+  line-height: 1.2;
+  text-align: left;
   cursor: pointer;
-  flex-shrink: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.ana-chat-sidebar-new svg,
-.ana-chat-sidebar-new .svg-icon {
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
-}
-
-.ana-chat-sidebar-new:hover {
-  background: var(--background-modifier-hover);
+.ana-chat-sidebar-head .ana-chat-batch-count:hover {
   color: var(--text-normal);
+}
+
+/* 批量删除按钮：外观复用顶栏那套 22×22 图标按钮（.ana-chat-header-btn），
+ * 只把 hover 与置灰换成危险色。选择器要提到 (0,3,0) 才压得住
+ * .ana-chat-header-btn:hover 的 (0,2,0)。 */
+.ana-chat-header-btn.ana-chat-batch-del:hover {
+  color: var(--text-error);
+}
+
+.ana-chat-sidebar-head .ana-chat-batch-del:disabled {
+  color: var(--text-faint);
+  background: transparent;
+  opacity: 0.4;
+  cursor: default;
 }
 
 .ana-chat-session-list {
@@ -276,11 +288,46 @@
   font-weight: var(--font-semibold);
 }
 
+/* 批量操作下已勾选的行。批量态下不渲染 is-active（见 chatView.ts），两者不会同时出现，
+ * 所以这里可以直接复用主题的「激活项」底色，不必另造一套配色。 */
+.ana-chat-session-item.is-selected {
+  background: var(--background-modifier-active-hover);
+}
+
 .ana-chat-session-label {
   flex: 1 1 auto;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* 批量操作：行首勾选框。勾选标记用 CSS 画（::after 转 45° 的两条边框），
+ * 不额外插一个 svg 节点，也就没有「图标尺寸要跟着主题变量走」那套麻烦。 */
+.ana-chat-session-check {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--text-faint);
+  border-radius: 3px;
+}
+
+.ana-chat-session-check.is-checked {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+}
+
+.ana-chat-session-check.is-checked::after {
+  content: "";
+  width: 3px;
+  height: 6px;
+  margin-top: -2px;
+  border: solid var(--text-on-accent);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
 }
 
 /* 主区 */
@@ -357,7 +404,7 @@
  * 代价是 `.clickable-icon` 自带 `padding: var(--size-2-2) var(--size-2-3)`，
  * 会把固定的 22×22 方块内容区压到只剩 6px，所以下面每条都显式 `padding: 0` 清掉。
  * 同一约定适用于 .ana-chat-model-btn / .ana-chat-action / .ana-chat-role-btn /
- * .ana-chat-send / .ana-chat-stop / .ana-chat-sidebar-new /
+ * .ana-chat-send / .ana-chat-stop / .ana-chat-batch-del /
  * .ana-chat-chip-x / .ana-model-link-action-btn。 */
 .ana-chat-header-btn {
   display: inline-flex;

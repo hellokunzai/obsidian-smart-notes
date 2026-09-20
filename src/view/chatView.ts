@@ -148,6 +148,14 @@ export class ChatView extends ItemView {
   private sidebarCollapsed = true;
   /** 顶栏左侧的会话历史开关按钮（图标随展开/收起状态切换）。 */
   private sidebarToggleBtn!: HTMLButtonElement;
+  /** 侧栏头部容器：批量模式下标题位会换成「已选 N / M」计数。 */
+  private sidebarHeadEl!: HTMLElement;
+  /** 批量操作模式：为 true 时列表进入多选态，点整行是勾选而非切换会话。 */
+  private batchMode = false;
+  /** 批量操作下已勾选的会话 id。 */
+  private batchSelected = new Set<string>();
+  /** 批量模式下按 Esc 退出的 document 监听器（onClose 里摘掉）。 */
+  private batchEscHandler: ((evt: KeyboardEvent) => void) | null = null;
 
   /**
    * 重入时临时注入的 skill 路径。
@@ -269,6 +277,7 @@ export class ChatView extends ItemView {
     this.initDefaultModelAndRole();
 
     this.renderLayout();
+    this.installBatchEscHandler();
 
     // 设置变更时刷新底部工具栏（如 🌐 按钮的启用/禁用态）
     this.registerEvent(
@@ -301,6 +310,32 @@ export class ChatView extends ItemView {
 
   async onClose(): Promise<void> {
     // 视图关闭时保留内存中的多会话状态，记忆已随时落盘
+    this.removeBatchEscHandler();
+  }
+
+  /**
+   * 装载「批量模式下按 Esc 退出」的监听器。
+   *
+   * 挂 document 而不是 contentEl：勾选走的是整行点击，点过之后焦点落到 body，
+   * 挂在 contentEl 上的监听器再也收不到键盘事件。非批量态直接放行（不 preventDefault），
+   * 免得抢掉 Obsidian 自己的 Esc 行为。
+   *
+   * 拆成独立方法（而不是内联在 onOpen 里）是为了能在离线冒烟测试里直接驱动它 ——
+   * 键盘退出口是这个功能唯一的「无鼠标」逃生通道，值得有断言守着。
+   */
+  private installBatchEscHandler(): void {
+    if (this.batchEscHandler) return;
+    this.batchEscHandler = (evt: KeyboardEvent): void => {
+      if (!this.batchMode || evt.key !== "Escape") return;
+      this.setBatchMode(false);
+    };
+    document.addEventListener("keydown", this.batchEscHandler);
+  }
+
+  private removeBatchEscHandler(): void {
+    if (!this.batchEscHandler) return;
+    document.removeEventListener("keydown", this.batchEscHandler);
+    this.batchEscHandler = null;
   }
 
   // ================= 布局 =================
@@ -512,29 +547,95 @@ export class ChatView extends ItemView {
   // ================= 侧栏 =================
 
   private renderSidebar(): void {
+    // 会话被删空时批量态失去意义：头部会留下一个永远点不亮的删除入口
+    if (this.batchMode && this.sessions.length === 0) {
+      this.batchMode = false;
+      this.batchSelected.clear();
+    }
+
     this.sidebarEl.empty();
-
-    const head = this.sidebarEl.createEl("div", { cls: "ana-chat-sidebar-head" });
-    head.createEl("span", {
-      text: t("view.history"),
-      cls: "ana-chat-sidebar-title",
+    this.sidebarHeadEl = this.sidebarEl.createEl("div", {
+      cls: "ana-chat-sidebar-head",
     });
-    const newBtn = head.createEl("button", {
-      cls: "clickable-icon ana-chat-sidebar-new",
-      attr: { "aria-label": t("view.newSession") },
-    });
-    // 原先用文本 "+" 当图标（项目里的历史遗留写法）。它与顶栏的「新建会话」是同一个动作，
-    // 换成同一个 `plus` 图标，两处才能长得一样。
-    setIcon(newBtn, "plus");
-    newBtn.addEventListener("click", () => void this.newSession());
-
     this.sessionListEl = this.sidebarEl.createEl("div", {
       cls: "ana-chat-session-list",
     });
+    this.refreshSessions();
+  }
+
+  /**
+   * 刷新侧栏头部：普通态是「会话历史」标题，批量态换成「已选 N / M」计数 + 删除按钮。
+   *
+   * 两种模式下头部的元素完全不同（标题是 span、计数是可点的 button），所以走整块重建
+   * 而不是改文案；代价只有两个字节点，换来的是不必维护两套状态的同步。
+   *
+   * 普通态下头部**不放任何按钮**：那个位置原先的 ＋（新建会话）与右侧顶栏的 ＋ 是同一个动作，
+   * 侧栏这枚去掉之后功能没有净损失，而腾出来的位置正好留给批量态的删除入口。
+   */
+  private renderSidebarHead(): void {
+    this.sidebarHeadEl.empty();
+
+    if (!this.batchMode) {
+      this.sidebarHeadEl.createEl("span", {
+        text: t("view.history"),
+        cls: "ana-chat-sidebar-title",
+      });
+      return;
+    }
+
+    // 计数按钮兼「全选 / 取消全选」：批量态下没有别的全选入口，
+    // 它同时是键盘可达的那一个（Tab 过去 Enter 即可）
+    this.sidebarHeadEl
+      .createEl("button", {
+        cls: "ana-chat-batch-count",
+        text: t("view.batchSelected", {
+          count: String(this.batchSelected.size),
+          total: String(this.sessions.length),
+        }),
+        attr: {
+          "aria-label": this.allSelected
+            ? t("view.batchClearAll")
+            : t("view.batchSelectAll"),
+        },
+      })
+      .addEventListener("click", () => this.toggleSelectAll());
+
+    const delBtn = this.sidebarHeadEl.createEl("button", {
+      // clickable-icon 不能省：少了它，app.css 的 `button:not(.clickable-icon)`
+      // 会把 input-shadow 与主题灰底压到我们这枚透明图标按钮上。
+      cls: "clickable-icon ana-chat-header-btn ana-chat-batch-del",
+      attr: { "aria-label": t("view.batchDelete") },
+    });
+    setIcon(delBtn, "trash-2");
+    // 一项都没勾时按钮置灰，避免点开一个「确定删除 0 个会话」的确认框
+    delBtn.disabled = this.batchSelected.size === 0;
+    delBtn.addEventListener("click", () => this.confirmDeleteSelected());
+  }
+
+  /** 是否所有会话都已勾选（列表为空时为 false，免得空列表上标签在「全选/取消全选」之间乱翻）。 */
+  private get allSelected(): boolean {
+    return (
+      this.sessions.length > 0 &&
+      this.sessions.every((s) => this.batchSelected.has(s.id))
+    );
+  }
+
+  /**
+   * 侧栏的统一刷新入口：头部 + 列表一起重建。
+   *
+   * 批量态下头部的计数（已选 N / M）依赖会话总数，所以列表每重建一次就顺带对齐一次头部，
+   * 否则会出现「新建了一个会话、头部还写着 / 8」这种不同步。
+   * 所有改动会话的路径都走这里，不要再单独调 renderSessionList。
+   */
+  private refreshSessions(): void {
+    this.renderSidebarHead();
     this.renderSessionList();
   }
 
   private renderSessionList(): void {
+    // 勾选也会走整块重建，先把滚动位置记下来再还回去，
+    // 否则勾一个靠底部的会话会把整个列表弹回顶部
+    const scrollTop = this.sessionListEl.scrollTop;
     this.sessionListEl.empty();
 
     if (this.sessions.length === 0) {
@@ -548,11 +649,21 @@ export class ChatView extends ItemView {
     // 按更新时间倒序展示
     const ordered = [...this.sessions].sort((a, b) => b.updatedAt - a.updatedAt);
     for (const s of ordered) {
+      const selected = this.batchMode && this.batchSelected.has(s.id);
       const item = this.sessionListEl.createEl("div", {
+        // 批量态下不渲染 is-active：此刻的高亮全指勾选，
+        // 让「当前会话」再占一层底色只会让人分不清哪个是勾了哪个是正在看
         cls:
           "ana-chat-session-item" +
-          (s.id === this.activeId ? " is-active" : ""),
+          (selected ? " is-selected" : "") +
+          (!this.batchMode && s.id === this.activeId ? " is-active" : ""),
       });
+
+      if (this.batchMode) {
+        item.createEl("span", {
+          cls: "ana-chat-session-check" + (selected ? " is-checked" : ""),
+        });
+      }
 
       const label = item.createEl("span", {
         text: s.title || t("view.defaultTitle"),
@@ -564,14 +675,23 @@ export class ChatView extends ItemView {
       // 改为整行的上下文菜单：桌面右键、移动端长按。两条入口共用同一份菜单。
       attachSessionRowTrigger(item, {
         enableLongPress: Platform.isMobile,
-        onSelect: () => void this.selectSession(s.id),
+        onSelect: () => {
+          // 批量态下整行点击 = 勾选 / 取消勾选，不再切换会话
+          if (this.batchMode) this.toggleBatchSelection(s.id);
+          else void this.selectSession(s.id);
+        },
         createMenu: () =>
           buildSessionRowMenu({
+            batchMode: this.batchMode,
             onRename: () => this.renameSession(s),
             onDelete: () => this.confirmDeleteSession(s),
+            onBatch: () => this.setBatchMode(true),
+            onExitBatch: () => this.setBatchMode(false),
           }),
       });
     }
+
+    this.sessionListEl.scrollTop = scrollTop;
   }
 
   private toggleSidebar(): void {
@@ -604,7 +724,7 @@ export class ChatView extends ItemView {
     this.activeId = s.id;
     this.loadedIds.add(s.id);
     await this.persist();
-    this.renderSessionList();
+    this.refreshSessions();
     this.renderMessages();
     this.renderChips();
     this.renderActions();
@@ -623,7 +743,7 @@ export class ChatView extends ItemView {
     }
     this.activeId = id;
     await this.persist();
-    this.renderSessionList();
+    this.refreshSessions();
     this.renderMessages();
     this.renderChips();
     this.renderActions();
@@ -650,7 +770,7 @@ export class ChatView extends ItemView {
         s.updatedAt = Date.now();
         modal.close();
         await this.persist();
-        this.renderSessionList();
+        this.refreshSessions();
         if (s.id === this.activeId) this.renderMessages();
       });
 
@@ -673,25 +793,7 @@ export class ChatView extends ItemView {
       .setWarning()
       .onClick(async () => {
         modal.close();
-        this.sessions = this.sessions.filter((x) => x.id !== s.id);
-        this.metaSnapshot.delete(s.id);
-        this.loadedIds.delete(s.id);
-        await deleteSessionFile(this.plugin, s.id);
-        if (this.activeId === s.id) {
-          const next = this.sessions[0];
-          if (next) {
-            this.activeId = next.id;
-          } else {
-            const fresh = createSession(t("view.defaultTitle"));
-            this.sessions.push(fresh);
-            this.activeId = fresh.id;
-          }
-        }
-        await this.persist();
-        this.renderSessionList();
-        this.renderMessages();
-        this.renderChips();
-        this.renderActions();
+        await this.deleteSessions([s.id]);
       });
     modal.open();
   }
@@ -706,7 +808,96 @@ export class ChatView extends ItemView {
     s.updatedAt = Date.now();
     await this.persist();
     this.renderMessages();
-    this.renderSessionList();
+    this.refreshSessions();
+    this.renderChips();
+    this.renderActions();
+  }
+
+  // ================= 批量操作 =================
+
+  /**
+   * 进入 / 退出批量操作模式，并清空上一次的勾选。
+   *
+   * 「批量操作」只从会话行的右键菜单（移动端长按）进入，所以进入时列表必然非空；
+   * 退出时一并清空勾选，免得下次进来还挂着上次的选中项。
+   */
+  private setBatchMode(on: boolean): void {
+    if (this.batchMode === on) return;
+    this.batchMode = on;
+    this.batchSelected.clear();
+    this.refreshSessions();
+  }
+
+  private toggleBatchSelection(id: string): void {
+    if (this.batchSelected.has(id)) this.batchSelected.delete(id);
+    else this.batchSelected.add(id);
+    this.refreshSessions();
+  }
+
+  private toggleSelectAll(): void {
+    this.batchSelected = this.allSelected
+      ? new Set<string>()
+      : new Set(this.sessions.map((s) => s.id));
+    this.refreshSessions();
+  }
+
+  private confirmDeleteSelected(): void {
+    const ids = this.sessions
+      .filter((s) => this.batchSelected.has(s.id))
+      .map((s) => s.id);
+    if (ids.length === 0) return;
+
+    const modal = new Modal(this.plugin.app);
+    modal.titleEl.setText(t("view.batchDelete"));
+    modal.contentEl.createEl("p", {
+      text: t("view.batchConfirmDelete", { count: String(ids.length) }),
+    });
+
+    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new ButtonComponent(btns)
+      .setButtonText(t("modal.cancel"))
+      .onClick(() => modal.close());
+    new ButtonComponent(btns)
+      .setButtonText(t("view.deleteSession"))
+      .setWarning()
+      .onClick(async () => {
+        modal.close();
+        await this.deleteSessions(ids);
+      });
+    modal.open();
+  }
+
+  /**
+   * 删除若干会话（单条删除也走这里，只是数组长度为 1）。
+   * 清理项与原单条删除完全一致：内存数组 / 元数据快照 / 懒加载标记 / 磁盘文件。
+   */
+  private async deleteSessions(ids: string[]): Promise<void> {
+    const doomed = new Set(ids);
+    this.sessions = this.sessions.filter((s) => !doomed.has(s.id));
+    for (const id of doomed) {
+      this.metaSnapshot.delete(id);
+      this.loadedIds.delete(id);
+      this.batchSelected.delete(id);
+      await deleteSessionFile(this.plugin, id);
+    }
+
+    // 当前会话被删掉时顺移到第一条；一条都不剩就补一个空白会话（与单条删除同一套兜底）
+    const next = this.sessions[0];
+    if (!next) {
+      const fresh = createSession(t("view.defaultTitle"));
+      this.sessions.push(fresh);
+      this.activeId = fresh.id;
+    } else if (this.activeId === null || doomed.has(this.activeId)) {
+      this.activeId = next.id;
+    }
+
+    await this.persist();
+
+    // 删除动作做完就回到普通态：留着批量态只会让人面对一个空勾选的删除入口
+    this.batchMode = false;
+    this.batchSelected.clear();
+    this.renderSidebar();
+    this.renderMessages();
     this.renderChips();
     this.renderActions();
   }
@@ -1893,7 +2084,7 @@ export class ChatView extends ItemView {
         }
       }
       await this.persist();
-      this.renderSessionList();
+      this.refreshSessions();
       return { needsReenter, reenterPaths: detected, assistantRowEl };
     } catch (e) {
       this.clearStreamingState();
