@@ -519,12 +519,18 @@
 }
 
 /* ==================== 打字指示器（思考中动画） ==================== */
+/* 「思考中」标记类：只做状态标记（:empty 占位、hideTypingIndicator 判定），
+   刻意不给容器加 display:flex —— 该类挂在正文容器 .ana-chat-text 上，
+   若流式期间一次 renderStreaming 都没跑到（如工具预检后模型一次性返回），
+   残留的此类会把正文里所有块级元素排成一行。改为纯行内排版，残留也无副作用。 */
 .ana-chat-typing {
-  display: flex;
-  align-items: center;
-  gap: 4px;
   color: var(--text-muted);
   font-size: var(--font-smaller);
+}
+
+.ana-chat-typing .ana-chat-typing-dots {
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 .ana-chat-typing-text {

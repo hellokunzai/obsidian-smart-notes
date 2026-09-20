@@ -7024,6 +7024,7 @@ var ChatView = class extends import_obsidian15.ItemView {
   /** 使用 Obsidian 内置渲染器将 Markdown 渲染到指定元素。 */
   async renderMarkdown(el, text) {
     el.empty();
+    el.removeClass("ana-chat-typing");
     if (!text.trim()) {
       return;
     }
@@ -7436,6 +7437,7 @@ ${extra}` : text
       this.clearStreamingState();
       const bubble = assistantContentEl.closest(".ana-chat-bubble");
       bubble.addClass("ana-chat-bubble-error");
+      assistantContentEl.removeClass("ana-chat-typing");
       assistantContentEl.empty();
       assistantContentEl.setText(t("view.error", { error: e.message }));
       s.messages.pop();

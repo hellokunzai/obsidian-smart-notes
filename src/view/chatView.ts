@@ -1406,6 +1406,8 @@ export class ChatView extends ItemView {
   /** 使用 Obsidian 内置渲染器将 Markdown 渲染到指定元素。 */
   private async renderMarkdown(el: HTMLElement, text: string): Promise<void> {
     el.empty();
+    // 兜底：清掉可能残留的「思考中」标记类，避免正文被 .ana-chat-typing 的样式横排
+    el.removeClass("ana-chat-typing");
     if (!text.trim()) {
       return;
     }
@@ -1903,6 +1905,7 @@ export class ChatView extends ItemView {
       this.clearStreamingState();
       const bubble = assistantContentEl.closest(".ana-chat-bubble") as HTMLElement;
       bubble.addClass("ana-chat-bubble-error");
+      assistantContentEl.removeClass("ana-chat-typing");
       assistantContentEl.empty();
       assistantContentEl.setText(t("view.error", { error: (e as Error).message }));
       // 出错时回滚刚加入的用户消息，避免污染历史
