@@ -756,7 +756,7 @@ export class ChatView extends ItemView {
 
   private renameSession(s: Session): void {
     const modal = new Modal(this.plugin.app);
-    modal.titleEl.setText(t("view.renameSession"));
+    modal.titleEl.setText(t("view.rename"));
 
     // 无标签行：标题输入框独占一行，从内容区最左铺到最右
     const input = modal.contentEl.createEl("input", {

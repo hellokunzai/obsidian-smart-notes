@@ -179,7 +179,7 @@ var en_default = {
   "view.history": "Session history",
   "view.noSessions": "No sessions yet",
   "view.defaultTitle": "New chat",
-  "view.renameSession": "Rename session",
+  "view.rename": "Rename",
   "view.deleteSession": "Delete session",
   "view.confirmDelete": 'Delete session "{title}"? This cannot be undone.',
   "view.batchActions": "Batch actions",
@@ -531,7 +531,7 @@ var zh_default = {
   "view.history": "\u4F1A\u8BDD\u5386\u53F2",
   "view.noSessions": "\u6682\u65E0\u4F1A\u8BDD",
   "view.defaultTitle": "\u65B0\u5BF9\u8BDD",
-  "view.renameSession": "\u91CD\u547D\u540D\u4F1A\u8BDD",
+  "view.rename": "\u91CD\u547D\u540D",
   "view.deleteSession": "\u5220\u9664\u4F1A\u8BDD",
   "view.confirmDelete": "\u786E\u5B9A\u5220\u9664\u4F1A\u8BDD\u300C{title}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
   "view.batchActions": "\u6279\u91CF\u64CD\u4F5C",
@@ -5060,7 +5060,7 @@ function buildSessionRowMenu(opts) {
     return menu;
   }
   menu.addItem(
-    (item) => item.setTitle(t("view.renameSession")).setIcon("pencil").onClick(opts.onRename)
+    (item) => item.setTitle(t("view.rename")).setIcon("pencil").onClick(opts.onRename)
   );
   menu.addItem(
     (item) => item.setTitle(t("view.batchActions")).setIcon("list-checks").onClick(opts.onBatch)
@@ -6545,7 +6545,7 @@ var ChatView = class extends import_obsidian16.ItemView {
   }
   renameSession(s) {
     const modal = new import_obsidian16.Modal(this.plugin.app);
-    modal.titleEl.setText(t("view.renameSession"));
+    modal.titleEl.setText(t("view.rename"));
     const input = modal.contentEl.createEl("input", {
       cls: "ana-chat-rename-input",
       attr: { type: "text" }

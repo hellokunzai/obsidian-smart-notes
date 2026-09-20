@@ -141,7 +141,7 @@
   "view.history": "Session history",
   "view.noSessions": "No sessions yet",
   "view.defaultTitle": "New chat",
-  "view.renameSession": "Rename session",
+  "view.rename": "Rename",
   "view.deleteSession": "Delete session",
   "view.confirmDelete": "Delete session \"{title}\"? This cannot be undone.",
   "view.batchActions": "Batch actions",

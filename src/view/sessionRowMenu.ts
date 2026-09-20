@@ -21,7 +21,7 @@ export interface SessionRowMenuOptions {
    * 不再是切换会话，此时再摆出「重命名 / 删除会话」只会让人以为删的是当前这条。
    */
   batchMode: boolean;
-  /** 选中「重命名会话」。 */
+  /** 选中「重命名」。 */
   onRename: () => void;
   /** 选中「删除会话」（二次确认由调用方负责）。 */
   onDelete: () => void;
@@ -39,6 +39,11 @@ export interface SessionRowMenuOptions {
  * （`skills/skillRowMenu.ts`）保持同一套约定）。
  * 批量态顺序：只有「退出批量操作」一条 —— 它是除 Esc 之外唯一的退出口。
  *
+ * 「重命名」这一个键（`view.rename`）同时供**菜单项**与**重命名弹窗的标题**使用：
+ * 两处文案相同，共用一个键就不会出现「改了一处忘了另一处」。
+ * 注意别和 `view.deleteSession` 搞混 —— 那个键同时当删除弹窗的标题**和**确认按钮的文字，
+ * 比菜单里那一项长（「删除会话」而非「删除」），目前是有意的、未动。
+ *
  * 拆成独立函数而不是内联在 chatView 里：菜单项的构成 / 顺序 / 图标
  * 正是静态检查查不出、又最容易被后续重构悄悄改坏的部分，
  * 独立出来才能在离线冒烟测试里断言「有哪些项、什么顺序、点下去调了什么」。
@@ -55,7 +60,7 @@ export function buildSessionRowMenu(opts: SessionRowMenuOptions): Menu {
 
   menu.addItem((item) =>
     item
-      .setTitle(t("view.renameSession"))
+      .setTitle(t("view.rename"))
       .setIcon("pencil")
       .onClick(opts.onRename)
   );

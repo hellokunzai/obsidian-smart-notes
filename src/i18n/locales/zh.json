@@ -141,7 +141,7 @@
   "view.history": "会话历史",
   "view.noSessions": "暂无会话",
   "view.defaultTitle": "新对话",
-  "view.renameSession": "重命名会话",
+  "view.rename": "重命名",
   "view.deleteSession": "删除会话",
   "view.confirmDelete": "确定删除会话「{title}」吗？此操作不可撤销。",
   "view.batchActions": "批量操作",
