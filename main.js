@@ -167,7 +167,6 @@ var en_default = {
   "view.tokensHint": "Token usage for this reply (prompt + completion)",
   "frontmatter.systemPrompt": "You are a metadata assistant. Based on the Markdown note provided by the user, generate a concise and relevant YAML frontmatter. Include standard fields such as title, date, tags, category, summary, and keywords. The date field must use today's date in YYYY-MM-DD format. Return only a YAML block wrapped in `---`, with no explanation or additional content.",
   "view.title": "AI Chat",
-  "view.welcome": "Ask me anything about your vault or the active note.",
   "view.placeholder": "Type a message\u2026 (Enter to send, Shift+Enter for newline)",
   "view.send": "Send",
   "view.thinking": "Thinking\u2026",
@@ -519,7 +518,6 @@ var zh_default = {
   "view.tokensHint": "\u672C\u6B21\u56DE\u590D\u7684 Token \u6D88\u8017\uFF08prompt + completion\uFF09",
   "frontmatter.systemPrompt": "\u4F60\u662F\u4E00\u540D\u5143\u6570\u636E\u6574\u7406\u52A9\u624B\u3002\u8BF7\u6839\u636E\u7528\u6237\u63D0\u4F9B\u7684 Markdown \u7B14\u8BB0\u5185\u5BB9\uFF0C\u751F\u6210\u4E00\u6BB5\u7B80\u6D01\u3001\u76F8\u5173\u7684 YAML frontmatter\u3002\u5EFA\u8BAE\u5305\u542B title\u3001date\u3001tags\u3001category\u3001summary\u3001keywords \u7B49\u6807\u51C6\u5B57\u6BB5\u3002\u5176\u4E2D date \u5B57\u6BB5\u8BF7\u52A1\u5FC5\u4F7F\u7528\u4ECA\u5929\u7684\u65E5\u671F\uFF0C\u683C\u5F0F\u4E3A YYYY-MM-DD\u3002\u8BF7\u53EA\u8FD4\u56DE\u88AB `---` \u5305\u88F9\u7684 YAML \u4EE3\u7801\u5757\uFF0C\u4E0D\u8981\u8F93\u51FA\u89E3\u91CA\u6216\u5176\u4ED6\u5185\u5BB9\u3002",
   "view.title": "AI \u5BF9\u8BDD",
-  "view.welcome": "\u53EF\u4EE5\u95EE\u6211\u5173\u4E8E\u4F60\u7684\u77E5\u8BC6\u5E93\u6216\u5F53\u524D\u7B14\u8BB0\u7684\u95EE\u9898\u3002",
   "view.placeholder": "\u8F93\u5165\u6D88\u606F\u2026\u2026\uFF08\u6309 Enter \u53D1\u9001\uFF0CShift+Enter \u6362\u884C\uFF09",
   "view.send": "\u53D1\u9001",
   "view.thinking": "\u601D\u8003\u4E2D\u2026\u2026",
@@ -6252,7 +6250,7 @@ var ChatView = class extends import_obsidian16.ItemView {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.clearCurrent") }
     });
-    (0, import_obsidian16.setIcon)(clearBtn, "trash");
+    (0, import_obsidian16.setIcon)(clearBtn, "brush-cleaning");
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
     this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
     this.attachLinkHandler(this.messagesEl);
@@ -7050,10 +7048,8 @@ var ChatView = class extends import_obsidian16.ItemView {
   renderMessages() {
     this.messagesEl.empty();
     const s = this.activeSession;
-    if (!s || s.messages.length === 0) {
-      this.addAssistantMessage(t("view.welcome"));
+    if (!s || s.messages.length === 0)
       return;
-    }
     for (const m of s.messages) {
       this.addMessage(m.role, m.content, m.usage, m.reasoningContent, m.roleId, {
         createdAt: m.createdAt,

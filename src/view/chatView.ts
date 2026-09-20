@@ -388,7 +388,7 @@ export class ChatView extends ItemView {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.clearCurrent") },
     });
-    setIcon(clearBtn, "trash");
+    setIcon(clearBtn, "brush-cleaning");
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
 
     this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
@@ -1334,10 +1334,7 @@ export class ChatView extends ItemView {
   private renderMessages(): void {
     this.messagesEl.empty();
     const s = this.activeSession;
-    if (!s || s.messages.length === 0) {
-      this.addAssistantMessage(t("view.welcome"));
-      return;
-    }
+    if (!s || s.messages.length === 0) return;
     for (const m of s.messages) {
       this.addMessage(m.role, m.content, m.usage, m.reasoningContent, m.roleId, {
         createdAt: m.createdAt,
