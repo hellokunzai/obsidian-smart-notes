@@ -146,7 +146,6 @@
   "view.confirmDelete": "确定删除会话「{title}」吗？此操作不可撤销。",
   "view.batchActions": "批量操作",
   "view.exitBatch": "退出批量操作",
-  "view.batchSelected": "已选 {count} / {total}",
   "view.batchSelectAll": "全选",
   "view.batchClearAll": "取消全选",
   "view.batchDelete": "删除选中会话",

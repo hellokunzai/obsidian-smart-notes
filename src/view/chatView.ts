@@ -564,9 +564,9 @@ export class ChatView extends ItemView {
   }
 
   /**
-   * 刷新侧栏头部：普通态是「会话历史」标题，批量态换成「已选 N / M」计数 + 删除按钮。
+   * 刷新侧栏头部：普通态是「会话历史」标题，批量态是「多选框 + 会话历史」+ 删除按钮。
    *
-   * 两种模式下头部的元素完全不同（标题是 span、计数是可点的 button），所以走整块重建
+   * 两种模式下头部的元素不同（普通态是裸 span、批量态是可点的 button），所以走整块重建
    * 而不是改文案；代价只有两个字节点，换来的是不必维护两套状态的同步。
    *
    * 普通态下头部**不放任何按钮**：那个位置原先的 ＋（新建会话）与右侧顶栏的 ＋ 是同一个动作，
@@ -583,22 +583,27 @@ export class ChatView extends ItemView {
       return;
     }
 
-    // 计数按钮兼「全选 / 取消全选」：批量态下没有别的全选入口，
-    // 它同时是键盘可达的那一个（Tab 过去 Enter 即可）
-    this.sidebarHeadEl
-      .createEl("button", {
-        cls: "ana-chat-batch-count",
-        text: t("view.batchSelected", {
-          count: String(this.batchSelected.size),
-          total: String(this.sessions.length),
-        }),
-        attr: {
-          "aria-label": this.allSelected
-            ? t("view.batchClearAll")
-            : t("view.batchSelectAll"),
-        },
-      })
-      .addEventListener("click", () => this.toggleSelectAll());
+    // 「多选框 + 会话历史」整块是一个按钮，兼「全选 / 取消全选」：
+    // 批量态下没有别的全选入口，它同时是键盘可达的那一个（Tab 过去 Enter 即可）。
+    // 勾选框画成 span 而不是 <input type="checkbox">，是为了和列表行的勾选框
+    // 共用 .ana-chat-session-check 那一套样式，两处勾的观感才对得上。
+    const selectAll = this.sidebarHeadEl.createEl("button", {
+      cls: "ana-chat-batch-selectall",
+      attr: {
+        "aria-label": this.allSelected
+          ? t("view.batchClearAll")
+          : t("view.batchSelectAll"),
+        "aria-pressed": this.allSelected ? "true" : "false",
+      },
+    });
+    selectAll.createEl("span", {
+      cls: "ana-chat-session-check" + (this.allSelected ? " is-checked" : ""),
+    });
+    selectAll.createEl("span", {
+      cls: "ana-chat-sidebar-title",
+      text: t("view.history"),
+    });
+    selectAll.addEventListener("click", () => this.toggleSelectAll());
 
     const delBtn = this.sidebarHeadEl.createEl("button", {
       // clickable-icon 不能省：少了它，app.css 的 `button:not(.clickable-icon)`

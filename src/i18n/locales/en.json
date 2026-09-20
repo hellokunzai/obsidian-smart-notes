@@ -146,7 +146,6 @@
   "view.confirmDelete": "Delete session \"{title}\"? This cannot be undone.",
   "view.batchActions": "Batch actions",
   "view.exitBatch": "Exit batch mode",
-  "view.batchSelected": "{count} / {total}",
   "view.batchSelectAll": "Select all",
   "view.batchClearAll": "Clear selection",
   "view.batchDelete": "Delete selected sessions",

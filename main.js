@@ -184,7 +184,6 @@ var en_default = {
   "view.confirmDelete": 'Delete session "{title}"? This cannot be undone.',
   "view.batchActions": "Batch actions",
   "view.exitBatch": "Exit batch mode",
-  "view.batchSelected": "{count} / {total}",
   "view.batchSelectAll": "Select all",
   "view.batchClearAll": "Clear selection",
   "view.batchDelete": "Delete selected sessions",
@@ -537,7 +536,6 @@ var zh_default = {
   "view.confirmDelete": "\u786E\u5B9A\u5220\u9664\u4F1A\u8BDD\u300C{title}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
   "view.batchActions": "\u6279\u91CF\u64CD\u4F5C",
   "view.exitBatch": "\u9000\u51FA\u6279\u91CF\u64CD\u4F5C",
-  "view.batchSelected": "\u5DF2\u9009 {count} / {total}",
   "view.batchSelectAll": "\u5168\u9009",
   "view.batchClearAll": "\u53D6\u6D88\u5168\u9009",
   "view.batchDelete": "\u5220\u9664\u9009\u4E2D\u4F1A\u8BDD",
@@ -6391,9 +6389,9 @@ var ChatView = class extends import_obsidian16.ItemView {
     this.refreshSessions();
   }
   /**
-   * 刷新侧栏头部：普通态是「会话历史」标题，批量态换成「已选 N / M」计数 + 删除按钮。
+   * 刷新侧栏头部：普通态是「会话历史」标题，批量态是「多选框 + 会话历史」+ 删除按钮。
    *
-   * 两种模式下头部的元素完全不同（标题是 span、计数是可点的 button），所以走整块重建
+   * 两种模式下头部的元素不同（普通态是裸 span、批量态是可点的 button），所以走整块重建
    * 而不是改文案；代价只有两个字节点，换来的是不必维护两套状态的同步。
    *
    * 普通态下头部**不放任何按钮**：那个位置原先的 ＋（新建会话）与右侧顶栏的 ＋ 是同一个动作，
@@ -6408,16 +6406,21 @@ var ChatView = class extends import_obsidian16.ItemView {
       });
       return;
     }
-    this.sidebarHeadEl.createEl("button", {
-      cls: "ana-chat-batch-count",
-      text: t("view.batchSelected", {
-        count: String(this.batchSelected.size),
-        total: String(this.sessions.length)
-      }),
+    const selectAll = this.sidebarHeadEl.createEl("button", {
+      cls: "ana-chat-batch-selectall",
       attr: {
-        "aria-label": this.allSelected ? t("view.batchClearAll") : t("view.batchSelectAll")
+        "aria-label": this.allSelected ? t("view.batchClearAll") : t("view.batchSelectAll"),
+        "aria-pressed": this.allSelected ? "true" : "false"
       }
-    }).addEventListener("click", () => this.toggleSelectAll());
+    });
+    selectAll.createEl("span", {
+      cls: "ana-chat-session-check" + (this.allSelected ? " is-checked" : "")
+    });
+    selectAll.createEl("span", {
+      cls: "ana-chat-sidebar-title",
+      text: t("view.history")
+    });
+    selectAll.addEventListener("click", () => this.toggleSelectAll());
     const delBtn = this.sidebarHeadEl.createEl("button", {
       // clickable-icon 不能省：少了它，app.css 的 `button:not(.clickable-icon)`
       // 会把 input-shadow 与主题灰底压到我们这枚透明图标按钮上。

@@ -198,16 +198,20 @@
   text-overflow: ellipsis;
 }
 
-/* 批量操作下侧栏头部左侧的「已选 N / M」计数：点它全选 / 取消全选。
+/* 批量操作下侧栏头部左侧的「多选框 + 会话历史」：点它全选 / 取消全选。
  *
  * 这是个真 <button>，要同时顶掉两条核心样式：
  *   button:not(.clickable-icon) → (0,1,1)，会塞主题灰底 + input-shadow；
  *   button { height: var(--input-height) } → (0,0,1)，会把高度锁死在 30px。
  * 所以用父级前缀把选择器提到 (0,2,0)，并显式写 height: auto —— 少任何一条
  * 都会退化成「30px 高的主题灰底方块」。不要用 !important。 */
-.ana-chat-sidebar-head .ana-chat-batch-count {
+.ana-chat-sidebar-head .ana-chat-batch-selectall {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
   height: auto;
   min-height: 0;
+  min-width: 0;
   padding: 0;
   border: none;
   border-radius: var(--radius-s);
@@ -219,12 +223,12 @@
   line-height: 1.2;
   text-align: left;
   cursor: pointer;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
-.ana-chat-sidebar-head .ana-chat-batch-count:hover {
+/* 文案那个 span 自带 color: var(--text-muted)，只改按钮的颜色淡不动它，
+ * 所以 hover 要连子节点一起写（否则鼠标移上去只有勾选框变色）。 */
+.ana-chat-sidebar-head .ana-chat-batch-selectall:hover,
+.ana-chat-sidebar-head .ana-chat-batch-selectall:hover .ana-chat-sidebar-title {
   color: var(--text-normal);
 }
 
