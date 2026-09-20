@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => AiNoteAgentPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian11 = require("obsidian");
@@ -180,7 +180,6 @@ var en_default = {
   "view.noSessions": "No sessions yet",
   "view.defaultTitle": "New chat",
   "view.renameSession": "Rename session",
-  "view.sessionTitle": "Session title",
   "view.deleteSession": "Delete session",
   "view.confirmDelete": 'Delete session "{title}"? This cannot be undone.',
   "view.error": "Error: {error}",
@@ -527,7 +526,6 @@ var zh_default = {
   "view.noSessions": "\u6682\u65E0\u4F1A\u8BDD",
   "view.defaultTitle": "\u65B0\u5BF9\u8BDD",
   "view.renameSession": "\u91CD\u547D\u540D\u4F1A\u8BDD",
-  "view.sessionTitle": "\u4F1A\u8BDD\u6807\u9898",
   "view.deleteSession": "\u5220\u9664\u4F1A\u8BDD",
   "view.confirmDelete": "\u786E\u5B9A\u5220\u9664\u4F1A\u8BDD\u300C{title}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002",
   "view.error": "\u51FA\u9519\uFF1A{error}",
@@ -5025,7 +5023,7 @@ async function autopromptAtCursor(plugin, editor) {
 }
 
 // src/view/chatView.ts
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 
 // src/utils/cssVars.ts
 function setCssVars(el, vars) {
@@ -5036,8 +5034,85 @@ function setCssVars(el, vars) {
   }
 }
 
-// src/context/knowledge.ts
+// src/view/sessionRowMenu.ts
 var import_obsidian14 = require("obsidian");
+var LONG_PRESS_MS = 500;
+var LONG_PRESS_MOVE_TOLERANCE = 8;
+var NATIVE_MENU_SUPPRESS_MS = 800;
+function buildSessionRowMenu(opts) {
+  const menu = new import_obsidian14.Menu();
+  menu.addItem(
+    (item) => item.setTitle(t("view.renameSession")).setIcon("pencil").onClick(opts.onRename)
+  );
+  menu.addSeparator();
+  menu.addItem(
+    (item) => item.setTitle(t("view.deleteSession")).setIcon("trash-2").setWarning(true).onClick(opts.onDelete)
+  );
+  return menu;
+}
+function attachSessionRowTrigger(el, opts) {
+  let timer = null;
+  let suppressNextClick = false;
+  let longPressFiredAt = 0;
+  let originX = 0;
+  let originY = 0;
+  const cancelLongPress = () => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+  };
+  const openMenu = (x, y) => {
+    const menu = opts.createMenu();
+    el.classList.add("is-menu-open");
+    menu.onHide(() => el.classList.remove("is-menu-open"));
+    menu.showAtPosition({ x, y }, el.ownerDocument);
+  };
+  el.addEventListener("click", () => {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      return;
+    }
+    opts.onSelect();
+  });
+  el.addEventListener("contextmenu", (evt) => {
+    cancelLongPress();
+    evt.preventDefault();
+    if (Date.now() - longPressFiredAt < NATIVE_MENU_SUPPRESS_MS)
+      return;
+    evt.stopPropagation();
+    openMenu(evt.clientX, evt.clientY);
+  });
+  if (!opts.enableLongPress)
+    return;
+  el.addEventListener("pointerdown", (evt) => {
+    if (evt.pointerType === "mouse")
+      return;
+    suppressNextClick = false;
+    cancelLongPress();
+    originX = evt.clientX;
+    originY = evt.clientY;
+    timer = window.setTimeout(() => {
+      timer = null;
+      longPressFiredAt = Date.now();
+      suppressNextClick = true;
+      openMenu(originX, originY);
+    }, LONG_PRESS_MS);
+  });
+  el.addEventListener("pointermove", (evt) => {
+    if (timer === null)
+      return;
+    if (Math.abs(evt.clientX - originX) > LONG_PRESS_MOVE_TOLERANCE || Math.abs(evt.clientY - originY) > LONG_PRESS_MOVE_TOLERANCE) {
+      cancelLongPress();
+    }
+  });
+  el.addEventListener("pointerup", cancelLongPress);
+  el.addEventListener("pointercancel", cancelLongPress);
+  el.addEventListener("pointerleave", cancelLongPress);
+}
+
+// src/context/knowledge.ts
+var import_obsidian15 = require("obsidian");
 var STOP_WORDS = /* @__PURE__ */ new Set([
   // 中文
   "\u7684",
@@ -5554,14 +5629,14 @@ function messageMentionsFile(message, file) {
 }
 function collectMarkdownUnderFolder(app, folderPath) {
   const af = app.vault.getAbstractFileByPath(folderPath);
-  if (!(af instanceof import_obsidian14.TFolder))
+  if (!(af instanceof import_obsidian15.TFolder))
     return [];
   const out = [];
   const walk = (f) => {
     for (const child of f.children) {
-      if (child instanceof import_obsidian14.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian15.TFile && child.extension === "md") {
         out.push(child);
-      } else if (child instanceof import_obsidian14.TFolder) {
+      } else if (child instanceof import_obsidian15.TFolder) {
         walk(child);
       }
     }
@@ -5574,7 +5649,7 @@ function resolveAttachedFiles(app, attachments) {
   for (const ref of attachments) {
     if (ref.type === "file") {
       const af = app.vault.getAbstractFileByPath(ref.path);
-      if (af instanceof import_obsidian14.TFile && af.extension === "md") {
+      if (af instanceof import_obsidian15.TFile && af.extension === "md") {
         map.set(af.path, af);
       }
     } else {
@@ -5937,7 +6012,7 @@ var SIDEBAR_COLLAPSE_ICON = "smart-notes-sidebar-collapse";
 var SIDEBAR_COLLAPSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="1.77" width="22" height="1.96" rx="0.98"/><rect x="8.1" y="10.82" width="14.9" height="1.96" rx="0.98"/><rect x="1" y="19.87" width="22" height="1.96" rx="0.98"/><path d="M1 11.8 L5.26 8.95 L5.26 14.65 Z"/></svg>';
 var SIDEBAR_EXPAND_ICON = "smart-notes-sidebar-expand";
 var SIDEBAR_EXPAND_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="2.3" width="22" height="1.96" rx="0.98"/><rect x="9" y="8.06" width="14" height="1.96" rx="0.98"/><rect x="9" y="14.03" width="14" height="1.96" rx="0.98"/><rect x="1" y="19.66" width="22" height="1.96" rx="0.98"/><path d="M1.43 8.18 L5.99 11.9 L1.43 15.65 Z"/></svg>';
-var ChatView = class extends import_obsidian15.ItemView {
+var ChatView = class extends import_obsidian16.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     // 多会话状态
@@ -6076,7 +6151,7 @@ var ChatView = class extends import_obsidian15.ItemView {
       })
     );
     if (this.sessions.length > 0) {
-      new import_obsidian15.Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
+      new import_obsidian16.Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
     }
   }
   /** 用完整会话数据替换内存中同 id 的占位对象（不存在则追加）。 */
@@ -6116,13 +6191,13 @@ var ChatView = class extends import_obsidian15.ItemView {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.newSession") }
     });
-    (0, import_obsidian15.setIcon)(newBtn, "plus");
+    (0, import_obsidian16.setIcon)(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
     const clearBtn = rightGroup.createEl("button", {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.clearCurrent") }
     });
-    (0, import_obsidian15.setIcon)(clearBtn, "trash");
+    (0, import_obsidian16.setIcon)(clearBtn, "trash");
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
     this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
     this.attachLinkHandler(this.messagesEl);
@@ -6132,37 +6207,37 @@ var ChatView = class extends import_obsidian15.ItemView {
       cls: "clickable-icon ana-chat-model-btn",
       attr: { "aria-label": t("view.modelSelect") }
     });
-    (0, import_obsidian15.setIcon)(this.modelBtn, "sparkle");
+    (0, import_obsidian16.setIcon)(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
     this.roleBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-role-btn",
       attr: { "aria-label": t("view.roleSelect") }
     });
-    (0, import_obsidian15.setIcon)(this.roleBtn, "user");
+    (0, import_obsidian16.setIcon)(this.roleBtn, "user");
     this.roleBtn.addEventListener("click", () => void this.openRolePicker());
     this.skillBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.manageSkills") }
     });
-    (0, import_obsidian15.setIcon)(this.skillBtn, "puzzle");
+    (0, import_obsidian16.setIcon)(this.skillBtn, "puzzle");
     this.skillBtn.addEventListener("click", () => this.openSkillPicker());
     this.webToggleBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.webToggle") }
     });
-    (0, import_obsidian15.setIcon)(this.webToggleBtn, "globe");
+    (0, import_obsidian16.setIcon)(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
     this.attachBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") }
     });
-    (0, import_obsidian15.setIcon)(this.attachBtn, "folder-open");
+    (0, import_obsidian16.setIcon)(this.attachBtn, "folder-open");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
     this.propBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.selectProperties") }
     });
-    (0, import_obsidian15.setIcon)(this.propBtn, "tag");
+    (0, import_obsidian16.setIcon)(this.propBtn, "tag");
     this.propBtn.addEventListener("click", () => this.openPropertyPicker());
     const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
     this.inputWrapEl = inputArea.createEl("div", { cls: "ana-chat-input-wrap" });
@@ -6201,13 +6276,13 @@ var ChatView = class extends import_obsidian15.ItemView {
       cls: "clickable-icon ana-chat-send",
       attr: { "aria-label": t("view.send") }
     });
-    (0, import_obsidian15.setIcon)(this.sendBtn, "send");
+    (0, import_obsidian16.setIcon)(this.sendBtn, "send");
     this.sendBtn.addEventListener("click", () => void this.handleSend());
     this.stopBtn = rightActions.createEl("button", {
       cls: "clickable-icon ana-chat-stop",
       attr: { "aria-label": t("view.stop") }
     });
-    (0, import_obsidian15.setIcon)(this.stopBtn, "square");
+    (0, import_obsidian16.setIcon)(this.stopBtn, "square");
     this.stopBtn.addEventListener("click", () => this.handleStop());
     this.stopBtn.addClass("is-hidden");
     this.renderChips();
@@ -6255,7 +6330,7 @@ var ChatView = class extends import_obsidian15.ItemView {
       cls: "clickable-icon ana-chat-sidebar-new",
       attr: { "aria-label": t("view.newSession") }
     });
-    (0, import_obsidian15.setIcon)(newBtn, "plus");
+    (0, import_obsidian16.setIcon)(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
     this.sessionListEl = this.sidebarEl.createEl("div", {
       cls: "ana-chat-session-list"
@@ -6276,30 +6351,18 @@ var ChatView = class extends import_obsidian15.ItemView {
       const item = this.sessionListEl.createEl("div", {
         cls: "ana-chat-session-item" + (s.id === this.activeId ? " is-active" : "")
       });
-      item.addEventListener("click", () => void this.selectSession(s.id));
       const label = item.createEl("span", {
         text: s.title || t("view.defaultTitle"),
         cls: "ana-chat-session-label"
       });
       label.setAttribute("title", s.title || t("view.defaultTitle"));
-      const actions = item.createEl("div", { cls: "ana-chat-session-actions" });
-      const renameBtn = actions.createEl("button", {
-        cls: "clickable-icon ana-chat-session-action",
-        attr: { "aria-label": t("view.renameSession") }
-      });
-      (0, import_obsidian15.setIcon)(renameBtn, "pencil");
-      renameBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.renameSession(s);
-      });
-      const delBtn = actions.createEl("button", {
-        cls: "clickable-icon ana-chat-session-action ana-chat-session-del",
-        attr: { "aria-label": t("view.deleteSession") }
-      });
-      (0, import_obsidian15.setIcon)(delBtn, "trash-2");
-      delBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.confirmDeleteSession(s);
+      attachSessionRowTrigger(item, {
+        enableLongPress: import_obsidian16.Platform.isMobile,
+        onSelect: () => void this.selectSession(s.id),
+        createMenu: () => buildSessionRowMenu({
+          onRename: () => this.renameSession(s),
+          onDelete: () => this.confirmDeleteSession(s)
+        })
       });
     }
   }
@@ -6314,7 +6377,7 @@ var ChatView = class extends import_obsidian15.ItemView {
    * 让图标指向点击后侧栏移动的方向，而不是描述当前状态。
    */
   renderSidebarToggle() {
-    (0, import_obsidian15.setIcon)(
+    (0, import_obsidian16.setIcon)(
       this.sidebarToggleBtn,
       this.sidebarCollapsed ? SIDEBAR_EXPAND_ICON : SIDEBAR_COLLAPSE_ICON
     );
@@ -6354,18 +6417,16 @@ var ChatView = class extends import_obsidian15.ItemView {
     this.renderActions();
   }
   renameSession(s) {
-    const modal = new import_obsidian15.Modal(this.plugin.app);
+    const modal = new import_obsidian16.Modal(this.plugin.app);
     modal.titleEl.setText(t("view.renameSession"));
-    let input;
-    new import_obsidian15.Setting(modal.contentEl).setName(t("view.sessionTitle")).addText((text) => {
-      input = text.inputEl;
-      text.inputEl.value = s.title;
-      text.inputEl.focus();
+    const input = modal.contentEl.createEl("input", {
+      cls: "ana-chat-rename-input",
+      attr: { type: "text" }
     });
-    new import_obsidian15.ButtonComponent(modal.contentEl).setButtonText(t("modal.apply")).setCta().onClick(async () => {
-      var _a2;
-      const v = ((_a2 = input == null ? void 0 : input.value) != null ? _a2 : "").trim() || t("view.defaultTitle");
-      s.title = v;
+    input.value = s.title;
+    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new import_obsidian16.ButtonComponent(btns).setButtonText(t("modal.apply")).setCta().onClick(async () => {
+      s.title = input.value.trim() || t("view.defaultTitle");
       s.updatedAt = Date.now();
       modal.close();
       await this.persist();
@@ -6374,14 +6435,15 @@ var ChatView = class extends import_obsidian15.ItemView {
         this.renderMessages();
     });
     modal.open();
+    input.focus();
   }
   confirmDeleteSession(s) {
-    const modal = new import_obsidian15.Modal(this.plugin.app);
+    const modal = new import_obsidian16.Modal(this.plugin.app);
     modal.titleEl.setText(t("view.deleteSession"));
     modal.contentEl.createEl("p", { text: t("view.confirmDelete", { title: s.title }) });
     const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian15.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
-    new import_obsidian15.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
+    new import_obsidian16.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
+    new import_obsidian16.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
       modal.close();
       this.sessions = this.sessions.filter((x) => x.id !== s.id);
       this.metaSnapshot.delete(s.id);
@@ -6433,13 +6495,13 @@ var ChatView = class extends import_obsidian15.ItemView {
       const chip = this.chipsEl.createEl("div", { cls: "ana-chat-chip" });
       const icon = ref.type === "folder" ? "folder" : "file-text";
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian15.setIcon)(iconSpan, icon);
+      (0, import_obsidian16.setIcon)(iconSpan, icon);
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeAttachment") }
       });
-      (0, import_obsidian15.setIcon)(x, "x");
+      (0, import_obsidian16.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeAttachment(i));
     }
     for (let i = 0; i < s.skills.length; i++) {
@@ -6448,13 +6510,13 @@ var ChatView = class extends import_obsidian15.ItemView {
         cls: "ana-chat-chip ana-chat-chip-skill"
       });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian15.setIcon)(iconSpan, "puzzle");
+      (0, import_obsidian16.setIcon)(iconSpan, "puzzle");
       chip.createSpan({ text: path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeSkill") }
       });
-      (0, import_obsidian15.setIcon)(x, "x");
+      (0, import_obsidian16.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeSkill(i));
     }
     const props = (_a2 = s.frontmatterProps) != null ? _a2 : [];
@@ -6466,13 +6528,13 @@ var ChatView = class extends import_obsidian15.ItemView {
       const kindIcon = chip.createSpan({
         cls: "ana-chat-chip-kind ana-chat-chip-kind-icon"
       });
-      (0, import_obsidian15.setIcon)(kindIcon, "tag");
+      (0, import_obsidian16.setIcon)(kindIcon, "tag");
       chip.createSpan({ text: key, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeProperty", { key }) }
       });
-      (0, import_obsidian15.setIcon)(x, "x");
+      (0, import_obsidian16.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeFrontmatterProp(i));
     }
   }
@@ -6506,7 +6568,7 @@ var ChatView = class extends import_obsidian15.ItemView {
       }
     }
     if (added === 0) {
-      new import_obsidian15.Notice(t("view.noNewAttachment"));
+      new import_obsidian16.Notice(t("view.noNewAttachment"));
       return;
     }
     s.updatedAt = Date.now();
@@ -6557,7 +6619,7 @@ var ChatView = class extends import_obsidian15.ItemView {
       }
     }
     if (added === 0) {
-      new import_obsidian15.Notice(t("view.noNewSkill"));
+      new import_obsidian16.Notice(t("view.noNewSkill"));
       return;
     }
     s.updatedAt = Date.now();
@@ -6786,7 +6848,7 @@ var ChatView = class extends import_obsidian15.ItemView {
     if (s.webSearch) {
       const cfg = this.buildSearchConfig();
       if (!new WebSearchService(this.app, cfg).hasCredentials()) {
-        new import_obsidian15.Notice(t("view.webNoCredentials"));
+        new import_obsidian16.Notice(t("view.webNoCredentials"));
       }
     }
   }
@@ -6930,13 +6992,13 @@ var ChatView = class extends import_obsidian15.ItemView {
         cls: "ana-chat-chip ana-chat-chip-skill"
       });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian15.setIcon)(iconSpan, "puzzle");
+      (0, import_obsidian16.setIcon)(iconSpan, "puzzle");
       chip.createSpan({ text: this.skillDisplayName(p), cls: "ana-chat-chip-label" });
     }
     for (const ref of (_b2 = meta.attachments) != null ? _b2 : []) {
       const chip = footer.createEl("div", { cls: "ana-chat-chip" });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian15.setIcon)(iconSpan, ref.type === "folder" ? "folder" : "file-text");
+      (0, import_obsidian16.setIcon)(iconSpan, ref.type === "folder" ? "folder" : "file-text");
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
     }
     if (meta.createdAt) {
@@ -6948,8 +7010,8 @@ var ChatView = class extends import_obsidian15.ItemView {
   }
   /** 发送时间格式化：当天仅显示 HH:mm，否则显示 YYYY-MM-DD HH:mm。 */
   formatMessageTime(ts) {
-    const d = (0, import_obsidian15.moment)(ts);
-    if (d.isSame((0, import_obsidian15.moment)(), "day")) {
+    const d = (0, import_obsidian16.moment)(ts);
+    if (d.isSame((0, import_obsidian16.moment)(), "day")) {
       return d.format("HH:mm");
     }
     return d.format("YYYY-MM-DD HH:mm");
@@ -7013,10 +7075,10 @@ var ChatView = class extends import_obsidian15.ItemView {
       evt.stopPropagation();
       const cleanPath = filePath.split("?")[0].split("#")[0];
       const file = this.app.vault.getAbstractFileByPath(cleanPath);
-      if (file instanceof import_obsidian15.TFile) {
+      if (file instanceof import_obsidian16.TFile) {
         void this.app.workspace.getLeaf(false).openFile(file);
       } else {
-        new import_obsidian15.Notice(t("view.fileNotFound", { path: cleanPath }));
+        new import_obsidian16.Notice(t("view.fileNotFound", { path: cleanPath }));
       }
     });
   }
@@ -7029,7 +7091,7 @@ var ChatView = class extends import_obsidian15.ItemView {
       return;
     }
     try {
-      await import_obsidian15.MarkdownRenderer.renderMarkdown(text, el, "", this);
+      await import_obsidian16.MarkdownRenderer.renderMarkdown(text, el, "", this);
     } catch (e) {
       el.setText(text);
     }
@@ -7229,7 +7291,7 @@ var ChatView = class extends import_obsidian15.ItemView {
           sess.messages.pop();
       }
       this.transientSkillPaths.push(...r0.reenterPaths);
-      new import_obsidian15.Notice(t("view.skillReenter", { count: r0.reenterPaths.length }));
+      new import_obsidian16.Notice(t("view.skillReenter", { count: r0.reenterPaths.length }));
       await this.runTurn(1);
       this.transientSkillPaths = [];
     }
@@ -7393,7 +7455,7 @@ ${extra}` : text
       const needsReenter = detected.length > 0 && depth < 1;
       if (detected.length > 0 && !needsReenter) {
         this.renderChips();
-        new import_obsidian15.Notice(t("view.skillAutoLoaded", { count: detected.length }));
+        new import_obsidian16.Notice(t("view.skillAutoLoaded", { count: detected.length }));
       }
       let usage = result.usage;
       if (!usage && reply.length > 0) {
@@ -7460,7 +7522,7 @@ ${extra}` : text
     this.inputEl.disabled = disabled;
     this.sendBtn.disabled = disabled;
     this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
-    (0, import_obsidian15.setIcon)(this.sendBtn, disabled ? "loader" : "send");
+    (0, import_obsidian16.setIcon)(this.sendBtn, disabled ? "loader" : "send");
     this.sendBtn.toggleClass("is-hidden", disabled);
     this.stopBtn.toggleClass("is-hidden", !disabled);
   }
@@ -7740,7 +7802,7 @@ ${extra}` : text
     return parts.join("\n\n");
   }
 };
-var AttachmentPickerModal = class extends import_obsidian15.Modal {
+var AttachmentPickerModal = class extends import_obsidian16.Modal {
   constructor(app, plugin, onSubmit) {
     super(app);
     /** 被选中的 file/folder 的 path 集合（folder 整文件夹也算一条）。 */
@@ -7771,13 +7833,13 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
     });
     this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
     this.vaultRoot().children.forEach((c) => {
-      if (c instanceof import_obsidian15.TFolder)
+      if (c instanceof import_obsidian16.TFolder)
         this.expanded.add(c.path);
     });
     this.render();
     const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian15.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
-    this.confirmBtn = new import_obsidian15.ButtonComponent(btns).setButtonText(t("view.picker.confirm")).setCta().onClick(() => {
+    new import_obsidian16.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
+    this.confirmBtn = new import_obsidian16.ButtonComponent(btns).setButtonText(t("view.picker.confirm")).setCta().onClick(() => {
       const refs = this.buildRefs();
       this.close();
       this.onSubmit(refs);
@@ -7791,7 +7853,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
   /** 递归遍历所有 folder（含自身），对每个 folder 调用 cb。 */
   walkFolders(node, cb) {
     for (const child of node.children) {
-      if (child instanceof import_obsidian15.TFolder) {
+      if (child instanceof import_obsidian16.TFolder) {
         cb(child);
         this.walkFolders(child, cb);
       }
@@ -7801,9 +7863,9 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
   allLeaves(folder) {
     const out = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian15.TFile && child.extension === "md")
+      if (child instanceof import_obsidian16.TFile && child.extension === "md")
         out.push(child);
-      else if (child instanceof import_obsidian15.TFolder)
+      else if (child instanceof import_obsidian16.TFolder)
         out.push(...this.allLeaves(child));
     }
     return out;
@@ -7836,9 +7898,9 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
     const walk = (node) => {
       const selfHit = node.name.toLowerCase().includes(q);
       let childHit = false;
-      if (node instanceof import_obsidian15.TFolder) {
+      if (node instanceof import_obsidian16.TFolder) {
         for (const child of node.children) {
-          if (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile) {
+          if (child instanceof import_obsidian16.TFolder || child instanceof import_obsidian16.TFile) {
             if (walk(child))
               childHit = true;
           }
@@ -7849,7 +7911,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
       return selfHit || childHit;
     };
     for (const child of this.vaultRoot().children) {
-      if (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile)
+      if (child instanceof import_obsidian16.TFolder || child instanceof import_obsidian16.TFile)
         walk(child);
     }
     return visible;
@@ -7881,11 +7943,11 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
         return;
       shown++;
       const row = this.listEl.createEl("div", {
-        cls: "ana-tree-row" + (node instanceof import_obsidian15.TFolder ? " is-folder" : "")
+        cls: "ana-tree-row" + (node instanceof import_obsidian16.TFolder ? " is-folder" : "")
       });
       setCssVars(row, { "--ana-tree-indent": `${6 + depth * 18}px` });
       const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
-      if (node instanceof import_obsidian15.TFolder) {
+      if (node instanceof import_obsidian16.TFolder) {
         const isOpen = this.expanded.has(node.path) || visible !== null && visible.has(node.path);
         if (!isOpen)
           toggle.classList.add("collapsed");
@@ -7903,7 +7965,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
       }
       const cb = row.createEl("input", { cls: "ana-tree-cb" });
       cb.type = "checkbox";
-      if (node instanceof import_obsidian15.TFolder) {
+      if (node instanceof import_obsidian16.TFolder) {
         const st = this.folderState(node);
         if (st === "checked")
           cb.checked = true;
@@ -7916,7 +7978,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
       cb.addEventListener("change", () => this.onToggle(node));
       row.appendChild(cb);
       const icon = row.createEl("span", { cls: "ana-tree-icon" });
-      icon.setText(node instanceof import_obsidian15.TFolder ? "\u{1F4C1}" : "\u{1F4C4}");
+      icon.setText(node instanceof import_obsidian16.TFolder ? "\u{1F4C1}" : "\u{1F4C4}");
       const nameEl = row.createEl("span", { cls: "ana-tree-name" });
       for (const part of this.highlight(node.name)) {
         if (typeof part === "string")
@@ -7925,22 +7987,22 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
           nameEl.appendChild(part);
       }
       row.addEventListener("click", () => {
-        if (node instanceof import_obsidian15.TFolder) {
+        if (node instanceof import_obsidian16.TFolder) {
           toggle.click();
         } else {
           cb.checked = !cb.checked;
           cb.dispatchEvent(new Event("change"));
         }
       });
-      if (node instanceof import_obsidian15.TFolder && (this.expanded.has(node.path) || visible !== null && visible.has(node.path))) {
+      if (node instanceof import_obsidian16.TFolder && (this.expanded.has(node.path) || visible !== null && visible.has(node.path))) {
         for (const child of node.children) {
-          if (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile)
+          if (child instanceof import_obsidian16.TFolder || child instanceof import_obsidian16.TFile)
             walk(child, depth + 1);
         }
       }
     };
     for (const child of this.vaultRoot().children) {
-      if (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile)
+      if (child instanceof import_obsidian16.TFolder || child instanceof import_obsidian16.TFile)
         walk(child, 0);
     }
     if (shown === 0) {
@@ -7953,7 +8015,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
   }
   // ---- 勾选逻辑 ----
   onToggle(node) {
-    if (node instanceof import_obsidian15.TFolder) {
+    if (node instanceof import_obsidian16.TFolder) {
       const wantSelect = this.folderState(node) !== "checked";
       if (wantSelect) {
         this.selected.add(node.path);
@@ -7977,7 +8039,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
       const node = this.findNode(p);
       if (!node)
         return false;
-      if (node instanceof import_obsidian15.TFile) {
+      if (node instanceof import_obsidian16.TFile) {
         const parts = p.split("/");
         for (let i = 1; i < parts.length; i++) {
           if (this.selected.has(parts.slice(0, i).join("/")))
@@ -7988,7 +8050,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
     });
     return result.map((p) => {
       const node = this.findNode(p);
-      return { type: node instanceof import_obsidian15.TFolder ? "folder" : "file", path: p };
+      return { type: node instanceof import_obsidian16.TFolder ? "folder" : "file", path: p };
     });
   }
   findNode(path) {
@@ -7996,10 +8058,10 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
       if (node.path === path)
         return node;
       for (const child of node.children) {
-        if (child.path === path && (child instanceof import_obsidian15.TFolder || child instanceof import_obsidian15.TFile)) {
+        if (child.path === path && (child instanceof import_obsidian16.TFolder || child instanceof import_obsidian16.TFile)) {
           return child;
         }
-        if (child instanceof import_obsidian15.TFolder) {
+        if (child instanceof import_obsidian16.TFolder) {
           const found = walk(child);
           if (found)
             return found;
@@ -8018,7 +8080,7 @@ var AttachmentPickerModal = class extends import_obsidian15.Modal {
     this.contentEl.empty();
   }
 };
-var BaseListPickerModal = class extends import_obsidian15.Modal {
+var BaseListPickerModal = class extends import_obsidian16.Modal {
   /** 是否显示确认按钮（多选模式）。默认 false（单选：选中即关闭）。 */
   hasConfirmButton() {
     return false;
@@ -8053,9 +8115,9 @@ var BaseListPickerModal = class extends import_obsidian15.Modal {
     await this.loadItems();
     this.renderList();
     const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian15.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
+    new import_obsidian16.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
     if (this.hasConfirmButton()) {
-      new import_obsidian15.ButtonComponent(btns).setButtonText(this.getConfirmButtonText()).setCta().onClick(() => {
+      new import_obsidian16.ButtonComponent(btns).setButtonText(this.getConfirmButtonText()).setCta().onClick(() => {
         this.onConfirm();
         this.close();
       });
@@ -8402,11 +8464,11 @@ function migrateSettings(loaded, settings, app) {
 var SLASH_TRIGGER_LINE = /^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/;
 var SLASH_TRIGGER_STANDALONE = /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm;
 var ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg>`;
-var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
+var AiNoteAgentPlugin = class extends import_obsidian17.Plugin {
   constructor() {
     super(...arguments);
     /** 设置变更事件总线（用于通知已打开的视图刷新 UI）。 */
-    this.settingsEvents = new import_obsidian16.Events();
+    this.settingsEvents = new import_obsidian17.Events();
     /**
      * Ribbon 图标 DOM 引用，用于在关闭 chatPanelEnabled 时移除。
      * null 表示尚未添加或已主动 remove。
@@ -8455,9 +8517,9 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
     await this.loadSettings();
     this.provider = createProvider(this.app, this.settings);
     initI18n(this.app);
-    (0, import_obsidian16.addIcon)("smart-notes", ICON_SVG);
-    (0, import_obsidian16.addIcon)(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
-    (0, import_obsidian16.addIcon)(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
+    (0, import_obsidian17.addIcon)("smart-notes", ICON_SVG);
+    (0, import_obsidian17.addIcon)(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
+    (0, import_obsidian17.addIcon)(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
     void ensureAiFolder(this);
     if (this.settings.memoryProfileEnabled && this.settings.profileUpdateMode === "startup") {
       this.memoryRebuildTimeout = window.setTimeout(
@@ -8474,7 +8536,7 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
   }
   async openChatView(file) {
     if (!this.settings.chatPanelEnabled) {
-      new import_obsidian16.Notice(t("settings.chatPanel.desc"));
+      new import_obsidian17.Notice(t("settings.chatPanel.desc"));
       return;
     }
     const { workspace } = this.app;
@@ -8492,7 +8554,7 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
     }
     const rightLeaf = workspace.getRightLeaf(false);
     if (!rightLeaf) {
-      new import_obsidian16.Notice(t("view.openFailed"));
+      new import_obsidian17.Notice(t("view.openFailed"));
       return;
     }
     await rightLeaf.setViewState({
@@ -8530,18 +8592,18 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
     }
   }
   async runWithNotice(msg, fn) {
-    const notice = new import_obsidian16.Notice(msg, 0);
+    const notice = new import_obsidian17.Notice(msg, 0);
     try {
       await fn();
       notice.hide();
-      new import_obsidian16.Notice(t("notice.done"));
+      new import_obsidian17.Notice(t("notice.done"));
     } catch (e) {
       notice.hide();
-      new import_obsidian16.Notice(t("notice.error", { error: e.message }));
+      new import_obsidian17.Notice(t("notice.error", { error: e.message }));
     }
   }
   async optimizeCommand(file) {
-    const notice = new import_obsidian16.Notice(t("notice.optimizing"), 0);
+    const notice = new import_obsidian17.Notice(t("notice.optimizing"), 0);
     try {
       const content = await this.app.vault.read(file);
       const optimized = await optimizeNote(
@@ -8553,15 +8615,15 @@ var AiNoteAgentPlugin = class extends import_obsidian16.Plugin {
       notice.hide();
       new OptimizeModal(this.app, content, optimized, async (text) => {
         await this.app.vault.modify(file, text);
-        new import_obsidian16.Notice(t("notice.noteUpdated"));
+        new import_obsidian17.Notice(t("notice.noteUpdated"));
       }).open();
     } catch (e) {
       notice.hide();
-      new import_obsidian16.Notice(t("notice.error", { error: e.message }));
+      new import_obsidian17.Notice(t("notice.error", { error: e.message }));
     }
   }
   async generateFrontmatterCommand(file) {
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian16.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian17.MarkdownView);
     const editor = view == null ? void 0 : view.editor;
     let content = editor ? editor.getValue() : await this.app.vault.read(file);
     if (editor) {
@@ -8682,7 +8744,7 @@ ${body}`);
   /** 命令面板路径的上下文：以当前活动文件 / 活动 Markdown 视图为准。 */
   activeCommandContext() {
     var _a2, _b2, _c;
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian16.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian17.MarkdownView);
     return {
       file: (_b2 = (_a2 = this.app.workspace.getActiveFile()) != null ? _a2 : view == null ? void 0 : view.file) != null ? _b2 : null,
       editor: (_c = view == null ? void 0 : view.editor) != null ? _c : null,
@@ -8720,7 +8782,7 @@ ${body}`);
     if (this.submenuProbe === null) {
       let supported = false;
       try {
-        new import_obsidian16.Menu().addItem((item) => {
+        new import_obsidian17.Menu().addItem((item) => {
           const fn = item.setSubmenu;
           if (typeof fn !== "function")
             return;
@@ -8747,7 +8809,7 @@ ${body}`);
         const ctx = {
           editor,
           file: (_a2 = info.file) != null ? _a2 : null,
-          view: info instanceof import_obsidian16.MarkdownView ? info : null
+          view: info instanceof import_obsidian17.MarkdownView ? info : null
         };
         if (!this.supportsSubmenu()) {
           this.addMenuItems(menu, specs, ctx, true);

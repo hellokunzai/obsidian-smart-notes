@@ -5,11 +5,11 @@ import {
   TFolder,
   Notice,
   Modal,
-  Setting,
   ButtonComponent,
   setIcon,
   MarkdownRenderer,
   Component,
+  Platform,
   moment,
 } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
@@ -33,6 +33,7 @@ import {
   type SessionMessage,
 } from "../utils/aiFolder";
 import { setCssVars } from "../utils/cssVars";
+import { attachSessionRowTrigger, buildSessionRowMenu } from "./sessionRowMenu";
 import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex, collectFrontmatterKeys } from "../context/knowledge";
 import { buildSkillContent, buildSkillIndex, listSkills, type SkillEntry } from "../skills/skills";
 import {
@@ -552,7 +553,6 @@ export class ChatView extends ItemView {
           "ana-chat-session-item" +
           (s.id === this.activeId ? " is-active" : ""),
       });
-      item.addEventListener("click", () => void this.selectSession(s.id));
 
       const label = item.createEl("span", {
         text: s.title || t("view.defaultTitle"),
@@ -560,26 +560,16 @@ export class ChatView extends ItemView {
       });
       label.setAttribute("title", s.title || t("view.defaultTitle"));
 
-      const actions = item.createEl("div", { cls: "ana-chat-session-actions" });
-
-      const renameBtn = actions.createEl("button", {
-        cls: "clickable-icon ana-chat-session-action",
-        attr: { "aria-label": t("view.renameSession") },
-      });
-      setIcon(renameBtn, "pencil");
-      renameBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.renameSession(s);
-      });
-
-      const delBtn = actions.createEl("button", {
-        cls: "clickable-icon ana-chat-session-action ana-chat-session-del",
-        attr: { "aria-label": t("view.deleteSession") },
-      });
-      setIcon(delBtn, "trash-2");
-      delBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.confirmDeleteSession(s);
+      // 重命名 / 删除不再各占一枚行内图标按钮（窄侧栏里那两枚按钮会把标题挤掉），
+      // 改为整行的上下文菜单：桌面右键、移动端长按。两条入口共用同一份菜单。
+      attachSessionRowTrigger(item, {
+        enableLongPress: Platform.isMobile,
+        onSelect: () => void this.selectSession(s.id),
+        createMenu: () =>
+          buildSessionRowMenu({
+            onRename: () => this.renameSession(s),
+            onDelete: () => this.confirmDeleteSession(s),
+          }),
       });
     }
   }
@@ -642,27 +632,31 @@ export class ChatView extends ItemView {
   private renameSession(s: Session): void {
     const modal = new Modal(this.plugin.app);
     modal.titleEl.setText(t("view.renameSession"));
-    let input: HTMLInputElement;
-    new Setting(modal.contentEl)
-      .setName(t("view.sessionTitle"))
-      .addText((text) => {
-        input = text.inputEl;
-        text.inputEl.value = s.title;
-        text.inputEl.focus();
-      });
-    new ButtonComponent(modal.contentEl)
+
+    // 无标签行：标题输入框独占一行，从内容区最左铺到最右
+    const input = modal.contentEl.createEl("input", {
+      cls: "ana-chat-rename-input",
+      attr: { type: "text" },
+    });
+    input.value = s.title;
+
+    // 按钮独立成行、贴右，与删除确认弹窗共用 .ana-chat-modal-actions
+    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    new ButtonComponent(btns)
       .setButtonText(t("modal.apply"))
       .setCta()
       .onClick(async () => {
-        const v = (input?.value ?? "").trim() || t("view.defaultTitle");
-        s.title = v;
+        s.title = input.value.trim() || t("view.defaultTitle");
         s.updatedAt = Date.now();
         modal.close();
         await this.persist();
         this.renderSessionList();
         if (s.id === this.activeId) this.renderMessages();
       });
+
     modal.open();
+    // 放在 open() 之后：open() 前内容还不在文档里，focus() 不会生效
+    input.focus();
   }
 
   private confirmDeleteSession(s: Session): void {

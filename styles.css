@@ -254,9 +254,19 @@
   cursor: pointer;
   color: var(--text-normal);
   font-size: var(--font-smaller);
+  /* 行的操作走「右键 / 长按」上下文菜单，所以按下时不能开始文字选择：
+   * 移动端一旦进入选择态，Chromium 就不再派发 contextmenu，
+   * 我们自己的长按也会被选择手柄打断（-webkit-touch-callout 管 iOS 的系统弹层）。 */
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .ana-chat-session-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 菜单已弹出但尚未收起时，把该行标出来（右键时鼠标已经移开，hover 态不一定在） */
+.ana-chat-session-item.is-menu-open {
   background: var(--background-modifier-hover);
 }
 
@@ -271,50 +281,6 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.ana-chat-session-actions {
-  display: none;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.ana-chat-session-item:hover .ana-chat-session-actions {
-  display: flex;
-}
-
-.ana-chat-session-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: var(--radius-s);
-}
-
-/* 重命名 / 删除由文本字符 ✎ 🗑 换成真图标后，尺寸得自己定（图标不再吃 font-size） */
-.ana-chat-session-action svg,
-.ana-chat-session-action .svg-icon {
-  width: 13px !important;
-  height: 13px !important;
-  min-width: 13px !important;
-  min-height: 13px !important;
-}
-
-.ana-chat-session-action:hover {
-  background: var(--background-modifier-border);
-  color: var(--text-normal);
-}
-
-.ana-chat-session-del:hover {
-  color: var(--text-error);
 }
 
 /* 主区 */
@@ -391,7 +357,7 @@
  * 代价是 `.clickable-icon` 自带 `padding: var(--size-2-2) var(--size-2-3)`，
  * 会把固定的 22×22 方块内容区压到只剩 6px，所以下面每条都显式 `padding: 0` 清掉。
  * 同一约定适用于 .ana-chat-model-btn / .ana-chat-action / .ana-chat-role-btn /
- * .ana-chat-send / .ana-chat-stop / .ana-chat-sidebar-new / .ana-chat-session-action /
+ * .ana-chat-send / .ana-chat-stop / .ana-chat-sidebar-new /
  * .ana-chat-chip-x / .ana-model-link-action-btn。 */
 .ana-chat-header-btn {
   display: inline-flex;
@@ -423,7 +389,15 @@
   background: var(--background-modifier-hover);
 }
 
-/* 弹窗操作按钮（删除确认） */
+/* 重命名会话弹窗：标题输入框独占一行，从内容区最左铺到最右。
+ * 必须显式 width:100% —— Obsidian 核心样式给 input[type='text'] 只配了
+ * background/border/padding/font-size，没有宽度，默认按 size 属性（20 字符）算，
+ * 裸放会缩成一条窄框。 */
+.ana-chat-rename-input {
+  width: 100%;
+}
+
+/* 弹窗操作按钮行（重命名会话、删除确认）：整行靠右 */
 .ana-chat-modal-actions {
   display: flex;
   justify-content: flex-end;
