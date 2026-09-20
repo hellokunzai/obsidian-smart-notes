@@ -33,6 +33,7 @@ import {
   type SessionMessage,
 } from "../utils/aiFolder";
 import { setCssVars } from "../utils/cssVars";
+import { applyTooltip } from "../utils/tooltip";
 import { attachSessionRowTrigger, buildSessionRowMenu } from "./sessionRowMenu";
 import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex, collectFrontmatterKeys } from "../context/knowledge";
 import { buildSkillContent, buildSkillIndex, listSkills, type SkillEntry } from "../skills/skills";
@@ -670,11 +671,18 @@ export class ChatView extends ItemView {
         });
       }
 
-      const label = item.createEl("span", {
-        text: s.title || t("view.defaultTitle"),
+      const title = s.title || t("view.defaultTitle");
+      item.createEl("span", {
+        text: title,
         cls: "ana-chat-session-label",
       });
-      label.setAttribute("title", s.title || t("view.defaultTitle"));
+      // 悬停提示挂在**整行**上，而不是标题那个 span：标题是会被省略号截断的，
+      // 鼠标落在行内边距或标题右侧的留白处也照样该看到完整标题。
+      //
+      // 必须走 Obsidian 的提示（setTooltip → aria-label）而不是原生 `title` 属性：
+      // 后者由操作系统自绘，观感与顶栏「折叠/展开会话历史」那类提示对不上
+      // （原生是纯文本小框，Obsidian 的 `.tooltip` 才吃主题配色）。详见 utils/tooltip.ts。
+      applyTooltip(item, title);
 
       // 重命名 / 删除不再各占一枚行内图标按钮（窄侧栏里那两枚按钮会把标题挤掉），
       // 改为整行的上下文菜单：桌面右键、移动端长按。两条入口共用同一份菜单。
@@ -1214,7 +1222,7 @@ export class ChatView extends ItemView {
   /**
    * 写入标签的两段文本：模型名 + "/" + 角色名。
    * 角色名为 null 时隐藏分隔符与角色段，模型名独占整行；
-   * 完整信息保留到 title 属性，鼠标悬停可查看。
+   * 两段都各自会被省略号截断，完整信息交给整块的悬停提示，鼠标移上去可看全。
    */
   private renderModelLabelParts(
     modelText: string,
@@ -1226,9 +1234,9 @@ export class ChatView extends ItemView {
     this.modelLabelRoleEl.classList.toggle("is-hidden", !hasRole);
     if (hasRole) {
       this.modelLabelRoleEl.setText(roleText);
-      this.modelLabelEl.setAttribute("title", `${modelText} / ${roleText}`);
+      applyTooltip(this.modelLabelEl, `${modelText} / ${roleText}`);
     } else {
-      this.modelLabelEl.setAttribute("title", modelText);
+      applyTooltip(this.modelLabelEl, modelText);
     }
   }
 

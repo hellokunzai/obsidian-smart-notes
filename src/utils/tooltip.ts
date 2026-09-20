@@ -23,7 +23,8 @@ export const TOOLTIP_CLASS = "ana-tooltip";
  * `data-tooltip-classes`。`TooltipOptions.classes` 自 Obsidian 1.8.7 起提供，
  * 本项目 manifest 的 `minAppVersion` 高于它，不必做版本兜底。
  *
- * 提示文案必须由调用方用 `t()` 取好再传进来，保证可被 i18n 静态检查扫到。
+ * 提示文案里**能 i18n 的部分**由调用方用 `t()` 取好再传进来 —— 键写成字面量才会被
+ * i18n 静态检查扫到；纯用户数据（会话标题、模型名之类）原样传入即可。
  */
 export function applyTooltip(el: HTMLElement, text: string): void {
   setTooltip(el, text, { classes: [TOOLTIP_CLASS] });
