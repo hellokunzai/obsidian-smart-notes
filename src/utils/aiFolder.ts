@@ -63,6 +63,8 @@ export type SessionMessage = {
   skills?: string[];
   /** 可选：发送该消息时附加的附件快照（气泡内展示）。 */
   attachments?: AttachmentRef[];
+  /** 可选：发送该消息时挑选的 Frontmatter 属性快照（气泡内展示，不持久生效）。 */
+  frontmatterProps?: string[];
 };
 
 /** 附件引用：用户显式附加到会话的文件或文件夹（仅此部分内容会被读取并注入上下文）。 */

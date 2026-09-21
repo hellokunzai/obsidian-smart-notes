@@ -172,7 +172,11 @@ export class ChatView extends ItemView {
    * 但本轮请求仍需这些上下文来注入 skill 内容与读取附件正文，因此暂存于此；
    * handleSend 全流程（含可能的重入）结束后再清空。
    */
-  private activeTurnContext: { skills: string[]; attachments: AttachmentRef[] } | null = null;
+  private activeTurnContext: {
+    skills: string[];
+    attachments: AttachmentRef[];
+    props: string[];
+  } | null = null;
 
   // 流式渲染状态
   private pendingRender = false;
@@ -1347,6 +1351,7 @@ export class ChatView extends ItemView {
         createdAt: m.createdAt,
         skills: m.skills,
         attachments: m.attachments,
+        frontmatterProps: m.frontmatterProps,
       });
     }
   }
@@ -1361,6 +1366,7 @@ export class ChatView extends ItemView {
       createdAt?: number;
       skills?: string[];
       attachments?: AttachmentRef[];
+      frontmatterProps?: string[];
     }
   ): { contentEl: HTMLElement; bubbleEl: HTMLElement; rowEl: HTMLElement } {
     const row = this.messagesEl.createDiv({
@@ -1421,8 +1427,14 @@ export class ChatView extends ItemView {
       }
     } else {
       content.setText(text);
-      // 用户消息底部附加：本次选用的 skill / 附件标签 + 发送时间（居右）
-      if (meta && (meta.createdAt || (meta.skills && meta.skills.length) || (meta.attachments && meta.attachments.length))) {
+      // 用户消息底部附加：本次选用的 skill / 附件 / 属性标签 + 发送时间（居右）
+      if (
+        meta &&
+        (meta.createdAt ||
+          (meta.skills && meta.skills.length) ||
+          (meta.attachments && meta.attachments.length) ||
+          (meta.frontmatterProps && meta.frontmatterProps.length))
+      ) {
         this.renderUserMeta(bubble, meta);
       }
     }
@@ -1475,15 +1487,21 @@ export class ChatView extends ItemView {
       createdAt?: number;
       skills?: string[];
       attachments?: AttachmentRef[];
+      frontmatterProps?: string[];
     }
   ): void {
     this.addMessage("user", text, undefined, undefined, undefined, meta);
   }
 
-  /** 在用户气泡底部渲染 skill / 附件标签 + 发送时间（时间居右，只读）。 */
+  /** 在用户气泡底部渲染 skill / 附件 / 属性标签 + 发送时间（时间居右，只读）。 */
   private renderUserMeta(
     bubble: HTMLElement,
-    meta: { createdAt?: number; skills?: string[]; attachments?: AttachmentRef[] }
+    meta: {
+      createdAt?: number;
+      skills?: string[];
+      attachments?: AttachmentRef[];
+      frontmatterProps?: string[];
+    }
   ): void {
     const footer = bubble.createDiv({ cls: "ana-chat-msg-meta" });
     for (const p of meta.skills ?? []) {
@@ -1499,6 +1517,17 @@ export class ChatView extends ItemView {
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
       setIcon(iconSpan, ref.type === "folder" ? "folder" : "file-text");
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
+    }
+    for (const key of meta.frontmatterProps ?? []) {
+      // 属性 chip 与输入框内的属性 chip 同款：tag 图标替代「属性」前缀文字
+      const chip = footer.createDiv({
+        cls: "ana-chat-chip ana-chat-chip-prop",
+      });
+      const kindIcon = chip.createSpan({
+        cls: "ana-chat-chip-kind ana-chat-chip-kind-icon",
+      });
+      setIcon(kindIcon, "tag");
+      chip.createSpan({ text: key, cls: "ana-chat-chip-label" });
     }
     if (meta.createdAt) {
       footer.createSpan({
@@ -1559,6 +1588,12 @@ export class ChatView extends ItemView {
   private effectiveAttachments(): AttachmentRef[] {
     if (this.activeTurnContext) return this.activeTurnContext.attachments;
     return this.activeSession?.attachments ?? [];
+  }
+
+  /** 当前轮次生效的属性集合：发送后 session.frontmatterProps 已清空，以 activeTurnContext 快照为准。 */
+  private effectiveFrontmatterProps(): string[] {
+    if (this.activeTurnContext) return this.activeTurnContext.props;
+    return this.activeSession?.frontmatterProps ?? [];
   }
 
   /**
@@ -1803,14 +1838,16 @@ export class ChatView extends ItemView {
     }
 
     this.inputEl.value = "";
-    // 发送瞬间抓取本次选用的 skill / 附件快照（用于气泡内展示与本轮注入）
+    // 发送瞬间抓取本次选用的 skill / 附件 / 属性快照（用于气泡内展示与本轮注入）
     const sentAt = Date.now();
     const sentSkills = [...s.skills];
     const sentAttachments = [...s.attachments];
+    const sentProps = [...(s.frontmatterProps ?? [])];
     this.addUserMessage(text, {
       createdAt: sentAt,
       skills: sentSkills,
       attachments: sentAttachments,
+      frontmatterProps: sentProps,
     });
     s.messages.push({
       role: "user",
@@ -1818,15 +1855,22 @@ export class ChatView extends ItemView {
       createdAt: sentAt,
       skills: sentSkills,
       attachments: sentAttachments,
+      frontmatterProps: sentProps,
     });
     s.updatedAt = sentAt;
 
-    // 发送后立即清空输入框里的 skill / 附件选择（chip 立即消失），
+    // 发送后立即清空输入框里的 skill / 附件 / 属性选择（chip 立即消失），
     // 本轮所需上下文暂存到 activeTurnContext 供 runTurn 注入使用。
     s.skills = [];
     s.attachments = [];
+    s.frontmatterProps = [];
     this.renderChips();
-    this.activeTurnContext = { skills: sentSkills, attachments: sentAttachments };
+    this.renderActions();
+    this.activeTurnContext = {
+      skills: sentSkills,
+      attachments: sentAttachments,
+      props: sentProps,
+    };
 
     // 执行首轮：system prompt 仅含启用 skill 的索引（不注入内容）。
     // 若 AI 在回复中声明 `@use-skill`，则临时把这些 skill 的完整内容注入并自动重入一次
@@ -2358,8 +2402,9 @@ export class ChatView extends ItemView {
    *  当用户消息变化时，若其中包含有效关键词，索引会自动过滤为相关条目，减少 token 消耗。 */
   private async refreshContextIndexes(query?: string): Promise<void> {
     const st = this.plugin.settings;
-    // 本对话挑选的属性会临时覆盖全局「要索引的属性」白名单
-    const sessionProps = this.activeSession?.frontmatterProps ?? [];
+    // 本对话挑选的属性会临时覆盖全局「要索引的属性」白名单；
+    // 发送后 session.frontmatterProps 已清空，本轮以 activeTurnContext 快照为准
+    const sessionProps = this.effectiveFrontmatterProps();
     const fmKeys =
       sessionProps.length > 0 ? sessionProps.join("\n") : st.frontmatterIndexKeys;
     const sig = JSON.stringify([
