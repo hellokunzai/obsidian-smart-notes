@@ -899,11 +899,26 @@
 }
 
 /* 聚焦时保持边框不变，去除高亮效果。
- * 直接声明即可：本类由插件自绘，无同源竞争规则，不需要 !important。 */
-.ana-chat-input-wrap:focus-within {
-  border-color: var(--background-modifier-border);
-  box-shadow: none;
-  outline: none;
+ * 上一轮把特异性提到 (0,3,0) 仍压不住部分主题/Obsidian 规则，继续升级：
+ *   1) 外层 .ana-chat-input-wrap 用三重类名提到 (0,4,0)；
+ *   2) 内部 textarea 用三重类名或外层 :focus-within 后代选择器，并对关键属性加 !important，
+ *      作为最终兜底，确保任何主题/核心 focus 样式都无法再顶出高亮边框。
+ * 这里故意只针对 focus 状态使用 !important，不影响正常状态。 */
+.ana-chat-input-wrap.ana-chat-input-wrap.ana-chat-input-wrap:focus-within {
+  border-color: var(--background-modifier-border) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: none !important;
+}
+
+/* 内部输入框在聚焦时：彻底透明化边框、去掉外发光与 outline、禁用过渡，边框颜色绝不变化 */
+.ana-chat-input-wrap.ana-chat-input-wrap.ana-chat-input-wrap:focus-within .ana-chat-input,
+.ana-chat-input.ana-chat-input.ana-chat-input:focus,
+.ana-chat-input.ana-chat-input.ana-chat-input:focus-visible {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: none !important;
 }
 
 /* 输入框顶部 6px 拖拽条 */
@@ -953,12 +968,6 @@
   font-family: var(--font-interface);
   font-size: var(--font-ui-smaller);
   line-height: var(--line-height-normal);
-}
-
-.ana-chat-input:focus {
-  outline: none;
-  box-shadow: none;
-  border-color: transparent;
 }
 
 .ana-chat-send:disabled,
