@@ -145,6 +145,12 @@ export class ChatView extends ItemView {
   private profileRebuildTimer?: number;
   /** 当前流式请求的 AbortController，用于用户点击「停止」时中断请求。 */
   private abortCtrl: AbortController | null = null;
+  /**
+   * 用户点击了「停止」。无论中断发生在流式阶段还是工具预检阶段（此时
+   * abortCtrl 尚未创建），收尾逻辑都据此走「已停止」分支：不再重渲染
+   * 正文、把已收到的部分内容写入历史后直接返回。
+   */
+  private stopRequested = false;
   private sidebarCollapsed = true;
   /** 顶栏左侧的会话历史开关按钮（图标随展开/收起状态切换）。 */
   private sidebarToggleBtn!: HTMLButtonElement;
@@ -1745,6 +1751,8 @@ export class ChatView extends ItemView {
   }
 
   private appendStreamingCursor(): void {
+    // 已停止 / 已结束：不再把光标写回气泡（停止瞬间可能仍有渲染帧在执行）
+    if (!this.isStreaming) return;
     if (!this.streamingContentEl) return;
     this.removeStreamingCursor();
     this.streamingCursorEl = this.streamingContentEl.createSpan({
@@ -2040,6 +2048,8 @@ export class ChatView extends ItemView {
         const vaultTools = createVaultToolDefinitions();
         const MAX_TOOL_ROUNDS = 3;
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+          // 用户已点「停止」：跳出工具循环，不再执行工具、不再重显打字动画
+          if (this.stopRequested) break;
           try {
             const toolCheck = await this.withTimeout(
               provider.complete(messages, {
@@ -2049,6 +2059,9 @@ export class ChatView extends ItemView {
               }),
               30_000
             );
+            // 停止请求恰好在预检请求期间到达：丢弃结果，
+            // 不再显示工具提示、不执行工具、不重显打字动画
+            if (this.stopRequested) break;
             const calls = toolCheck.toolCalls ?? [];
             // 模型不再需要调用工具：结束预检，进入最终流式回答
             if (calls.length === 0) break;
@@ -2076,6 +2089,8 @@ export class ChatView extends ItemView {
                 toolCallId: tr.toolCallId,
               });
             }
+            // 停止后不再重显打字动画（下一轮循环开头同样会跳出）
+            if (this.stopRequested) break;
             // 重新显示打字指示器，准备下一轮（继续搜索 / 读取）或最终流式输出
             this.showTypingIndicator(assistantContentEl);
           } catch {
@@ -2088,6 +2103,9 @@ export class ChatView extends ItemView {
       // 流式请求：使用「活动超时」检测（收到任意 chunk 即重置），
       // 同时保留 10 分钟总超时兜底，避免模型完全不可达时无限挂起。
       this.abortCtrl = new AbortController();
+      // 停止发生在工具预检阶段（当时 abortCtrl 尚未创建）时，这里补一次中断，
+      // 让 streamWithAbort 直接以已收内容（可能为空）返回
+      if (this.stopRequested) this.abortCtrl.abort();
       const result = await this.withTimeout(
         this.streamWithAbort(provider, messages, params, this.abortCtrl.signal),
         10 * 60 * 1000
@@ -2096,6 +2114,36 @@ export class ChatView extends ItemView {
       // 流式结束：最终渲染并显示 token 消耗
       this.clearStreamingRender();
       this.removeStreamingCursor();
+
+      // 用户已点「停止」：handleStop 已渲染好部分内容 + 「已停止」徽标，
+      // 这里不再重渲染（streamingContentEl 若被清空过会在这里踩 null），
+      // 只把已收到的部分回复写入会话历史后直接收尾。
+      if (this.stopRequested) {
+        if (this.streamingReasoningEl) {
+          this.streamingReasoningEl.addClass("is-collapsed");
+        }
+        const partial = result.content;
+        if (partial.trim()) {
+          // 有部分回复：气泡已由 handleStop 渲染好（内容 + 「已停止」徽标），
+          // 这里只把部分回复写入会话历史，不丢内容
+          const partialMsg: SessionMessage = {
+            role: "assistant",
+            content: partial,
+          };
+          if (result.reasoning) partialMsg.reasoningContent = result.reasoning;
+          if (this.selectedRoleId) partialMsg.roleId = this.selectedRoleId;
+          s.messages.push(partialMsg);
+          s.updatedAt = Date.now();
+          await this.persist();
+          this.refreshSessions();
+        } else {
+          // 无任何可见内容：整条移除助手消息行（handleStop 可能已移除，此处兜底），
+          // 避免残留空气泡或「思考中」动画
+          assistantRowEl.remove();
+        }
+        return { needsReenter: false, reenterPaths: [], assistantRowEl };
+      }
+
       // 思考过程：流结束后默认收起，避免占屏
       if (this.streamingReasoningEl && this.streamingRawReasoning) {
         this.streamingReasoningEl.addClass("is-collapsed");
@@ -2167,6 +2215,7 @@ export class ChatView extends ItemView {
       return { needsReenter: false, reenterPaths: [], assistantRowEl };
     } finally {
       this.isStreaming = false;
+      this.stopRequested = false;
       this.clearStreamingState();
       this.setInputDisabled(false);
       this.scrollToBottom();
@@ -2192,19 +2241,41 @@ export class ChatView extends ItemView {
 
   /** 用户点击「停止」按钮：中断当前流式请求并在 UI 上标记为已停止。 */
   private handleStop(): void {
+    if (!this.isStreaming) return;
+    this.stopRequested = true;
     if (this.abortCtrl) {
       this.abortCtrl.abort();
       this.abortCtrl = null;
     }
     this.isStreaming = false;
-    this.clearStreamingState();
+    // 取消待执行的流式渲染帧与光标，防止停止后仍有内容被写入
+    this.clearStreamingRender();
     this.removeStreamingCursor();
-    // 在助手消息末尾追加「已停止」提示（如果已有内容）
-    if (this.streamingContentEl && this.streamingRawContent) {
-      this.streamingContentEl.createSpan({
-        cls: "ana-chat-stopped-badge",
-        text: ` ${t("view.stopped")}`,
-      });
+    if (this.streamingContentEl) {
+      const contentEl = this.streamingContentEl;
+      // 移除「思考中」跳点动画与「Using tools」工具提示，
+      // 避免停止后动画/提示残留在气泡上（已有正文时不能整格 empty，会清掉内容）
+      contentEl.removeClass("ana-chat-typing");
+      contentEl.querySelector(".ana-chat-typing-text")?.remove();
+      contentEl.querySelector(".ana-chat-typing-dots")?.remove();
+      contentEl.querySelector(".ana-chat-tool-notice")?.remove();
+      // 正文与思考过程都为空：整条消息没有可保留的内容，直接移除，
+      // 否则会留下一个只有「…」占位符（.ana-chat-text:empty::before）的空气泡
+      if (this.streamingRawContent || this.streamingRawReasoning) {
+        // 在助手消息末尾追加「已停止」提示。
+        // 注意：这里不清空 streamingContentEl / streamingRawContent，
+        // 它们要留给 sendMessage 的收尾逻辑读取（收尾完成后统一清理），
+        // 否则收尾时对 null 调 renderMarkdown 会抛
+        // "Cannot read properties of null (reading 'empty')"。
+        this.streamingContentEl.createSpan({
+          cls: "ana-chat-stopped-badge",
+          text: ` ${t("view.stopped")}`,
+        });
+      } else {
+        this.streamingContentEl
+          .closest(".ana-chat-message")
+          ?.remove();
+      }
     }
     this.setInputDisabled(false);
     this.scrollToBottom();
@@ -2237,6 +2308,16 @@ export class ChatView extends ItemView {
     signal: AbortSignal
   ): Promise<import("../ai/provider").CompletionResult> {
     return new Promise((resolve, reject) => {
+      // signal 在进入本函数前就已被中止（停止发生在工具预检阶段）：
+      // 直接以已收内容返回，不再发起 provider.stream
+      if (signal.aborted) {
+        resolve({
+          content: this.streamingRawContent,
+          reasoning: this.streamingRawReasoning || undefined,
+          usage: undefined,
+        });
+        return;
+      }
       const activityTimeoutSec = Math.max(
         10,
         this.plugin.settings.chatActivityTimeout ?? 60
