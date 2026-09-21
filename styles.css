@@ -1714,33 +1714,11 @@
   font-style: italic;
 }
 
-/* 文字按钮（自带底色 + 边框的设计）：不改外观，只把特异性从 (0,1,0) 提到 (0,2,0)，
- * 让它自己的 --background-primary / 边框真正生效，而不是被默认的 --interactive-normal 顶掉。
- * 它同时出现在设置页和 Modal 里，祖先链不固定，所以用「重复类名」而不是父级前缀。
- * 状态规则一并提权并保持写在基础规则之后。 */
-.ana-model-link-btn.ana-model-link-btn {
-  font-size: var(--font-small);
-  padding: 3px 10px;
-  border-radius: var(--radius-s);
-  border: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.ana-model-link-btn.ana-model-link-btn:hover {
-  background: var(--background-modifier-hover);
-}
-
-.ana-model-link-btn.ana-model-link-btn.is-active {
-  border-color: var(--interactive-accent);
-  color: var(--interactive-accent);
-}
-
-.ana-model-link-btn.ana-model-link-btn.danger:hover {
-  border-color: var(--background-modifier-error);
-  color: var(--text-error);
-}
+/* .ana-model-link-btn（「选择密钥 / 测试 / 添加」按钮，模型链接弹窗与设置页 Web 搜索共用）：
+ * 刻意不做任何外观自定义，直接吃 Obsidian 原生 <button> 规则，
+ * 与弹窗底部的「取消」按钮像素级一致（同样的 --interactive-normal 底色、--input-shadow 内阴影描边、
+ * font-ui-small 字号、--input-height 高度与悬停态）。
+ * 不要再给这个类加底色 / 边框 / 字号 —— 那会让同一个弹窗里出现两套按钮风格。 */
 
 .ana-model-link-empty {
   padding: var(--size-4-2);
