@@ -50,6 +50,20 @@ const SLASH_TRIGGER_LINE = /^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/;
 const SLASH_TRIGGER_STANDALONE = /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm;
 
 /**
+ * Frontmatter 模板按行识别：设置里每行写一个字段名（兼容逗号分隔）。
+ * 这组字段直接作为设置输入框的初始内容（可编辑），
+ * 需与 settings.ts 中 DEFAULT_SETTINGS 的 frontmatterTemplate 保持一致。
+ */
+const DEFAULT_FRONTMATTER_TEMPLATE = "title\ndate\ntags\ncategory\nsummary\nkeywords";
+
+/**
+ * 「要索引的属性」默认白名单，直接作为设置输入框的初始内容（可编辑）。
+ * 需与 settings.ts 中 DEFAULT_SETTINGS 的 frontmatterIndexKeys 保持一致；
+ * 运行时留空仍表示索引所有非空属性（用户手动清空输入框即可恢复）。
+ */
+const DEFAULT_FRONTMATTER_INDEX_KEYS = "tags\ncategory\nsummary";
+
+/**
  * 一次命令调用的现场。可用性判定与执行体看到同一份上下文，
  * 避免「判定时算的是活动文件、执行时又重新取一次」导致的不一致。
  */
@@ -236,6 +250,16 @@ export default class AiNoteAgentPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
     // 迁移旧版扁平字段 → modelLinks / roles，并做 defaultId 兜底
     migrateSettings(loaded, this.settings, this.app);
+    // Frontmatter 模板 / 要索引的属性：旧配置里的空值一次性回填为默认内容并落盘，
+    // 保证设置输入框始终展示可编辑的真实内容（而非占位符）。
+    if (!this.settings.frontmatterTemplate?.trim()) {
+      this.settings.frontmatterTemplate = DEFAULT_FRONTMATTER_TEMPLATE;
+      await this.saveSettings();
+    }
+    if (!this.settings.frontmatterIndexKeys?.trim()) {
+      this.settings.frontmatterIndexKeys = DEFAULT_FRONTMATTER_INDEX_KEYS;
+      await this.saveSettings();
+    }
   }
 
   async saveSettings() {
@@ -316,8 +340,18 @@ export default class AiNoteAgentPlugin extends Plugin {
       ""
     );
 
-    const systemPrompt =
-      this.settings.frontmatterTemplate.trim() || t("frontmatter.systemPrompt");
+    // 模板识别方式：每行一个 Frontmatter 字段（兼容逗号分隔），
+    // 由字段列表拼装 system prompt；不设默认回退——
+    // 空值会在插件加载时被回填为默认字段，此处为空说明用户手动清空了模板。
+    const fields = this.settings.frontmatterTemplate
+      .split(/[\n,，]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (fields.length === 0) {
+      new Notice(t("frontmatter.emptyTemplate"));
+      return;
+    }
+    const systemPrompt = `${t("frontmatter.promptHeader")}\n${fields.join(", ")}\n${t("frontmatter.promptFooter")}`;
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
       { role: "user", content: body },

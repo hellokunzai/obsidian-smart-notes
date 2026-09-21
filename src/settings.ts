@@ -212,7 +212,9 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   addCurrentNoteToChat: false,
   showReasoning: true,
   frontmatterGenerationEnabled: true,
-  frontmatterTemplate: "",
+  // 默认字段直接展示在设置输入框中（可编辑），
+  // 内容需与 main.ts 中 DEFAULT_FRONTMATTER_TEMPLATE 保持一致。
+  frontmatterTemplate: "title\ndate\ntags\ncategory\nsummary\nkeywords",
   aiFolderName: ".smartnotes",
   memoryProfileEnabled: true,
   profileUpdateMode: "chat",
@@ -227,7 +229,9 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   propertySelectEnabled: true,
   includeFrontmatterIndex: false,
   frontmatterIndexMaxFiles: 5,
-  frontmatterIndexKeys: "",
+  // 默认属性直接展示在设置输入框中（可编辑）；
+  // 留空仍表示索引所有非空属性（运行时语义不变，清空即恢复全局索引）。
+  frontmatterIndexKeys: "tags\ncategory\nsummary",
   frontmatterContentMaxChars: 8000,
   skillsEnabled: true,
   defaultSkills: [],
@@ -1200,7 +1204,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             this.plugin.settings.frontmatterTemplate = v;
             await this.plugin.saveSettings();
           });
-        ta.inputEl.rows = 5;
+        ta.inputEl.rows = 7;
       })
       .setDisabled(!this.plugin.settings.frontmatterGenerationEnabled);
   }

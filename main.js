@@ -162,8 +162,8 @@ var en_default = {
   "settings.frontmatterGeneration.name": "Auto-generate frontmatter",
   "settings.frontmatterGeneration.desc": 'Enable the "Generate frontmatter" command in the command palette. Reads the current Markdown note and asks AI to produce YAML frontmatter.',
   "settings.frontmatterTemplate.name": "Frontmatter template",
-  "settings.frontmatterTemplate.desc": "Custom system prompt used when generating frontmatter. Leave empty to use the default template.",
-  "settings.frontmatterTemplate.placeholder": "e.g. Generate title, date, tags, and summary based on the note content...",
+  "settings.frontmatterTemplate.desc": "One Frontmatter field per line (comma-separated also works). Only the listed fields will be generated.",
+  "settings.frontmatterTemplate.placeholder": "One field per line, e.g.:\ntitle\ndate\ntags",
   "settings.maxTokens.name": "Max tokens",
   "settings.temperature.name": "Temperature",
   "error.noApiKey": "OpenAI API key is not set. Open Settings \u2192 Smart Notes and enter your key.",
@@ -174,7 +174,9 @@ var en_default = {
   "view.tokens": "Tokens",
   "view.tokensEstimated": "~Tokens",
   "view.tokensHint": "Token usage for this reply (prompt + completion)",
-  "frontmatter.systemPrompt": "You are a metadata assistant. Based on the Markdown note provided by the user, generate a concise and relevant YAML frontmatter. Include standard fields such as title, date, tags, category, summary, and keywords. The date field must use today's date in YYYY-MM-DD format. Return only a YAML block wrapped in `---`, with no explanation or additional content.",
+  "frontmatter.promptHeader": "You are a metadata assistant. Based on the Markdown note provided by the user, generate a concise and relevant YAML frontmatter. Include only the following fields, keeping the given order:",
+  "frontmatter.emptyTemplate": "The Frontmatter template is empty. Fill in the fields to generate in Settings (one per line) first.",
+  "frontmatter.promptFooter": "The date field (if present) must use today's date in YYYY-MM-DD format. Return only a YAML block wrapped in `---`, with no explanation or additional content.",
   "view.title": "AI Chat",
   "view.placeholder": "Type a message\u2026 (Enter to send, Shift+Enter for newline)",
   "view.send": "Send",
@@ -519,8 +521,8 @@ var zh_default = {
   "settings.frontmatterGeneration.name": "Frontmatter \u81EA\u52A8\u751F\u6210",
   "settings.frontmatterGeneration.desc": "\u5728\u547D\u4EE4\u9762\u677F\u542F\u7528\u300C\u751F\u6210 Frontmatter\u300D\uFF0C\u8BFB\u53D6\u5F53\u524D Markdown \u7B14\u8BB0\u5185\u5BB9\u5E76\u7531 AI \u751F\u6210 YAML \u524D\u7F6E\u5143\u6570\u636E\u3002",
   "settings.frontmatterTemplate.name": "Frontmatter \u6A21\u7248",
-  "settings.frontmatterTemplate.desc": "\u81EA\u5B9A\u4E49\u751F\u6210 frontmatter \u65F6\u4F7F\u7528\u7684 system prompt\u3002\u7559\u7A7A\u5219\u4F7F\u7528\u9ED8\u8BA4\u6A21\u677F\u3002",
-  "settings.frontmatterTemplate.placeholder": "\u4F8B\u5982\uFF1A\u8BF7\u6839\u636E\u7B14\u8BB0\u5185\u5BB9\u751F\u6210 title\u3001date\u3001tags\u3001summary \u5B57\u6BB5...",
+  "settings.frontmatterTemplate.desc": "\u6BCF\u884C\u4E00\u4E2A Frontmatter \u5B57\u6BB5\uFF08\u4E5F\u652F\u6301\u9017\u53F7\u5206\u9694\uFF09\uFF0C\u751F\u6210\u65F6\u53EA\u5305\u542B\u5217\u51FA\u7684\u5B57\u6BB5\u3002",
+  "settings.frontmatterTemplate.placeholder": "\u6BCF\u884C\u4E00\u4E2A\u5B57\u6BB5\uFF0C\u4F8B\u5982\uFF1A\ntitle\ndate\ntags",
   "settings.maxTokens.name": "\u6700\u5927 Token \u6570",
   "settings.temperature.name": "Temperature",
   "error.noApiKey": "\u672A\u8BBE\u7F6E OpenAI API Key\u3002\u8BF7\u6253\u5F00\u8BBE\u7F6E \u2192 Smart Notes \u586B\u5165\u4F60\u7684 Key\u3002",
@@ -531,7 +533,9 @@ var zh_default = {
   "view.tokens": "Token",
   "view.tokensEstimated": "\u7EA6 Token",
   "view.tokensHint": "\u672C\u6B21\u56DE\u590D\u7684 Token \u6D88\u8017\uFF08prompt + completion\uFF09",
-  "frontmatter.systemPrompt": "\u4F60\u662F\u4E00\u540D\u5143\u6570\u636E\u6574\u7406\u52A9\u624B\u3002\u8BF7\u6839\u636E\u7528\u6237\u63D0\u4F9B\u7684 Markdown \u7B14\u8BB0\u5185\u5BB9\uFF0C\u751F\u6210\u4E00\u6BB5\u7B80\u6D01\u3001\u76F8\u5173\u7684 YAML frontmatter\u3002\u5EFA\u8BAE\u5305\u542B title\u3001date\u3001tags\u3001category\u3001summary\u3001keywords \u7B49\u6807\u51C6\u5B57\u6BB5\u3002\u5176\u4E2D date \u5B57\u6BB5\u8BF7\u52A1\u5FC5\u4F7F\u7528\u4ECA\u5929\u7684\u65E5\u671F\uFF0C\u683C\u5F0F\u4E3A YYYY-MM-DD\u3002\u8BF7\u53EA\u8FD4\u56DE\u88AB `---` \u5305\u88F9\u7684 YAML \u4EE3\u7801\u5757\uFF0C\u4E0D\u8981\u8F93\u51FA\u89E3\u91CA\u6216\u5176\u4ED6\u5185\u5BB9\u3002",
+  "frontmatter.promptHeader": "\u4F60\u662F\u4E00\u540D\u5143\u6570\u636E\u6574\u7406\u52A9\u624B\u3002\u8BF7\u6839\u636E\u7528\u6237\u63D0\u4F9B\u7684 Markdown \u7B14\u8BB0\u5185\u5BB9\uFF0C\u751F\u6210\u4E00\u6BB5\u7B80\u6D01\u3001\u76F8\u5173\u7684 YAML frontmatter\u3002\u53EA\u5305\u542B\u4EE5\u4E0B\u5B57\u6BB5\uFF0C\u5E76\u4FDD\u6301\u7ED9\u5B9A\u987A\u5E8F\uFF1A",
+  "frontmatter.emptyTemplate": "Frontmatter \u6A21\u7248\u4E3A\u7A7A\uFF0C\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u586B\u5199\u8981\u751F\u6210\u7684\u5B57\u6BB5\uFF08\u6BCF\u884C\u4E00\u4E2A\uFF09\u3002",
+  "frontmatter.promptFooter": "\u5176\u4E2D date \u5B57\u6BB5\uFF08\u82E5\u5B58\u5728\uFF09\u8BF7\u52A1\u5FC5\u4F7F\u7528\u4ECA\u5929\u7684\u65E5\u671F\uFF0C\u683C\u5F0F\u4E3A YYYY-MM-DD\u3002\u8BF7\u53EA\u8FD4\u56DE\u88AB `---` \u5305\u88F9\u7684 YAML \u4EE3\u7801\u5757\uFF0C\u4E0D\u8981\u8F93\u51FA\u89E3\u91CA\u6216\u5176\u4ED6\u5185\u5BB9\u3002",
   "view.title": "AI \u5BF9\u8BDD",
   "view.placeholder": "\u8F93\u5165\u6D88\u606F\u2026\u2026\uFF08\u6309 Enter \u53D1\u9001\uFF0CShift+Enter \u6362\u884C\uFF09",
   "view.send": "\u53D1\u9001",
@@ -3841,7 +3845,9 @@ var DEFAULT_SETTINGS = {
   addCurrentNoteToChat: false,
   showReasoning: true,
   frontmatterGenerationEnabled: true,
-  frontmatterTemplate: "",
+  // 默认字段直接展示在设置输入框中（可编辑），
+  // 内容需与 main.ts 中 DEFAULT_FRONTMATTER_TEMPLATE 保持一致。
+  frontmatterTemplate: "title\ndate\ntags\ncategory\nsummary\nkeywords",
   aiFolderName: ".smartnotes",
   memoryProfileEnabled: true,
   profileUpdateMode: "chat",
@@ -3856,7 +3862,9 @@ var DEFAULT_SETTINGS = {
   propertySelectEnabled: true,
   includeFrontmatterIndex: false,
   frontmatterIndexMaxFiles: 5,
-  frontmatterIndexKeys: "",
+  // 默认属性直接展示在设置输入框中（可编辑）；
+  // 留空仍表示索引所有非空属性（运行时语义不变，清空即恢复全局索引）。
+  frontmatterIndexKeys: "tags\ncategory\nsummary",
   frontmatterContentMaxChars: 8e3,
   skillsEnabled: true,
   defaultSkills: [],
@@ -4512,7 +4520,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         this.plugin.settings.frontmatterTemplate = v;
         await this.plugin.saveSettings();
       });
-      ta.inputEl.rows = 5;
+      ta.inputEl.rows = 7;
     }).setDisabled(!this.plugin.settings.frontmatterGenerationEnabled);
   }
   // ===== 标签页：联网搜索 =====
@@ -8950,6 +8958,8 @@ function migrateSettings(loaded, settings, app) {
 // src/main.ts
 var SLASH_TRIGGER_LINE = /^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/;
 var SLASH_TRIGGER_STANDALONE = /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm;
+var DEFAULT_FRONTMATTER_TEMPLATE = "title\ndate\ntags\ncategory\nsummary\nkeywords";
+var DEFAULT_FRONTMATTER_INDEX_KEYS = "tags\ncategory\nsummary";
 var ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg>`;
 var AiNoteAgentPlugin = class extends import_obsidian19.Plugin {
   constructor() {
@@ -9066,9 +9076,18 @@ var AiNoteAgentPlugin = class extends import_obsidian19.Plugin {
     return this.provider;
   }
   async loadSettings() {
+    var _a2, _b2;
     const loaded = await this.loadData() || {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
     migrateSettings(loaded, this.settings, this.app);
+    if (!((_a2 = this.settings.frontmatterTemplate) == null ? void 0 : _a2.trim())) {
+      this.settings.frontmatterTemplate = DEFAULT_FRONTMATTER_TEMPLATE;
+      await this.saveSettings();
+    }
+    if (!((_b2 = this.settings.frontmatterIndexKeys) == null ? void 0 : _b2.trim())) {
+      this.settings.frontmatterIndexKeys = DEFAULT_FRONTMATTER_INDEX_KEYS;
+      await this.saveSettings();
+    }
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -9132,7 +9151,14 @@ var AiNoteAgentPlugin = class extends import_obsidian19.Plugin {
       /^---\s*[\r\n]+[\s\S]*?[\r\n]+---\s*[\r\n]*/,
       ""
     );
-    const systemPrompt = this.settings.frontmatterTemplate.trim() || t("frontmatter.systemPrompt");
+    const fields = this.settings.frontmatterTemplate.split(/[\n,，]/).map((s) => s.trim()).filter(Boolean);
+    if (fields.length === 0) {
+      new import_obsidian19.Notice(t("frontmatter.emptyTemplate"));
+      return;
+    }
+    const systemPrompt = `${t("frontmatter.promptHeader")}
+${fields.join(", ")}
+${t("frontmatter.promptFooter")}`;
     const messages = [
       { role: "system", content: systemPrompt },
       { role: "user", content: body }
