@@ -63,7 +63,7 @@ export function createRealtimeExtension(plugin: AiNoteAgentPlugin) {
         if (!plugin.settings.realtimeEnabled) return;
         if (!u.docChanged) return;
         if (u.transactions.some((t) => t.annotation(acceptAnnotation))) return;
-        if (this.timer !== null) clearTimeout(this.timer);
+        if (this.timer !== null) window.clearTimeout(this.timer);
         const view = u.view;
         const debounce = plugin.settings.realtimeDebounceMs;
         this.timer = window.setTimeout(() => {
@@ -71,7 +71,7 @@ export function createRealtimeExtension(plugin: AiNoteAgentPlugin) {
         }, debounce);
       }
       destroy() {
-        if (this.timer !== null) clearTimeout(this.timer);
+        if (this.timer !== null) window.clearTimeout(this.timer);
       }
     }
   );

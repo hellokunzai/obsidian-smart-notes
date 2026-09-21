@@ -7,8 +7,8 @@ import {
   ToggleComponent,
   setIcon,
 } from "obsidian";
-import { sanitizeSecretId } from "./utils/secret";
 import type AiNoteAgentPlugin from "./main";
+import { addAsyncListener } from "./utils/dom";
 import { t } from "./i18n";
 import { ModelLinkModal, SecretPickerModal } from "./modelLinkModal";
 import { RoleInfoModal } from "./roleInfoModal";
@@ -160,8 +160,8 @@ export interface AiNoteAgentSettings {
   frontmatterIndexMaxFiles: number;
   // 对话：Frontmatter 索引要包含的属性白名单（每行/逗号分隔一个；留空表示全部）
   frontmatterIndexKeys: string;
-  // 对话：Frontmatter 索引中单属性值字符上限（防止长字段撑爆 token）
-  frontmatterIndexMaxChars: number;
+  // 对话：属性搜索返回的正文单文件注入字符上限（与「文件」分组下的 chatContextMaxChars 相互独立）
+  frontmatterContentMaxChars: number;
   // 对话：是否启用 skill 功能（对话框「Skill 技能」按钮 + skill 内容注入）
   skillsEnabled: boolean;
   // 对话：全局默认启用的 skill（skills/ 目录下的 .md 相对路径）；新会话继承此列表
@@ -220,15 +220,15 @@ export const DEFAULT_SETTINGS: AiNoteAgentSettings = {
   profileMemoryMaxChars: 4000,
   fileSelectionEnabled: true,
   includeVaultIndex: false,
-  vaultIndexMaxFiles: 200,
+  vaultIndexMaxFiles: 5,
   chatContextMaxChars: 8000,
   historyMaxMessages: 20,
   chatActivityTimeout: 60,
   propertySelectEnabled: true,
   includeFrontmatterIndex: false,
-  frontmatterIndexMaxFiles: 200,
+  frontmatterIndexMaxFiles: 5,
   frontmatterIndexKeys: "",
-  frontmatterIndexMaxChars: 500,
+  frontmatterContentMaxChars: 8000,
   skillsEnabled: true,
   defaultSkills: [],
   webSearchEnabled: false,
@@ -321,17 +321,15 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       },
     ];
 
-    const tabsEl = containerEl.createEl("div", { cls: "ana-settings-tabs" });
-    const panelsEl = containerEl.createEl("div", {
+    const tabsEl = containerEl.createDiv({ cls: "ana-settings-tabs" });
+    const panelsEl = containerEl.createDiv({
       cls: "ana-settings-panels",
     });
 
     const tabButtons: HTMLElement[] = [];
     const panels: HTMLElement[] = [];
-    let activeIndex = 0;
 
     const activate = (idx: number) => {
-      activeIndex = idx;
       this.activeTabIndex = idx;
       tabButtons.forEach((btn, i) => {
         btn.toggleClass("is-active", i === idx);
@@ -354,8 +352,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       btn.addEventListener("click", () => activate(idx));
       tabButtons.push(btn);
 
-      const panel = panelsEl.createEl("div", { cls: "ana-settings-panel" });
-      const body = panel.createEl("div", { cls: "ana-settings-panel-body" });
+      const panel = panelsEl.createDiv({ cls: "ana-settings-panel" });
+      const body = panel.createDiv({ cls: "ana-settings-panel-body" });
       sec.render(body);
       panels.push(panel);
     });
@@ -371,18 +369,18 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     new Setting(bodyEl)
       .setName(t("settings.aiFolderName.name"))
       .setDesc(t("settings.aiFolderName.desc"))
-      .addText((t2) =>
-        t2
-          .setPlaceholder(".smartnotes")
-          .setValue(this.plugin.settings.aiFolderName)
-          .inputEl.addEventListener("blur", async () => {
-            const name = t2.inputEl.value.trim();
-            if (name && name !== this.plugin.settings.aiFolderName) {
-              this.plugin.settings.aiFolderName = name;
-              await this.plugin.saveSettings();
-            }
-          })
-      );
+      .addText((t2) => {
+        t2.setPlaceholder(".smartnotes").setValue(
+          this.plugin.settings.aiFolderName
+        );
+        addAsyncListener(t2.inputEl, "blur", async () => {
+          const name = t2.inputEl.value.trim();
+          if (name && name !== this.plugin.settings.aiFolderName) {
+            this.plugin.settings.aiFolderName = name;
+            await this.plugin.saveSettings();
+          }
+        });
+      });
 
     // --- 模型链接（多链接列表）---
     this.createGroupHeader(bodyEl, "settings.providerGroup.link");
@@ -414,7 +412,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       });
 
     // 列表容器
-    const listContainer = bodyEl.createEl("div", {
+    const listContainer = bodyEl.createDiv({
       cls: "ana-model-link-list",
     });
     this.renderModelLinkList(listContainer, "");
@@ -433,7 +431,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       : links;
 
     if (filtered.length === 0) {
-      container.createEl("div", {
+      container.createDiv({
         cls: "ana-model-link-empty",
         text: q
           ? t("settings.modelLinks.searchNoResults")
@@ -462,9 +460,9 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
       // 名称列（含默认徽标）
       const tdName = tr.createEl("td", { cls: "ana-model-link-col-name" });
-      tdName.createEl("span", { cls: "ana-model-link-name", text: link.name });
+      tdName.createSpan({ cls: "ana-model-link-name", text: link.name });
       if (isDefault) {
-        tdName.createEl("span", {
+        tdName.createSpan({
           cls: "ana-model-link-default-badge",
           text: t("settings.modelLinks.defaultBadge"),
         });
@@ -481,17 +479,17 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
       // 模型列（标签）
       const tdModels = tr.createEl("td", { cls: "ana-model-link-col-models" });
-      const modelsWrap = tdModels.createEl("div", {
+      const modelsWrap = tdModels.createDiv({
         cls: "ana-model-link-models-wrap",
       });
       if (link.models.length === 0) {
-        modelsWrap.createEl("span", {
+        modelsWrap.createSpan({
           cls: "ana-model-link-tag-empty",
           text: t("settings.modelLinks.noModel"),
         });
       } else {
         for (const m of link.models) {
-          modelsWrap.createEl("span", { cls: "ana-model-link-tag", text: m });
+          modelsWrap.createSpan({ cls: "ana-model-link-tag", text: m });
         }
       }
 
@@ -508,7 +506,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           ? t("settings.modelLinks.defaultActive")
           : t("settings.modelLinks.setDefault"));
       setIcon(defaultBtn, "star");
-      defaultBtn.addEventListener("click", async () => {
+      addAsyncListener(defaultBtn, "click", async () => {
         this.plugin.settings.defaultModelLinkId = link.id;
         await this.plugin.saveSettings();
         this.renderModelLinkList(container, query);
@@ -532,7 +530,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       });
       delBtn.setAttribute("aria-label", t("settings.modelLinks.delete"));
       setIcon(delBtn, "trash");
-      delBtn.addEventListener("click", async () => {
+      addAsyncListener(delBtn, "click", async () => {
         this.plugin.settings.modelLinks =
           this.plugin.settings.modelLinks.filter((l) => l.id !== link.id);
         if (this.plugin.settings.defaultModelLinkId === link.id) {
@@ -558,7 +556,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       : roles;
 
     if (filtered.length === 0) {
-      container.createEl("div", {
+      container.createDiv({
         cls: "ana-model-link-empty",
         text: q
           ? t("settings.roles.searchNoResults")
@@ -591,9 +589,9 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       const nameRow = tdName.createDiv({ cls: "ana-role-list-name-row" });
       const avatarWrap = nameRow.createDiv({ cls: "ana-role-list-avatar" });
       renderAvatar(this.app, avatarWrap, role, 24);
-      nameRow.createEl("span", { cls: "ana-model-link-name", text: role.name });
+      nameRow.createSpan({ cls: "ana-model-link-name", text: role.name });
       if (isDefault) {
-        nameRow.createEl("span", {
+        nameRow.createSpan({
           cls: "ana-model-link-default-badge",
           text: t("settings.roles.defaultBadge"),
         });
@@ -612,7 +610,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           ? t("settings.roles.defaultActive")
           : t("settings.roles.setDefault"));
       setIcon(defaultBtn, "star");
-      defaultBtn.addEventListener("click", async () => {
+      addAsyncListener(defaultBtn, "click", async () => {
         this.plugin.settings.defaultRoleId = role.id;
         await this.plugin.saveSettings();
         this.renderRoleList(container, query);
@@ -636,7 +634,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       });
       delBtn.setAttribute("aria-label", t("settings.roles.delete"));
       setIcon(delBtn, "trash");
-      delBtn.addEventListener("click", async () => {
+      addAsyncListener(delBtn, "click", async () => {
         this.plugin.settings.roles = this.plugin.settings.roles.filter(
           (r) => r.id !== role.id
         );
@@ -655,7 +653,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
     // --- 文件 ---
     this.createGroupHeader(bodyEl, "settings.knowledgeGroup.files");
 
-    const includeVaultIndexSetting = new Setting(bodyEl)
+    new Setting(bodyEl)
       .setName(t("settings.includeVaultIndex.name"))
       .setDesc(t("settings.includeVaultIndex.desc"))
       .addToggle((t2) =>
@@ -778,26 +776,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       })
       .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
 
-    fmMaxCharsSetting = new Setting(bodyEl)
-      .setName(t("settings.frontmatterIndexMaxChars.name"))
-      .setDesc(t("settings.frontmatterIndexMaxChars.desc"))
-      .addText((t2) => {
-        t2.inputEl.type = "number";
-        t2.inputEl.min = "1";
-        t2.inputEl.step = "1";
-        t2.inputEl.inputMode = "numeric";
-        t2.setPlaceholder("500")
-          .setValue(String(this.plugin.settings.frontmatterIndexMaxChars))
-          .onChange(async (v) => {
-            const n = parseInt(v, 10);
-            if (!isNaN(n) && n > 0) {
-              this.plugin.settings.frontmatterIndexMaxChars = n;
-              await this.plugin.saveSettings();
-            }
-          });
-      })
-      .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
-
+    // 「最多文件数」在前、「单文件注入字符上限」在后（后者作为本分组最后一项）
     fmMaxFilesSetting = new Setting(bodyEl)
       .setName(t("settings.frontmatterIndexMaxFiles.name"))
       .setDesc(t("settings.frontmatterIndexMaxFiles.desc"))
@@ -806,12 +785,32 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         t2.inputEl.min = "0";
         t2.inputEl.step = "1";
         t2.inputEl.inputMode = "numeric";
-        t2.setPlaceholder("200")
+        t2.setPlaceholder("5")
           .setValue(String(this.plugin.settings.frontmatterIndexMaxFiles))
           .onChange(async (v) => {
             const n = parseInt(v, 10);
             if (!isNaN(n) && n >= 0) {
               this.plugin.settings.frontmatterIndexMaxFiles = n;
+              await this.plugin.saveSettings();
+            }
+          });
+      })
+      .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
+
+    fmMaxCharsSetting = new Setting(bodyEl)
+      .setName(t("settings.frontmatterContentMaxChars.name"))
+      .setDesc(t("settings.frontmatterContentMaxChars.desc"))
+      .addText((t2) => {
+        t2.inputEl.type = "number";
+        t2.inputEl.min = "1";
+        t2.inputEl.step = "1";
+        t2.inputEl.inputMode = "numeric";
+        t2.setPlaceholder("8000")
+          .setValue(String(this.plugin.settings.frontmatterContentMaxChars))
+          .onChange(async (v) => {
+            const n = parseInt(v, 10);
+            if (!isNaN(n) && n > 0) {
+              this.plugin.settings.frontmatterContentMaxChars = n;
               await this.plugin.saveSettings();
             }
           });
@@ -974,7 +973,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       });
 
     // 列表容器
-    const roleListContainer = bodyEl.createEl("div", {
+    const roleListContainer = bodyEl.createDiv({
       cls: "ana-model-link-list",
     });
     this.renderRoleList(roleListContainer, "");
@@ -1238,10 +1237,10 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       .setDesc(t("settings.webSearchProvider.desc"))
       .addDropdown((dd) =>
         dd
-          .addOption("tavily", "Tavily")
-          .addOption("serper", "Serper (Google)")
-          .addOption("brave", "Brave Search")
-          .addOption("searxng", "SearXNG")
+          .addOption("tavily", t("settings.webSearchProvider.option.tavily"))
+          .addOption("serper", t("settings.webSearchProvider.option.serper"))
+          .addOption("brave", t("settings.webSearchProvider.option.brave"))
+          .addOption("searxng", t("settings.webSearchProvider.option.searxng"))
           .setValue(this.plugin.settings.webSearchProvider)
           .onChange(async (v) => {
             this.plugin.settings.webSearchProvider = v as
@@ -1261,10 +1260,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
     if (isApiKey) {
       // API Key 类 provider：密钥仅存于 Obsidian keychain，data.json 只保留单个引用 ID
-      const refField = `${prov}ApiKeyRef` as
-        | "tavilyApiKeyRef"
-        | "serperApiKeyRef"
-        | "braveApiKeyRef";
+      const refField = `${prov}ApiKeyRef`;
       const getRef = (): string => {
         return (
           (this.plugin.settings as unknown as Record<string, string>)[
@@ -1282,7 +1278,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         .setDesc(t(`settings.webKeys.${prov}.desc`))
         .setClass("ana-setting-key-row");
 
-      const btnRow = keysSetting.controlEl.createEl("div", {
+      const btnRow = keysSetting.controlEl.createDiv({
         cls: "ana-model-link-key-btn-row",
       });
 
@@ -1311,7 +1307,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         cls: "ana-model-link-btn",
         text: t("settings.test.button"),
       });
-      webTestBtn.addEventListener("click", async () => {
+      addAsyncListener(webTestBtn, "click", async () => {
         if (!getRef()) {
           new Notice(t("settings.test.noKey"));
           return;
@@ -1321,7 +1317,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         try {
           const svc = new WebSearchService(this.app, {
             enabled: true,
-            provider: prov as "tavily" | "serper" | "brave",
+            provider: prov,
             tavilyApiKeyRef: this.plugin.settings.tavilyApiKeyRef,
             serperApiKeyRef: this.plugin.settings.serperApiKeyRef,
             braveApiKeyRef: this.plugin.settings.braveApiKeyRef,
@@ -1329,7 +1325,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
             maxResults: this.plugin.settings.webSearchMaxResults,
             maxCharsPerResult: this.plugin.settings.webSearchMaxCharsPerResult,
           });
-          await svc.testConnection(prov as "tavily" | "serper" | "brave");
+          await svc.testConnection(prov);
           new Notice(t("settings.test.success"));
         } catch (e) {
           new Notice(
@@ -1512,13 +1508,13 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       });
 
     // 列表容器
-    const listContainer = bodyEl.createEl("div", { cls: "ana-skills-list" });
+    const listContainer = bodyEl.createDiv({ cls: "ana-skills-list" });
 
     const renderSkillsList = async (): Promise<void> => {
       // 全局关闭「启用技能」时，列表整体变只读（半透明 + 禁止交互）
       listContainer.toggleClass("is-disabled", !plugin.settings.skillsEnabled);
       listContainer.empty();
-      listContainer.createEl("div", {
+      listContainer.createDiv({
         text: t("settings.defaultSkills.loading"),
         cls: "ana-settings-skills-loading",
       });
@@ -1531,7 +1527,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       listContainer.empty();
 
       if (skills.length === 0) {
-        listContainer.createEl("div", {
+        listContainer.createDiv({
           text: t("settings.defaultSkills.empty"),
           cls: "ana-settings-skills-empty",
         });
@@ -1548,7 +1544,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
         : skills;
 
       if (filtered.length === 0) {
-        listContainer.createEl("div", {
+        listContainer.createDiv({
           text: t("settings.defaultSkills.search.noResults"),
           cls: "ana-settings-skills-empty",
         });
@@ -1694,7 +1690,7 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
 
   /** 在面板内创建一个小型分组标题。 */
   private createGroupHeader(containerEl: HTMLElement, titleKey: string): void {
-    containerEl.createEl("div", {
+    containerEl.createDiv({
       cls: "ana-settings-group-title",
       text: t(titleKey),
     });

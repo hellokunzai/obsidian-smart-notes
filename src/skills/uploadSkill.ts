@@ -1,5 +1,4 @@
 import { unzipSync } from "fflate";
-import { Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { getSkillsDir, ensureFolder } from "../utils/aiFolder";
 import { t } from "../i18n";

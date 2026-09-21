@@ -8,48 +8,44 @@ import {
   type TokenUsage,
   type ToolCall,
 } from "./provider";
-import { readStreamLines, isFetchAvailable, type ParsedLine } from "./stream";
+import {
+  readStreamLines,
+  isFetchAvailable,
+  streamingFetch,
+  type ParsedLine,
+} from "./stream";
 import { t } from "../i18n";
+import { asNumber, asRecord, asText, parseJson, parseJsonOrThrow } from "../utils/json";
 
 /** 解析 Ollama NDJSON 行：裸 JSON，提取 message.content / thinking / usage。 */
 function parseNDJSONLine(line: string): ParsedLine | null {
   if (!line.trim()) return null;
-  try {
-    const json = JSON.parse(line);
-    const msg = json.message ?? {};
-    // Ollama 本地推理模型（qwq / deepseek-r1 蒸馏等）用 thinking 字段，
-    // 部分兼容实现用 reasoning_content。
-    const thinking = msg.thinking ?? msg.reasoning_content;
-    const delta = msg.content;
-    const result: ParsedLine = {};
-    if (typeof thinking === "string" && thinking.length > 0)
-      result.reasoning = thinking;
-    if (typeof delta === "string" && delta.length > 0)
-      result.content = delta;
-    if (json.done) {
-      let promptTokens = 0;
-      let completionTokens = 0;
-      let gotUsage = false;
-      if (typeof json.prompt_eval_count === "number") {
-        promptTokens = json.prompt_eval_count;
-        gotUsage = true;
-      }
-      if (typeof json.eval_count === "number") {
-        completionTokens = json.eval_count;
-        gotUsage = true;
-      }
-      if (gotUsage) {
-        result.usage = {
-          promptTokens,
-          completionTokens,
-          totalTokens: promptTokens + completionTokens,
-        };
-      }
+  const json = asRecord(parseJson(line));
+  const msg = asRecord(json.message);
+  // Ollama 本地推理模型（qwq / deepseek-r1 蒸馏等）用 thinking 字段，
+  // 部分兼容实现用 reasoning_content。
+  const thinking = msg.thinking ?? msg.reasoning_content;
+  const delta = msg.content;
+  const result: ParsedLine = {};
+  if (typeof thinking === "string" && thinking.length > 0)
+    result.reasoning = thinking;
+  if (typeof delta === "string" && delta.length > 0) result.content = delta;
+  if (json.done) {
+    const rawPrompt = json.prompt_eval_count;
+    const rawCompletion = json.eval_count;
+    const gotUsage =
+      typeof rawPrompt === "number" || typeof rawCompletion === "number";
+    if (gotUsage) {
+      const promptTokens = asNumber(rawPrompt);
+      const completionTokens = asNumber(rawCompletion);
+      result.usage = {
+        promptTokens,
+        completionTokens,
+        totalTokens: promptTokens + completionTokens,
+      };
     }
-    return Object.keys(result).length > 0 ? result : null;
-  } catch {
-    return null;
   }
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 /**
@@ -65,7 +61,7 @@ function toOllamaMessages(messages: ChatMessage[]): unknown[] {
       base.tool_calls = m.toolCalls.map((tc) => ({
         function: {
           name: tc.function.name,
-          arguments: JSON.parse(tc.function.arguments || "{}"),
+          arguments: parseJsonOrThrow(tc.function.arguments || "{}"),
         },
       }));
     }
@@ -82,44 +78,44 @@ function toOllamaMessages(messages: ChatMessage[]): unknown[] {
  * 从 Ollama 非流式响应中解析 CompletionResult（含可能的 tool_calls）。
  */
 function parseCompletionResponse(json: unknown): CompletionResult {
-  const j = json as Record<string, unknown>;
-  const message = j.message as Record<string, unknown> | undefined;
-  const content = (message?.content as string) || "";
+  const j = asRecord(json);
+  const message = asRecord(j.message);
+  const content = asText(message.content);
 
   let toolCalls: ToolCall[] | undefined;
-  const rawToolCalls = message?.tool_calls;
+  const rawToolCalls = message.tool_calls;
   if (Array.isArray(rawToolCalls) && rawToolCalls.length > 0) {
     toolCalls = rawToolCalls
-      .map((tc: unknown, idx: number) => {
-        const t = tc as Record<string, unknown>;
-        const fn = t.function as Record<string, unknown> | undefined;
-        if (!fn) return null;
+      .map((tc: unknown, idx: number): ToolCall | null => {
+        const call = asRecord(tc);
+        const fn = asRecord(call.function);
+        if (Object.keys(fn).length === 0) return null;
         // Ollama 的 arguments 可能是对象，需要序列化为 JSON 字符串
         const args = fn.arguments;
         const argsStr =
           typeof args === "string" ? args : JSON.stringify(args ?? {});
         return {
-          id: String(t.id ?? `call_ollama_${idx}`),
+          id: asText(call.id) || `call_ollama_${idx}`,
           type: "function" as const,
           function: {
-            name: String(fn.name ?? ""),
+            name: asText(fn.name),
             arguments: argsStr,
           },
         };
       })
-      .filter((tc): tc is NonNullable<typeof tc> => tc !== null);
+      .filter((tc): tc is ToolCall => tc !== null);
   }
 
   let usage: TokenUsage | undefined;
-  const gotPrompt = typeof j.prompt_eval_count === "number";
-  const gotComplete = typeof j.eval_count === "number";
-  if (gotPrompt || gotComplete) {
+  const rawPrompt = j.prompt_eval_count;
+  const rawCompletion = j.eval_count;
+  if (typeof rawPrompt === "number" || typeof rawCompletion === "number") {
+    const promptTokens = asNumber(rawPrompt);
+    const completionTokens = asNumber(rawCompletion);
     usage = {
-      promptTokens: (j.prompt_eval_count as number) ?? 0,
-      completionTokens: (j.eval_count as number) ?? 0,
-      totalTokens:
-        ((j.prompt_eval_count as number) ?? 0) +
-        ((j.eval_count as number) ?? 0),
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
     };
   }
 
@@ -199,7 +195,7 @@ export class OllamaProvider implements AIProvider {
       body.tools = opts.tools;
     }
 
-    const resp = await fetch(url, {
+    const resp = await streamingFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

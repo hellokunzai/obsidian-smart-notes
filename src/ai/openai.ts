@@ -8,8 +8,14 @@ import {
   type TokenUsage,
   type ToolCall,
 } from "./provider";
-import { readStreamLines, isFetchAvailable, type ParsedLine } from "./stream";
+import {
+  readStreamLines,
+  isFetchAvailable,
+  streamingFetch,
+  type ParsedLine,
+} from "./stream";
 import { t } from "../i18n";
+import { asNumber, asRecord, asText, parseJson } from "../utils/json";
 
 /** 解析 OpenAI SSE 行：`data: {json}` 格式，提取 delta.content / reasoning_content / usage。 */
 function parseSSELine(line: string): ParsedLine | null {
@@ -17,35 +23,32 @@ function parseSSELine(line: string): ParsedLine | null {
   if (!trimmed || !trimmed.startsWith("data:")) return null;
   const data = trimmed.slice(5).trim();
   if (data === "[DONE]") return null;
-  try {
-    const json = JSON.parse(data);
-    const delta = json.choices?.[0]?.delta ?? {};
-    // 推理模型（DeepSeek-R1）用 reasoning_content，OpenAI o 系列用 reasoning
-    const reasoning =
-      delta.reasoning_content ?? (delta as Record<string, unknown>).reasoning;
-    const content = delta.content;
-    const result: ParsedLine = {};
-    if (typeof reasoning === "string" && reasoning.length > 0)
-      result.reasoning = reasoning;
-    if (typeof content === "string" && content.length > 0)
-      result.content = content;
-    if (json.usage) {
-      const details =
-        (json.usage as Record<string, unknown>).completion_tokens_details as
-          | Record<string, unknown>
-          | undefined;
-      result.usage = {
-        promptTokens: json.usage.prompt_tokens ?? 0,
-        completionTokens: json.usage.completion_tokens ?? 0,
-        totalTokens: json.usage.total_tokens ?? 0,
-        reasoningTokens:
-          (details?.reasoning_tokens as number | undefined) ?? undefined,
-      };
-    }
-    return Object.keys(result).length > 0 ? result : null;
-  } catch {
-    return null;
+  const json = asRecord(parseJson(data));
+  const choices = Array.isArray(json.choices) ? json.choices : [];
+  const delta = asRecord(asRecord(choices[0]).delta);
+  // 推理模型（DeepSeek-R1）用 reasoning_content，OpenAI o 系列用 reasoning
+  const reasoning = delta.reasoning_content ?? delta.reasoning;
+  const content = delta.content;
+  const result: ParsedLine = {};
+  if (typeof reasoning === "string" && reasoning.length > 0)
+    result.reasoning = reasoning;
+  if (typeof content === "string" && content.length > 0)
+    result.content = content;
+  const usage = json.usage;
+  if (usage) {
+    const u = asRecord(usage);
+    const details = asRecord(u.completion_tokens_details);
+    result.usage = {
+      promptTokens: asNumber(u.prompt_tokens),
+      completionTokens: asNumber(u.completion_tokens),
+      totalTokens: asNumber(u.total_tokens),
+      reasoningTokens:
+        typeof details.reasoning_tokens === "number"
+          ? details.reasoning_tokens
+          : undefined,
+    };
   }
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 /**
@@ -79,42 +82,44 @@ function toOpenAIMessages(messages: ChatMessage[]): unknown[] {
  * 从非流式 OpenAI 响应中解析 CompletionResult（含可能的 tool_calls）。
  */
 function parseCompletionResponse(json: unknown): CompletionResult {
-  const j = json as Record<string, unknown>;
+  const j = asRecord(json);
   const choices = Array.isArray(j.choices) ? j.choices : [];
-  const message = (choices[0] as Record<string, unknown> | undefined)
-    ?.message as Record<string, unknown> | undefined;
-  const content = (message?.content as string) || "";
+  const message = asRecord(asRecord(choices[0]).message);
+  const content = asText(message.content);
 
   let toolCalls: ToolCall[] | undefined;
-  const rawToolCalls = message?.tool_calls;
+  const rawToolCalls = message.tool_calls;
   if (Array.isArray(rawToolCalls) && rawToolCalls.length > 0) {
     toolCalls = rawToolCalls
-      .map((tc: unknown) => {
-        const t = tc as Record<string, unknown>;
-        const fn = t.function as Record<string, unknown> | undefined;
-        if (!fn) return null;
+      .map((tc: unknown): ToolCall | null => {
+        const call = asRecord(tc);
+        const fn = asRecord(call.function);
+        if (Object.keys(fn).length === 0) return null;
         return {
-          id: String(t.id ?? ""),
+          id: asText(call.id),
           type: "function" as const,
           function: {
-            name: String(fn.name ?? ""),
-            arguments: String(fn.arguments ?? "{}"),
+            name: asText(fn.name),
+            arguments: asText(fn.arguments, "{}"),
           },
         };
       })
-      .filter((tc): tc is NonNullable<typeof tc> => tc !== null);
+      .filter((tc): tc is ToolCall => tc !== null);
   }
 
   let usage: TokenUsage | undefined;
-  const u = j.usage as Record<string, unknown> | undefined;
+  const u = j.usage;
   if (u) {
-    const details =
-      u.completion_tokens_details as Record<string, unknown> | undefined;
+    const record = asRecord(u);
+    const details = asRecord(record.completion_tokens_details);
     usage = {
-      promptTokens: (u.prompt_tokens as number) ?? 0,
-      completionTokens: (u.completion_tokens as number) ?? 0,
-      totalTokens: (u.total_tokens as number) ?? 0,
-      reasoningTokens: (details?.reasoning_tokens as number) ?? undefined,
+      promptTokens: asNumber(record.prompt_tokens),
+      completionTokens: asNumber(record.completion_tokens),
+      totalTokens: asNumber(record.total_tokens),
+      reasoningTokens:
+        typeof details.reasoning_tokens === "number"
+          ? details.reasoning_tokens
+          : undefined,
     };
   }
 
@@ -198,7 +203,7 @@ export class OpenAIProvider implements AIProvider {
       body.tools = opts.tools;
     }
 
-    const resp = await fetch(url, {
+    const resp = await streamingFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

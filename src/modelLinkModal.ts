@@ -12,6 +12,7 @@ import type AiNoteAgentPlugin from "./main";
 import type { ModelLink, ProviderType } from "./settings";
 import { genId, migrateModelLinkApiKeyToKeychain } from "./settings";
 import { createProviderFromLink } from "./ai/provider";
+import { addAsyncListener } from "./utils/dom";
 import { t } from "./i18n";
 
 /**
@@ -46,7 +47,7 @@ export class ModelLinkModal extends Modal {
       this.type = editing.type;
       this.baseUrl = editing.baseUrl;
       // 兼容旧数据：若 data.json 仍保存明文 apiKey，先迁移到 Obsidian keychain
-      migrateModelLinkApiKeyToKeychain(this.app, editing as ModelLink & { apiKey?: string });
+      migrateModelLinkApiKeyToKeychain(this.app, editing);
       this.apiKeyRef = editing.apiKeyRef ?? "";
       this.models = editing.models.slice();
       this.maxTokens = editing.maxTokens != null ? String(editing.maxTokens) : "0";
@@ -97,7 +98,7 @@ export class ModelLinkModal extends Modal {
       });
 
     // 动态区域：Base URL / API Key / 模型（随类型变化）
-    this.dynamicEl = contentEl.createEl("div");
+    this.dynamicEl = contentEl.createDiv();
     this.renderDynamic();
 
     // 最大 Token 数（可选，留空使用全局默认值；填 0 表示无限制）
@@ -140,7 +141,7 @@ export class ModelLinkModal extends Modal {
       });
 
     // 等 DOM 布局完成后，把两个数字输入框的 max-width 同步为「链接名称」输入框的宽度
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       if (nameInputEl && maxTokensInputEl && temperatureInputEl) {
         const nameWidth = nameInputEl.offsetWidth;
         if (nameWidth > 0) {
@@ -159,7 +160,7 @@ export class ModelLinkModal extends Modal {
     });
 
     // 底部按钮
-    const footer = contentEl.createEl("div", {
+    const footer = contentEl.createDiv({
       cls: "ana-modal-button-row",
     });
     new ButtonComponent(footer)
@@ -188,7 +189,7 @@ export class ModelLinkModal extends Modal {
         .setName(t("settings.openaiBaseUrl.name"))
         .setDesc(t("settings.openaiBaseUrl.desc"))
         .addText((tc: TextComponent) => {
-          tc.setPlaceholder("https://api.openai.com/v1");
+          tc.setPlaceholder(t("settings.openaiBaseUrl.placeholder"));
           tc.setValue(this.baseUrl);
           tc.onChange((v) => {
             this.baseUrl = v.trim();
@@ -201,7 +202,7 @@ export class ModelLinkModal extends Modal {
         .setClass("ana-setting-key-row");
 
       // 按钮行：选择/修改秘钥 + 测试连接（并排显示）
-      const btnRow = keySetting.controlEl.createEl("div", {
+      const btnRow = keySetting.controlEl.createDiv({
         cls: "ana-model-link-key-btn-row",
       });
 
@@ -235,7 +236,7 @@ export class ModelLinkModal extends Modal {
         cls: "ana-model-link-btn",
         text: t("settings.test.button"),
       });
-      testBtn.addEventListener("click", async () => {
+      addAsyncListener(testBtn, "click", async () => {
         // 未配置任何模型时直接提示，避免发送 model:"" 的无效请求（服务端返回 400）
         if (this.models.length === 0) {
           new Notice(t("settings.test.noModel"));
@@ -268,7 +269,7 @@ export class ModelLinkModal extends Modal {
         .setName(t("settings.ollamaBaseUrl.name"))
         .setDesc(t("settings.ollamaBaseUrl.desc"))
         .addText((tc: TextComponent) => {
-          tc.setPlaceholder("http://localhost:11434");
+          tc.setPlaceholder(t("settings.ollamaBaseUrl.placeholder"));
           tc.setValue(this.baseUrl);
           tc.onChange((v) => {
             this.baseUrl = v.trim();
@@ -283,7 +284,7 @@ export class ModelLinkModal extends Modal {
       .setClass("ana-setting-textarea-full");
 
     // 输入行（标签右侧：输入框 + 添加按钮）
-    const inputRow = modelSetting.controlEl.createEl("div", {
+    const inputRow = modelSetting.controlEl.createDiv({
       cls: "ana-model-link-input-row",
     });
     const input = inputRow.createEl("input", {
@@ -292,7 +293,7 @@ export class ModelLinkModal extends Modal {
     });
     input.placeholder = t("settings.modelLinks.modal.modelPlaceholder");
     input.addEventListener("keydown", (e) => {
-      const ke = e as KeyboardEvent;
+      const ke = e;
       if (ke.key === "Enter" || ke.key === ",") {
         e.preventDefault();
         this.addModelsFromInput(input);
@@ -305,17 +306,17 @@ export class ModelLinkModal extends Modal {
     addBtn.addEventListener("click", () => this.addModelsFromInput(input));
 
     // 标签展示行（整个设置行下方，独立一行）
-    this.tagsEl = this.dynamicEl.createEl("div", {
+    this.tagsEl = this.dynamicEl.createDiv({
       cls: "ana-model-link-tags-editor",
     });
     this.renderTags = () => {
       this.tagsEl.empty();
       for (const m of this.models) {
-        const tag = this.tagsEl.createEl("span", {
+        const tag = this.tagsEl.createSpan({
           cls: "ana-model-link-tag",
           text: m,
         });
-        const x = tag.createEl("span", {
+        const x = tag.createSpan({
           cls: "ana-model-link-tag-x",
           text: "×",
         });
@@ -420,7 +421,7 @@ export class SecretPickerModal extends Modal {
   constructor(
     app: App,
     private currentKey: string,
-    private onConfirm: (secret: string) => void,
+    private onConfirm: (secret: string) => void | Promise<void>,
     private options?: { returnId?: boolean }
   ) {
     super(app);
@@ -438,7 +439,7 @@ export class SecretPickerModal extends Modal {
     });
 
     // 搜索框
-    const searchWrap = contentEl.createEl("div", {
+    const searchWrap = contentEl.createDiv({
       cls: "ana-secret-picker-search",
     });
     this.searchInput = searchWrap.createEl("input", {
@@ -453,12 +454,12 @@ export class SecretPickerModal extends Modal {
     });
 
     // 内联添加表单容器（默认隐藏）
-    this.addFormEl = contentEl.createEl("div", {
+    this.addFormEl = contentEl.createDiv({
       cls: "ana-secret-picker-add-form",
     });
 
     // 密钥列表容器
-    this.listContainer = contentEl.createEl("div", {
+    this.listContainer = contentEl.createDiv({
       cls: "ana-secret-picker-list",
     });
 
@@ -481,7 +482,7 @@ export class SecretPickerModal extends Modal {
     this.renderList();
 
     // 底部按钮行
-    const footer = contentEl.createEl("div", {
+    const footer = contentEl.createDiv({
       cls: "ana-secret-picker-footer",
     });
     // 左侧：添加密钥
@@ -491,7 +492,7 @@ export class SecretPickerModal extends Modal {
     });
     addBtn.addEventListener("click", () => this.showAddSecret());
     // 右侧：取消 + 保存（原生按钮确保点击可靠）
-    const btnGroup = footer.createEl("div", {
+    const btnGroup = footer.createDiv({
       cls: "ana-secret-picker-btn-group",
     });
     const cancelBtn = btnGroup.createEl("button", {
@@ -510,17 +511,17 @@ export class SecretPickerModal extends Modal {
     this.saveBtnEl.addEventListener("click", () => {
       if (this.selectedId) {
         if (this.options?.returnId) {
-          this.onConfirm(this.selectedId);
+          void this.onConfirm(this.selectedId);
         } else {
           const val = this.app.secretStorage.getSecret(this.selectedId);
-          this.onConfirm(val ?? "");
+          void this.onConfirm(val ?? "");
         }
       }
       this.close();
     });
 
     // 聚焦搜索框
-    setTimeout(() => this.searchInput.focus(), 50);
+    window.setTimeout(() => this.searchInput.focus(), 50);
   }
 
   /** 渲染密钥列表（带搜索过滤）。 */
@@ -532,7 +533,7 @@ export class SecretPickerModal extends Modal {
       ids = ids.filter((id) => id.toLowerCase().includes(q));
     }
     if (ids.length === 0) {
-      this.listContainer.createEl("div", {
+      this.listContainer.createDiv({
         cls: "ana-secret-picker-empty",
         text: q
           ? t("settings.modelLinks.modal.secretPicker.noMatch")
@@ -541,7 +542,7 @@ export class SecretPickerModal extends Modal {
       return;
     }
     for (const id of ids) {
-      const row = this.listContainer.createEl("div", {
+      const row = this.listContainer.createDiv({
         cls: "ana-secret-picker-row",
       });
       const isSelected = id === this.selectedId;
@@ -562,17 +563,17 @@ export class SecretPickerModal extends Modal {
       });
 
       // 名称 + 徽标区
-      const info = row.createEl("div", { cls: "ana-secret-picker-info" });
-      info.createEl("span", { cls: "ana-secret-picker-name", text: id });
+      const info = row.createDiv({ cls: "ana-secret-picker-info" });
+      info.createSpan({ cls: "ana-secret-picker-name", text: id });
       if (isSelected) {
-        info.createEl("span", {
+        info.createSpan({
           cls: "ana-secret-picker-selected-badge",
           text: t("settings.modelLinks.modal.secretPicker.selected"),
         });
       }
 
       // 操作按钮：查看 + 删除
-      const actions = row.createEl("div", {
+      const actions = row.createDiv({
         cls: "ana-secret-picker-actions",
       });
       // 查看（行内展开密钥值）
@@ -589,7 +590,7 @@ export class SecretPickerModal extends Modal {
       // 行内展开区域（显示完整密钥值）
       if (this.expandedId === id) {
         const val = this.app.secretStorage.getSecret(id);
-        const expandEl = row.createEl("div", {
+        row.createDiv({
           cls: "ana-secret-picker-expanded",
           text: val || t("settings.modelLinks.modal.secretPicker.noValue"),
         });
@@ -601,7 +602,7 @@ export class SecretPickerModal extends Modal {
         attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.delete") },
       });
       setIcon(delBtn, "trash");
-      delBtn.addEventListener("click", async () => {
+      addAsyncListener(delBtn, "click", async () => {
         try {
           this.app.secretStorage.setSecret(id, "");
           if (this.selectedId === id) this.selectedId = null;
@@ -647,7 +648,7 @@ export class SecretPickerModal extends Modal {
     });
 
     // 右侧按钮：添加 + 取消
-    const btnRow = this.addFormEl.createEl("div", {
+    const btnRow = this.addFormEl.createDiv({
       cls: "ana-secret-picker-add-btn-row",
     });
 
@@ -663,7 +664,7 @@ export class SecretPickerModal extends Modal {
     nameInput.addEventListener("input", checkValid);
     valueInput.addEventListener("input", checkValid);
 
-    confirmBtn.addEventListener("click", async () => {
+    addAsyncListener(confirmBtn, "click", async () => {
       if (!nameVal || !secretVal) return;
       try {
         this.app.secretStorage.setSecret(nameVal, secretVal);
@@ -685,7 +686,7 @@ export class SecretPickerModal extends Modal {
     cancelBtn.addEventListener("click", () => this.hideAddForm());
 
     // 聚焦名称输入框
-    setTimeout(() => nameInput.focus(), 50);
+    window.setTimeout(() => nameInput.focus(), 50);
   }
 
   /** 收起内联添加表单。 */

@@ -1,5 +1,6 @@
 import { App, TFile, TFolder } from "obsidian";
 import type { AttachmentRef } from "../utils/aiFolder";
+import { asText } from "../utils/json";
 
 /** 常用停用词（中英文），用于过滤 query 中的无意义词。 */
 const STOP_WORDS = new Set([
@@ -150,13 +151,12 @@ export function buildKnowledgeIndex(
  * 设计要点：
  *  - 只读取已解析好的 `cache.frontmatter`（Obsidian 已把 YAML 解析成对象）；
  *  - 按白名单过滤属性（留空表示索引全部非空属性）；
- *  - 单属性值按 maxChars 截断，防止长字段撑爆 token；
+ *  - 属性值不再截断（原「单属性字符上限」已移除）；
  *  - 跳过 Obsidian 内部位置标记字段 `position` 以及没有 Frontmatter 的文件。
  *
  * @param app Obsidian app
  * @param enabled 是否启用（设置项 includeFrontmatterIndex）
  * @param keysRaw 属性白名单原始文本（换行/逗号/中文逗号分隔），空串表示全部
- * @param maxChars 单属性值字符上限
  * @param maxFiles 最多注入的文件数（0 = 不限制）
  * @param query 当前用户消息文本；若提供有效关键词，则只保留匹配的文件元数据，减少 token 消耗
  */
@@ -164,13 +164,11 @@ export function buildFrontmatterIndex(
   app: App,
   enabled: boolean,
   keysRaw: string,
-  maxChars: number,
   maxFiles = 0,
   query = ""
 ): string {
   if (!enabled) return "";
   const keys = parseKeyWhitelist(keysRaw);
-  const limit = Math.max(1, maxChars || 500);
 
   const mdFiles = app.vault.getMarkdownFiles();
   if (mdFiles.length === 0) return "";
@@ -186,7 +184,7 @@ export function buildFrontmatterIndex(
     for (const [k, v] of Object.entries(fm)) {
       if (k === "position") continue; // Obsidian 内部位置标记，无意义
       if (keys.length > 0 && !keys.includes(k.toLowerCase())) continue;
-      const formatted = formatFrontmatterValue(v, limit);
+      const formatted = formatFrontmatterValue(v);
       if (formatted === "") continue;
       pairs.push(`${k}=${formatted}`);
     }
@@ -251,22 +249,20 @@ export function collectFrontmatterKeys(
     .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
 
-/** 把 Frontmatter 值格式化为可读字符串，并按 maxChars 截断（超长标注 ...）。 */
-function formatFrontmatterValue(v: unknown, maxChars: number): string {
+/** 把 Frontmatter 值格式化为可读字符串（不截断）。 */
+function formatFrontmatterValue(v: unknown): string {
   let s: string;
   if (Array.isArray(v)) {
-    s = v.map((x) => String(x)).join(", ");
+    s = v.map((x) => asText(x)).join(", ");
   } else if (v && typeof v === "object") {
     try {
       s = JSON.stringify(v);
     } catch {
-      s = String(v);
+      // 循环引用等无法序列化的对象：放弃该值，避免输出 "[object Object]"
+      s = "";
     }
   } else {
-    s = v == null ? "" : String(v);
-  }
-  if (s.length > maxChars) {
-    s = s.slice(0, maxChars) + "...";
+    s = asText(v);
   }
   return s;
 }

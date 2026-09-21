@@ -1,5 +1,6 @@
 import { App, requestUrl } from "obsidian";
 import { t } from "../i18n";
+import { asArray, asRecord, asText, errorText, toError } from "../utils/json";
 
 /**
  * 联网搜索模块。
@@ -53,7 +54,7 @@ interface WebSearchProvider {
 /** Tavily：POST https://api.tavily.com/search */
 class TavilyProvider implements WebSearchProvider {
   async search(query: string, keys: string[], max: number): Promise<SearchResult[]> {
-    let lastErr: unknown = null;
+    let lastErr: Error | null = null;
     for (const key of keys) {
       try {
         const resp = await requestUrl({
@@ -72,21 +73,24 @@ class TavilyProvider implements WebSearchProvider {
           lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
           continue;
         }
-        const data = resp.json;
-        if (data?.error) {
-          lastErr = new Error(String(data.error));
+        const data = asRecord(resp.json);
+        const error = data.error;
+        if (error) {
+          lastErr = new Error(errorText(error));
           continue;
         }
-        const results: any[] = data?.results ?? [];
-        return results
-          .map((r) => ({
-            title: String(r.title ?? ""),
-            url: String(r.url ?? ""),
-            content: String(r.content ?? ""),
-          }))
+        return asArray(data.results)
+          .map((r) => {
+            const row = asRecord(r);
+            return {
+              title: asText(row.title),
+              url: asText(row.url),
+              content: asText(row.content),
+            };
+          })
           .filter((r) => r.url);
       } catch (e) {
-        lastErr = e;
+        lastErr = toError(e);
       }
     }
     if (lastErr) throw lastErr;
@@ -97,7 +101,7 @@ class TavilyProvider implements WebSearchProvider {
 /** Serper：POST https://google.serper.dev/search + X-API-KEY */
 class SerperProvider implements WebSearchProvider {
   async search(query: string, keys: string[], max: number): Promise<SearchResult[]> {
-    let lastErr: unknown = null;
+    let lastErr: Error | null = null;
     for (const key of keys) {
       try {
         const resp = await requestUrl({
@@ -113,22 +117,25 @@ class SerperProvider implements WebSearchProvider {
           lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
           continue;
         }
-        const data = resp.json;
-        if (data?.error) {
-          lastErr = new Error(String(data.error));
+        const data = asRecord(resp.json);
+        const error = data.error;
+        if (error) {
+          lastErr = new Error(errorText(error));
           continue;
         }
-        const organic: any[] = data?.organic ?? [];
-        return organic
+        return asArray(data.organic)
           .slice(0, max)
-          .map((r) => ({
-            title: String(r.title ?? ""),
-            url: String(r.link ?? ""),
-            content: String(r.snippet ?? ""),
-          }))
+          .map((r) => {
+            const row = asRecord(r);
+            return {
+              title: asText(row.title),
+              url: asText(row.link),
+              content: asText(row.snippet),
+            };
+          })
           .filter((r) => r.url);
       } catch (e) {
-        lastErr = e;
+        lastErr = toError(e);
       }
     }
     if (lastErr) throw lastErr;
@@ -139,7 +146,7 @@ class SerperProvider implements WebSearchProvider {
 /** Brave：GET https://api.search.brave.com/res/v1/web/search + X-Subscription-Token */
 class BraveProvider implements WebSearchProvider {
   async search(query: string, keys: string[], max: number): Promise<SearchResult[]> {
-    let lastErr: unknown = null;
+    let lastErr: Error | null = null;
     for (const key of keys) {
       try {
         const resp = await requestUrl({
@@ -156,23 +163,26 @@ class BraveProvider implements WebSearchProvider {
           lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
           continue;
         }
-        const data = resp.json;
-        if (data?.error) {
-          lastErr = new Error(String(data.error));
+        const data = asRecord(resp.json);
+        const error = data.error;
+        if (error) {
+          lastErr = new Error(errorText(error));
           continue;
         }
-        const web: any = data?.web ?? {};
-        const items: any[] = web?.results ?? [];
-        return items
+        const web = asRecord(data.web);
+        return asArray(web.results)
           .slice(0, max)
-          .map((r) => ({
-            title: String(r.title ?? ""),
-            url: String(r.url ?? ""),
-            content: String(r.description ?? ""),
-          }))
+          .map((r) => {
+            const row = asRecord(r);
+            return {
+              title: asText(row.title),
+              url: asText(row.url),
+              content: asText(row.description),
+            };
+          })
           .filter((r) => r.url);
       } catch (e) {
-        lastErr = e;
+        lastErr = toError(e);
       }
     }
     if (lastErr) throw lastErr;
@@ -183,7 +193,7 @@ class BraveProvider implements WebSearchProvider {
 /** SearXNG：GET {instance}/search?format=json */
 class SearXNGProvider implements WebSearchProvider {
   async search(query: string, keys: string[], max: number): Promise<SearchResult[]> {
-    let lastErr: unknown = null;
+    let lastErr: Error | null = null;
     for (const base of keys) {
       const baseUrl = base.replace(/\/+$/, "");
       try {
@@ -196,22 +206,25 @@ class SearXNGProvider implements WebSearchProvider {
           lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
           continue;
         }
-        const data = resp.json;
-        if (data?.error) {
-          lastErr = new Error(String(data.error));
+        const data = asRecord(resp.json);
+        const error = data.error;
+        if (error) {
+          lastErr = new Error(errorText(error));
           continue;
         }
-        const items: any[] = data?.results ?? [];
-        return items
+        return asArray(data.results)
           .slice(0, max)
-          .map((r) => ({
-            title: String(r.title ?? ""),
-            url: String(r.url ?? ""),
-            content: String(r.content ?? r.snippet ?? ""),
-          }))
+          .map((r) => {
+            const row = asRecord(r);
+            return {
+              title: asText(row.title),
+              url: asText(row.url),
+              content: asText(row.content) || asText(row.snippet),
+            };
+          })
           .filter((r) => r.url);
       } catch (e) {
-        lastErr = e;
+        lastErr = toError(e);
       }
     }
     if (lastErr) throw lastErr;

@@ -1,7 +1,6 @@
 import type AiNoteAgentPlugin from "../main";
 import {
   ensureAiFolder,
-  getAiFolderPath,
   getMemoryDir,
   loadSessionFile,
   loadSessionsIndex,

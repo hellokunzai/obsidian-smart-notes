@@ -8,9 +8,7 @@ import {
   ButtonComponent,
   setIcon,
   MarkdownRenderer,
-  Component,
   Platform,
-  moment,
 } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import { t } from "../i18n";
@@ -34,6 +32,7 @@ import {
 } from "../utils/aiFolder";
 import { setCssVars } from "../utils/cssVars";
 import { applyTooltip } from "../utils/tooltip";
+import { toError } from "../utils/json";
 import { attachSessionRowTrigger, buildSessionRowMenu } from "./sessionRowMenu";
 import { buildKnowledgeIndex, buildAttachmentContext, buildFrontmatterIndex, collectFrontmatterKeys } from "../context/knowledge";
 import { buildSkillContent, buildSkillIndex, listSkills, type SkillEntry } from "../skills/skills";
@@ -346,19 +345,19 @@ export class ChatView extends ItemView {
     container.empty();
     container.addClass("ana-chat-view");
 
-    const body = container.createEl("div", { cls: "ana-chat-body" });
+    const body = container.createDiv({ cls: "ana-chat-body" });
 
     // 侧栏（会话历史）
-    this.sidebarEl = body.createEl("div", { cls: "ana-chat-sidebar" });
+    this.sidebarEl = body.createDiv({ cls: "ana-chat-sidebar" });
     this.renderSidebar();
     this.sidebarEl.toggleClass("is-collapsed", this.sidebarCollapsed);
 
     // 右侧主区
-    const main = body.createEl("div", { cls: "ana-chat-main" });
+    const main = body.createDiv({ cls: "ana-chat-main" });
 
-    const header = main.createEl("div", { cls: "ana-chat-header" });
+    const header = main.createDiv({ cls: "ana-chat-header" });
 
-    const leftGroup = header.createEl("div", { cls: "ana-chat-header-left" });
+    const leftGroup = header.createDiv({ cls: "ana-chat-header-left" });
     // 本视图的「纯图标按钮」一律加 Obsidian 自己的 `clickable-icon` 类：
     // `button:not(.clickable-icon)`（特异性 (0,1,1)）会给按钮塞主题灰底 + input-shadow，
     // 而我们的规则是单类名 (0,1,0)，同属性正面冲突必输 —— 加了这类之后那条规则**直接不匹配**，
@@ -370,13 +369,13 @@ export class ChatView extends ItemView {
     this.renderSidebarToggle();
     this.sidebarToggleBtn.addEventListener("click", () => this.toggleSidebar());
 
-    const titleEl = leftGroup.createEl("span", {
+    const titleEl = leftGroup.createSpan({
       text: t("view.title"),
       cls: "ana-chat-title",
     });
     void titleEl;
 
-    const rightGroup = header.createEl("div", { cls: "ana-chat-header-right" });
+    const rightGroup = header.createDiv({ cls: "ana-chat-header-right" });
 
     const newBtn = rightGroup.createEl("button", {
       cls: "clickable-icon ana-chat-header-btn",
@@ -392,13 +391,13 @@ export class ChatView extends ItemView {
     setIcon(clearBtn, "brush-cleaning");
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
 
-    this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
+    this.messagesEl = main.createDiv({ cls: "ana-chat-messages" });
     this.attachLinkHandler(this.messagesEl);
 
-    const footer = main.createEl("div", { cls: "ana-chat-footer" });
+    const footer = main.createDiv({ cls: "ana-chat-footer" });
 
     // 文件入口行（输入框上方）：模型 › 角色 › 附件 › Skill › 联网，全部靠左
-    const attachRow = footer.createEl("div", { cls: "ana-chat-attach-row" });
+    const attachRow = footer.createDiv({ cls: "ana-chat-attach-row" });
 
     // 模型选择按钮（普通图标按钮）
     this.modelBtn = attachRow.createEl("button", {
@@ -450,15 +449,15 @@ export class ChatView extends ItemView {
     this.propBtn.addEventListener("click", () => this.openPropertyPicker());
 
     // 输入区：包裹层 + 底部操作栏
-    const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
+    const inputArea = footer.createDiv({ cls: "ana-chat-input-area" });
 
-    this.inputWrapEl = inputArea.createEl("div", { cls: "ana-chat-input-wrap" });
+    this.inputWrapEl = inputArea.createDiv({ cls: "ana-chat-input-wrap" });
     // 顶部 6px 拖拽条：方便鼠标调整输入框高度
-    this.resizeHandleEl = this.inputWrapEl.createEl("div", {
+    this.resizeHandleEl = this.inputWrapEl.createDiv({
       cls: "ana-chat-resize-handle",
       prepend: true,
     });
-    this.chipsEl = this.inputWrapEl.createEl("div", { cls: "ana-chat-chips" });
+    this.chipsEl = this.inputWrapEl.createDiv({ cls: "ana-chat-chips" });
     this.inputEl = this.inputWrapEl.createEl("textarea", {
       cls: "ana-chat-input",
       attr: { placeholder: t("view.placeholder"), rows: "2" },
@@ -471,26 +470,26 @@ export class ChatView extends ItemView {
     });
 
     // 输入框内底部工具栏：左 模型名/角色名标签，右 发送按钮
-    const inputBar = this.inputWrapEl.createEl("div", { cls: "ana-chat-input-bar" });
+    const inputBar = this.inputWrapEl.createDiv({ cls: "ana-chat-input-bar" });
 
     // 模型名/角色名标签（左侧，发送按钮在右侧由 .ana-chat-input-actions-right 推右）
     // 拆成 模型名 + "/" + 角色名 三段，两段各占一半宽度，超出由 CSS 省略号截断
-    this.modelLabelEl = inputBar.createEl("span", {
+    this.modelLabelEl = inputBar.createSpan({
       cls: "ana-chat-model-label",
     });
-    this.modelLabelPartEl = this.modelLabelEl.createEl("span", {
+    this.modelLabelPartEl = this.modelLabelEl.createSpan({
       cls: "ana-chat-model-part",
     });
-    this.modelLabelSepEl = this.modelLabelEl.createEl("span", {
+    this.modelLabelSepEl = this.modelLabelEl.createSpan({
       cls: "ana-chat-model-sep",
       text: "/",
     });
-    this.modelLabelRoleEl = this.modelLabelEl.createEl("span", {
+    this.modelLabelRoleEl = this.modelLabelEl.createSpan({
       cls: "ana-chat-role-part",
     });
     this.renderModelSelect();
 
-    const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
+    const rightActions = inputBar.createDiv({ cls: "ana-chat-input-actions-right" });
 
     this.sendBtn = rightActions.createEl("button", {
       cls: "clickable-icon ana-chat-send",
@@ -555,10 +554,10 @@ export class ChatView extends ItemView {
     }
 
     this.sidebarEl.empty();
-    this.sidebarHeadEl = this.sidebarEl.createEl("div", {
+    this.sidebarHeadEl = this.sidebarEl.createDiv({
       cls: "ana-chat-sidebar-head",
     });
-    this.sessionListEl = this.sidebarEl.createEl("div", {
+    this.sessionListEl = this.sidebarEl.createDiv({
       cls: "ana-chat-session-list",
     });
     this.refreshSessions();
@@ -577,7 +576,7 @@ export class ChatView extends ItemView {
     this.sidebarHeadEl.empty();
 
     if (!this.batchMode) {
-      this.sidebarHeadEl.createEl("span", {
+      this.sidebarHeadEl.createSpan({
         text: t("view.history"),
         cls: "ana-chat-sidebar-title",
       });
@@ -597,10 +596,10 @@ export class ChatView extends ItemView {
         "aria-pressed": this.allSelected ? "true" : "false",
       },
     });
-    selectAll.createEl("span", {
+    selectAll.createSpan({
       cls: "ana-chat-session-check" + (this.allSelected ? " is-checked" : ""),
     });
-    selectAll.createEl("span", {
+    selectAll.createSpan({
       cls: "ana-chat-sidebar-title",
       text: t("view.history"),
     });
@@ -645,7 +644,7 @@ export class ChatView extends ItemView {
     this.sessionListEl.empty();
 
     if (this.sessions.length === 0) {
-      this.sessionListEl.createEl("div", {
+      this.sessionListEl.createDiv({
         text: t("view.noSessions"),
         cls: "ana-chat-session-empty",
       });
@@ -656,7 +655,7 @@ export class ChatView extends ItemView {
     const ordered = [...this.sessions].sort((a, b) => b.updatedAt - a.updatedAt);
     for (const s of ordered) {
       const selected = this.batchMode && this.batchSelected.has(s.id);
-      const item = this.sessionListEl.createEl("div", {
+      const item = this.sessionListEl.createDiv({
         // 批量态下不渲染 is-active：此刻的高亮全指勾选，
         // 让「当前会话」再占一层底色只会让人分不清哪个是勾了哪个是正在看
         cls:
@@ -666,13 +665,13 @@ export class ChatView extends ItemView {
       });
 
       if (this.batchMode) {
-        item.createEl("span", {
+        item.createSpan({
           cls: "ana-chat-session-check" + (selected ? " is-checked" : ""),
         });
       }
 
       const title = s.title || t("view.defaultTitle");
-      item.createEl("span", {
+      item.createSpan({
         text: title,
         cls: "ana-chat-session-label",
       });
@@ -774,7 +773,7 @@ export class ChatView extends ItemView {
     input.value = s.title;
 
     // 按钮独立成行、贴右，与删除确认弹窗共用 .ana-chat-modal-actions
-    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    const btns = modal.contentEl.createDiv({ cls: "ana-chat-modal-actions" });
     new ButtonComponent(btns)
       .setButtonText(t("modal.apply"))
       .setCta()
@@ -797,7 +796,7 @@ export class ChatView extends ItemView {
     modal.titleEl.setText(t("view.deleteSession"));
     modal.contentEl.createEl("p", { text: t("view.confirmDelete", { title: s.title }) });
 
-    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    const btns = modal.contentEl.createDiv({ cls: "ana-chat-modal-actions" });
     new ButtonComponent(btns)
       .setButtonText(t("modal.cancel"))
       .onClick(() => modal.close());
@@ -866,7 +865,7 @@ export class ChatView extends ItemView {
       text: t("view.batchConfirmDelete", { count: String(ids.length) }),
     });
 
-    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    const btns = modal.contentEl.createDiv({ cls: "ana-chat-modal-actions" });
     new ButtonComponent(btns)
       .setButtonText(t("modal.cancel"))
       .onClick(() => modal.close());
@@ -925,7 +924,7 @@ export class ChatView extends ItemView {
 
     for (let i = 0; i < s.attachments.length; i++) {
       const ref = s.attachments[i];
-      const chip = this.chipsEl.createEl("div", { cls: "ana-chat-chip" });
+      const chip = this.chipsEl.createDiv({ cls: "ana-chat-chip" });
       const icon = ref.type === "folder" ? "folder" : "file-text";
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
       setIcon(iconSpan, icon);
@@ -940,7 +939,7 @@ export class ChatView extends ItemView {
 
     for (let i = 0; i < s.skills.length; i++) {
       const path = s.skills[i];
-      const chip = this.chipsEl.createEl("div", {
+      const chip = this.chipsEl.createDiv({
         cls: "ana-chat-chip ana-chat-chip-skill",
       });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
@@ -957,7 +956,7 @@ export class ChatView extends ItemView {
     const props = s.frontmatterProps ?? [];
     for (let i = 0; i < props.length; i++) {
       const key = props[i];
-      const chip = this.chipsEl.createEl("div", {
+      const chip = this.chipsEl.createDiv({
         cls: "ana-chat-chip ana-chat-chip-prop",
       });
       // 「属性」前缀用 tag 图标替代文字，与工具栏「选择属性」按钮一致
@@ -1364,11 +1363,11 @@ export class ChatView extends ItemView {
       attachments?: AttachmentRef[];
     }
   ): { contentEl: HTMLElement; bubbleEl: HTMLElement; rowEl: HTMLElement } {
-    const row = this.messagesEl.createEl("div", {
+    const row = this.messagesEl.createDiv({
       cls: `ana-chat-message ana-chat-message-${role}`,
     });
-    const bubble = row.createEl("div", { cls: "ana-chat-bubble" });
-    const content = bubble.createEl("div", { cls: "ana-chat-text" });
+    const bubble = row.createDiv({ cls: "ana-chat-bubble" });
+    const content = bubble.createDiv({ cls: "ana-chat-text" });
 
     // 助手消息：在气泡外顶部展示「头像 + 角色名 + 默认徽标」（方案 A）
     if (role === "assistant" && this.plugin.settings.rolesEnabled) {
@@ -1488,7 +1487,7 @@ export class ChatView extends ItemView {
   ): void {
     const footer = bubble.createDiv({ cls: "ana-chat-msg-meta" });
     for (const p of meta.skills ?? []) {
-      const chip = footer.createEl("div", {
+      const chip = footer.createDiv({
         cls: "ana-chat-chip ana-chat-chip-skill",
       });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
@@ -1496,7 +1495,7 @@ export class ChatView extends ItemView {
       chip.createSpan({ text: this.skillDisplayName(p), cls: "ana-chat-chip-label" });
     }
     for (const ref of meta.attachments ?? []) {
-      const chip = footer.createEl("div", { cls: "ana-chat-chip" });
+      const chip = footer.createDiv({ cls: "ana-chat-chip" });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
       setIcon(iconSpan, ref.type === "folder" ? "folder" : "file-text");
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
@@ -1511,11 +1510,18 @@ export class ChatView extends ItemView {
 
   /** 发送时间格式化：当天仅显示 HH:mm，否则显示 YYYY-MM-DD HH:mm。 */
   private formatMessageTime(ts: number): string {
-    const d = moment(ts);
-    if (d.isSame(moment(), "day")) {
-      return d.format("HH:mm");
-    }
-    return d.format("YYYY-MM-DD HH:mm");
+    const d = new Date(ts);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const hhmm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const sameDay =
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+    if (sameDay) return hhmm;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate()
+    )} ${hhmm}`;
   }
 
   /** 从 skill 路径推导展示名（取 SKILL.md 所在文件夹名）。 */
@@ -1563,7 +1569,7 @@ export class ChatView extends ItemView {
    */
   private attachLinkHandler(container: HTMLElement): void {
     container.addEventListener("click", (evt) => {
-      const anchor = (evt.target as HTMLElement).closest("a") as HTMLAnchorElement | null;
+      const anchor = (evt.target as HTMLElement).closest("a");
       if (!anchor) return;
 
       const href = anchor.getAttribute("href");
@@ -1607,7 +1613,7 @@ export class ChatView extends ItemView {
       return;
     }
     try {
-      await MarkdownRenderer.renderMarkdown(text, el, "", this as Component);
+      await MarkdownRenderer.render(this.app, text, el, "", this);
     } catch {
       // 渲染失败时回退到纯文本
       el.setText(text);
@@ -1624,7 +1630,7 @@ export class ChatView extends ItemView {
     const existing = bubbleEl.querySelector(".ana-chat-token-usage");
     if (existing) existing.remove();
 
-    const footer = bubbleEl.createEl("div", {
+    const footer = bubbleEl.createDiv({
       cls: "ana-chat-token-usage",
       text: this.formatTokenUsage(usage),
     });
@@ -1706,7 +1712,7 @@ export class ChatView extends ItemView {
   private appendStreamingCursor(): void {
     if (!this.streamingContentEl) return;
     this.removeStreamingCursor();
-    this.streamingCursorEl = this.streamingContentEl.createEl("span", {
+    this.streamingCursorEl = this.streamingContentEl.createSpan({
       cls: "ana-chat-streaming-cursor",
       text: "▍",
     });
@@ -1981,35 +1987,42 @@ export class ChatView extends ItemView {
         this.plugin.settings.modelLinks[0];
       const params = resolveLinkParams(paramLink, this.plugin.settings);
 
-      // Tool Calling 预检：若启用了索引设置，先让模型判断是否需要搜索知识库
+      // Tool Calling 预检：若启用了索引设置，先让模型判断是否需要搜索知识库。
+      // 支持多轮（最多 MAX_TOOL_ROUNDS 轮）：模型可以「先搜索 → 再按路径读取正文 → 再回答」，
+      // 单轮时工具轮结束后模型无法再发起调用，会出现「搜到文件名却读不到正文」。
       const st = this.plugin.settings;
       const useTools = st.includeVaultIndex || st.includeFrontmatterIndex;
       if (useTools) {
         const vaultTools = createVaultToolDefinitions();
-        try {
-          const toolCheck = await this.withTimeout(
-            provider.complete(messages, {
-              maxTokens: Math.min(params.maxTokens || 1024, 2048),
-              temperature: 0.1, // 低温度让模型更确定地判断
-              tools: vaultTools,
-            }),
-            30_000
-          );
-          if (toolCheck.toolCalls && toolCheck.toolCalls.length > 0) {
+        const MAX_TOOL_ROUNDS = 3;
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+          try {
+            const toolCheck = await this.withTimeout(
+              provider.complete(messages, {
+                maxTokens: Math.min(params.maxTokens || 1024, 2048),
+                temperature: 0.1, // 低温度让模型更确定地判断
+                tools: vaultTools,
+              }),
+              30_000
+            );
+            const calls = toolCheck.toolCalls ?? [];
+            // 模型不再需要调用工具：结束预检，进入最终流式回答
+            if (calls.length === 0) break;
+
             // 在 UI 上提示正在执行工具
             this.hideTypingIndicator(assistantContentEl);
-            this.showToolCallsNotice(assistantContentEl, toolCheck.toolCalls);
+            this.showToolCallsNotice(assistantContentEl, calls);
             // 执行工具
             const toolResults = await executeToolCalls(
               this.plugin.app,
-              toolCheck.toolCalls,
+              calls,
               this.plugin.settings
             );
             // 注入 assistant 消息（带 tool_calls）到对话历史
             messages.push({
               role: "assistant",
               content: toolCheck.content || "",
-              toolCalls: toolCheck.toolCalls,
+              toolCalls: calls,
             });
             // 注入 tool 结果消息
             for (const tr of toolResults) {
@@ -2019,11 +2032,12 @@ export class ChatView extends ItemView {
                 toolCallId: tr.toolCallId,
               });
             }
-            // 重新显示打字指示器，准备流式输出最终回复
+            // 重新显示打字指示器，准备下一轮（继续搜索 / 读取）或最终流式输出
             this.showTypingIndicator(assistantContentEl);
+          } catch {
+            // 工具预检失败不阻断主流程，静默继续正常流式请求
+            break;
           }
-        } catch {
-          // 工具预检失败不阻断主流程，静默继续正常流式请求
         }
       }
 
@@ -2047,7 +2061,7 @@ export class ChatView extends ItemView {
       // 解析 AI 的 @use-skill 标记：仅检测被调用的 skill 路径，不写入 session。
       const { cleaned, detected } = await this.applySkillInvocations(reply);
       // 始终渲染剥离标记后的干净文本。
-      await this.renderMarkdown(this.streamingContentEl!, cleaned);
+      await this.renderMarkdown(this.streamingContentEl, cleaned);
       const needsReenter = detected.length > 0 && depth < 1;
       if (detected.length > 0 && !needsReenter) {
         // 已达重入上限（depth>=1）仍声明调用：提示用户手动添加，不自动重入。
@@ -2069,7 +2083,7 @@ export class ChatView extends ItemView {
       }
       if (usage && usage.totalTokens > 0) {
         this.renderTokenUsage(
-          this.streamingContentEl!.closest(".ana-chat-bubble") as HTMLElement,
+          this.streamingContentEl.closest(".ana-chat-bubble") as HTMLElement,
           usage
         );
       }
@@ -2143,7 +2157,7 @@ export class ChatView extends ItemView {
     this.removeStreamingCursor();
     // 在助手消息末尾追加「已停止」提示（如果已有内容）
     if (this.streamingContentEl && this.streamingRawContent) {
-      const stopEl = this.streamingContentEl.createEl("span", {
+      this.streamingContentEl.createSpan({
         cls: "ana-chat-stopped-badge",
         text: ` ${t("view.stopped")}`,
       });
@@ -2160,7 +2174,7 @@ export class ChatView extends ItemView {
       }, ms);
       promise.then(
         (value) => { window.clearTimeout(timer); resolve(value); },
-        (err) => { window.clearTimeout(timer); reject(err); }
+        (err) => { window.clearTimeout(timer); reject(toError(err)); }
       );
     });
   }
@@ -2263,7 +2277,7 @@ export class ChatView extends ItemView {
         .catch((err) => {
           signal.removeEventListener("abort", onAbort);
           cleanup();
-          reject(err);
+          reject(toError(err));
         });
     });
   }
@@ -2271,9 +2285,9 @@ export class ChatView extends ItemView {
   /** 在助手消息气泡中显示「思考中」跳点动画。 */
   private showTypingIndicator(contentEl: HTMLElement): void {
     contentEl.addClass("ana-chat-typing");
-    contentEl.createEl("span", { cls: "ana-chat-typing-text", text: t("view.thinking") });
-    const dots = contentEl.createEl("span", { cls: "ana-chat-typing-dots" });
-    for (let i = 0; i < 3; i++) dots.createEl("span", { cls: "ana-chat-typing-dot" });
+    contentEl.createSpan({ cls: "ana-chat-typing-text", text: t("view.thinking") });
+    const dots = contentEl.createSpan({ cls: "ana-chat-typing-dots" });
+    for (let i = 0; i < 3; i++) dots.createSpan({ cls: "ana-chat-typing-dot" });
   }
 
   /** 移除助手消息气泡中的「思考中」跳点动画。 */
@@ -2289,7 +2303,7 @@ export class ChatView extends ItemView {
   ): void {
     contentEl.empty();
     const names = toolCalls.map((tc) => tc.function.name).join(", ");
-    contentEl.createEl("div", {
+    contentEl.createDiv({
       cls: "ana-chat-tool-notice",
       text: `\u{1F50D} Using tools: ${names}...`,
     });
@@ -2353,7 +2367,6 @@ export class ChatView extends ItemView {
       st.vaultIndexMaxFiles,
       st.includeFrontmatterIndex,
       fmKeys,
-      st.frontmatterIndexMaxChars,
       st.frontmatterIndexMaxFiles,
       st.defaultSkills,
       st.aiFolderName,
@@ -2377,7 +2390,6 @@ export class ChatView extends ItemView {
           this.plugin.app,
           st.includeFrontmatterIndex,
           fmKeys,
-          st.frontmatterIndexMaxChars,
           st.frontmatterIndexMaxFiles,
           query
         ) ?? undefined
@@ -2402,21 +2414,26 @@ export class ChatView extends ItemView {
       const tools: string[] = [];
       if (hasVaultIndex) {
         tools.push(
-          `- search_vault_paths: Search for files by path/name keywords. Returns matching file paths.`
+          `- search_vault_paths: Search for files by path/name keywords. Returns matching file paths, each with its content.`
         );
       }
       if (hasFrontmatterIndex) {
         tools.push(
-          `- search_vault_frontmatter: Search for files by their metadata (tags, dates, categories, etc.). Returns file paths with matching metadata.`
+          `- search_vault_frontmatter: Search for files by their metadata (tags, dates, categories, etc.). Returns file paths with matching metadata, each with its content.`
         );
       }
       tools.push(
         `- search_vault_content: Search inside the actual content of files. Returns file paths and relevant text snippets.`
       );
+      tools.push(
+        `- read_vault_notes: Read the full text of one or more notes by their exact vault paths.`
+      );
       base +=
         " You have access to the following search tools to explore the vault on demand:\n" +
         tools.join("\n") +
-        "\nWhen you need to find files or information in the vault, call the appropriate tool with relevant keywords extracted from the user's question. File contents are only provided when you explicitly search for them or when the user attaches files.";
+        "\nWhen you need to find files or information in the vault, call the appropriate tool with relevant keywords extracted from the user's question." +
+        " Search results already include the content of every returned note; if the note you need was beyond the result limit, or its content was truncated, call read_vault_notes with that exact path to read it." +
+        " File contents are never provided for notes you have not searched for or read.";
     } else {
       base +=
         " Note: you cannot see the vault's file list or file contents unless the user explicitly attaches files/folders or references a file in their message.";
@@ -2476,7 +2493,7 @@ class AttachmentPickerModal extends Modal {
   private query = "";
   private listEl!: HTMLElement;
   private searchEl!: HTMLInputElement;
-  private confirmBtn!: ButtonComponent;
+  private confirmBtn: ButtonComponent | null = null;
 
   constructor(
     app: import("obsidian").App,
@@ -2510,7 +2527,7 @@ class AttachmentPickerModal extends Modal {
     });
 
     // 列表容器
-    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+    this.listEl = contentEl.createDiv({ cls: "ana-picker-list" });
 
     // 初始只展开第一级
     this.vaultRoot().children.forEach((c) => {
@@ -2520,7 +2537,7 @@ class AttachmentPickerModal extends Modal {
     this.render();
 
     // 操作按钮
-    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    const btns = contentEl.createDiv({ cls: "ana-chat-modal-actions" });
     new ButtonComponent(btns)
       .setButtonText(t("modal.cancel"))
       .onClick(() => this.close());
@@ -2610,7 +2627,7 @@ class AttachmentPickerModal extends Modal {
     return [
       name.slice(0, idx),
       (() => {
-        const m = document.createElement("mark");
+        const m = createEl("mark");
         m.textContent = name.slice(idx, idx + q.length);
         return m;
       })(),
@@ -2629,13 +2646,13 @@ class AttachmentPickerModal extends Modal {
       if (visible && !visible.has(node.path)) return;
       shown++;
 
-      const row = this.listEl.createEl("div", {
+      const row = this.listEl.createDiv({
         cls: "ana-tree-row" + (node instanceof TFolder ? " is-folder" : ""),
       });
       setCssVars(row, { "--ana-tree-indent": `${6 + depth * 18}px` });
 
       // 展开/折叠箭头（仅文件夹，文件用占位对齐）
-      const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
+      const toggle = row.createSpan({ cls: "ana-tree-toggle" });
       if (node instanceof TFolder) {
         const isOpen =
           this.expanded.has(node.path) || (visible !== null && visible.has(node.path));
@@ -2666,11 +2683,11 @@ class AttachmentPickerModal extends Modal {
       row.appendChild(cb);
 
       // 图标
-      const icon = row.createEl("span", { cls: "ana-tree-icon" });
+      const icon = row.createSpan({ cls: "ana-tree-icon" });
       icon.setText(node instanceof TFolder ? "📁" : "📄");
 
       // 名称（带命中高亮）
-      const nameEl = row.createEl("span", { cls: "ana-tree-name" });
+      const nameEl = row.createSpan({ cls: "ana-tree-name" });
       for (const part of this.highlight(node.name)) {
         if (typeof part === "string") nameEl.appendChild(document.createTextNode(part));
         else nameEl.appendChild(part);
@@ -2701,7 +2718,7 @@ class AttachmentPickerModal extends Modal {
     }
 
     if (shown === 0) {
-      this.listEl.createEl("div", {
+      this.listEl.createDiv({
         text: t("view.picker.empty"),
         cls: "ana-picker-empty",
       });
@@ -2745,7 +2762,7 @@ class AttachmentPickerModal extends Modal {
     });
     return result.map((p) => {
       const node = this.findNode(p)!;
-      return { type: node instanceof TFolder ? "folder" : "file", path: p } as AttachmentRef;
+      return { type: node instanceof TFolder ? "folder" : "file", path: p };
     });
   }
 
@@ -2768,7 +2785,8 @@ class AttachmentPickerModal extends Modal {
 
   /** 同步「附加所选」按钮可用态：未选任何项时禁用。 */
   private updateCount(): void {
-    if (this.confirmBtn) this.confirmBtn.setDisabled(this.selected.size === 0);
+    if (this.confirmBtn !== null)
+      this.confirmBtn.setDisabled(this.selected.size === 0);
   }
 
   onClose(): void {
@@ -2826,12 +2844,12 @@ abstract class BaseListPickerModal<T> extends Modal {
     });
     this.searchEl.addEventListener("input", () => this.renderList());
 
-    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+    this.listEl = contentEl.createDiv({ cls: "ana-picker-list" });
 
     await this.loadItems();
     this.renderList();
 
-    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
+    const btns = contentEl.createDiv({ cls: "ana-chat-modal-actions" });
     new ButtonComponent(btns)
       .setButtonText(t("modal.cancel"))
       .onClick(() => this.close());
@@ -2852,7 +2870,7 @@ abstract class BaseListPickerModal<T> extends Modal {
     this.listEl.empty();
     const all = this.getItems();
     if (all.length === 0) {
-      this.listEl.createEl("div", {
+      this.listEl.createDiv({
         text: this.getEmptyText(),
         cls: "ana-picker-empty",
       });
@@ -2863,7 +2881,7 @@ abstract class BaseListPickerModal<T> extends Modal {
       ? all.filter((item) => this.getItemFilterText(item).includes(q))
       : all;
     if (filtered.length === 0) {
-      this.listEl.createEl("div", {
+      this.listEl.createDiv({
         text: this.getNoResultsText(),
         cls: "ana-picker-empty",
       });
@@ -2944,7 +2962,7 @@ class SkillPickerModal extends BaseListPickerModal<SkillEntry> {
       else this.selected.delete(e.path);
     });
     row.createSpan({ text: `🧩 ${e.name}`, cls: "ana-picker-name" });
-    row.createEl("span", { text: e.path, cls: "ana-picker-path" });
+    row.createSpan({ text: e.path, cls: "ana-picker-path" });
   }
 }
 
@@ -3017,7 +3035,7 @@ class PropertyPickerModal extends BaseListPickerModal<{ key: string; count: numb
     });
     const name = row.createSpan({ cls: "ana-picker-name" });
     name.textContent = e.key;
-    row.createEl("span", {
+    row.createSpan({
       text: t("view.propertyPicker.usage", { count: String(e.count) }),
       cls: "ana-picker-path",
     });
@@ -3094,14 +3112,14 @@ class ModelPickerModal extends BaseListPickerModal<{
     listEl: HTMLElement
   ): void {
     const isSelected = item.value === this.currentValue;
-    const row = listEl.createEl("div", {
+    const row = listEl.createDiv({
       cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
     });
     row.createSpan({
       text: `✨ ${item.label}`,
       cls: "ana-picker-name",
     });
-    row.createEl("span", {
+    row.createSpan({
       text: item.linkName,
       cls: "ana-picker-path",
     });
@@ -3156,7 +3174,7 @@ class RolePickerModal extends BaseListPickerModal<RoleInfo> {
   }
   protected renderRow(role: RoleInfo, listEl: HTMLElement): void {
     const isSelected = role.id === this.currentId;
-    const row = listEl.createEl("div", {
+    const row = listEl.createDiv({
       cls: "ana-picker-row" + (isSelected ? " is-selected" : ""),
     });
     renderAvatar(

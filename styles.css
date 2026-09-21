@@ -427,12 +427,14 @@
 }
 
 .ana-chat-header-btn svg,
-.ana-chat-header-btn .svg-icon {
-  /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标 */
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
+.ana-chat-header-btn svg.svg-icon {
+  /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标。
+   * 用 Obsidian 官方的 --icon-size 变量驱动 .svg-icon 的宽高（官方 Icons 文档），
+   * 而不是 !important —— 后者会连带覆盖用户的主题/片段。 */
+  --icon-size: 15px;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  flex-shrink: 0;
 }
 
 .ana-chat-header-btn:hover {
@@ -591,11 +593,13 @@
   }
 }
 
-/* ==================== 错误消息气泡样式 ==================== */
-.ana-chat-bubble-error {
-  background: var(--background-secondary) !important;
-  border-color: var(--background-modifier-error) !important;
-  color: var(--text-error) !important;
+/* ==================== 错误消息气泡样式 ====================
+ * 提高特异性（同一元素同时挂 .ana-chat-bubble 与 .ana-chat-bubble-error）来压过
+ * `.ana-chat-message-assistant .ana-chat-bubble`，而不是用 !important。 */
+.ana-chat-bubble.ana-chat-bubble-error {
+  background: var(--background-secondary);
+  border-color: var(--background-modifier-error);
+  color: var(--text-error);
 }
 
 /* ==================== 助手消息 Markdown 渲染 ==================== */
@@ -701,9 +705,9 @@
   right: 0.35em;
   bottom: auto;
   left: auto;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   padding: 0.4em;
   margin: 0;
   opacity: 0.55;
@@ -714,7 +718,7 @@
 
 .ana-chat-message-assistant .ana-chat-text pre .copy-code-button:hover {
   opacity: 1;
-  background: transparent !important;
+  background: transparent;
 }
 
 .ana-chat-message-assistant .ana-chat-text pre .copy-code-button svg,
@@ -894,11 +898,12 @@
   overflow: hidden;
 }
 
-/* 聚焦时保持边框不变，去除高亮效果 */
+/* 聚焦时保持边框不变，去除高亮效果。
+ * 直接声明即可：本类由插件自绘，无同源竞争规则，不需要 !important。 */
 .ana-chat-input-wrap:focus-within {
-  border-color: var(--background-modifier-border) !important;
-  box-shadow: none !important;
-  outline: none !important;
+  border-color: var(--background-modifier-border);
+  box-shadow: none;
+  outline: none;
 }
 
 /* 输入框顶部 6px 拖拽条 */
@@ -951,9 +956,9 @@
 }
 
 .ana-chat-input:focus {
-  outline: none !important;
-  box-shadow: none !important;
-  border-color: transparent !important;
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
 }
 
 .ana-chat-send:disabled,
@@ -988,12 +993,12 @@
 }
 
 .ana-chat-model-btn svg,
-.ana-chat-model-btn .svg-icon {
+.ana-chat-model-btn svg.svg-icon {
   /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标 */
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
+  --icon-size: 15px;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  flex-shrink: 0;
 }
 
 .ana-chat-model-btn:hover {
@@ -1057,12 +1062,12 @@
 }
 
 .ana-chat-action svg,
-.ana-chat-action .svg-icon {
+.ana-chat-action svg.svg-icon {
   /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标 */
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
+  --icon-size: 15px;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  flex-shrink: 0;
 }
 
 .ana-chat-action:hover {
@@ -1100,12 +1105,12 @@
 }
 
 .ana-chat-send svg,
-.ana-chat-send .svg-icon {
+.ana-chat-send svg.svg-icon {
   /* 与参考项目 gitee-sync-plus 保持一致：22x22 按钮配 15px 图标 */
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
+  --icon-size: 15px;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  flex-shrink: 0;
 }
 
 .ana-chat-send:hover:not(:disabled) {
@@ -1130,11 +1135,11 @@
 }
 
 .ana-chat-stop svg,
-.ana-chat-stop .svg-icon {
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
+.ana-chat-stop svg.svg-icon {
+  --icon-size: 15px;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  flex-shrink: 0;
 }
 
 .ana-chat-stop:hover {
@@ -1205,11 +1210,11 @@
 
 /* 关闭由文本字符 × 换成真图标（chip 里其它图标都是 SVG，混排会不一致） */
 .ana-chat-chip-x svg,
-.ana-chat-chip-x .svg-icon {
-  width: 12px !important;
-  height: 12px !important;
-  min-width: 12px !important;
-  min-height: 12px !important;
+.ana-chat-chip-x svg.svg-icon {
+  --icon-size: 12px;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  flex-shrink: 0;
 }
 
 .ana-chat-chip-x:hover {
@@ -1621,9 +1626,10 @@
 }
 
 .ana-model-link-action-btn svg,
-.ana-model-link-action-btn .svg-icon {
-  width: 15px !important;
-  height: 15px !important;
+.ana-model-link-action-btn svg.svg-icon {
+  --icon-size: 15px;
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 .ana-model-link-action-btn:hover {
@@ -1805,16 +1811,16 @@
 .modal .ana-model-link-modal .setting-item,
 .ana-model-link-modal .setting-item,
 .ana-model-link-modal .setting-item:first-child {
-  border-top: none !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
-  padding-top: var(--size-4-2) !important;
-  padding-bottom: var(--size-4-2) !important;
+  border-top: none;
+  border-bottom: none;
+  box-shadow: none;
+  padding-top: var(--size-4-2);
+  padding-bottom: var(--size-4-2);
 }
 
 /* 保留 ① 链接类型下方的分隔线 */
 .ana-model-link-modal > .setting-item:first-of-type {
-  border-bottom: 1px solid var(--background-modifier-border) !important;
+  border-bottom: 1px solid var(--background-modifier-border);
 }
 
 /* 保留 ② 模型标签区域下方的分隔线（标签编辑器之后） */
@@ -1963,11 +1969,11 @@
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
-.ana-secret-picker-modal .ana-secret-picker-action-btn svg {
-  width: 16px !important;
-  height: 16px !important;
-  min-width: 16px !important;
-  min-height: 16px !important;
+.ana-secret-picker-modal .ana-secret-picker-action-btn svg,
+.ana-secret-picker-modal .ana-secret-picker-action-btn svg.svg-icon {
+  --icon-size: 16px;
+  width: var(--icon-size);
+  height: var(--icon-size);
   flex-shrink: 0;
 }
 .ana-secret-picker-modal .ana-secret-picker-action-btn:hover {
@@ -2452,11 +2458,11 @@
 }
 
 .ana-chat-role-btn svg,
-.ana-chat-role-btn .svg-icon {
-  width: 15px !important;
-  height: 15px !important;
-  min-width: 15px !important;
-  min-height: 15px !important;
+.ana-chat-role-btn svg.svg-icon {
+  --icon-size: 15px;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  flex-shrink: 0;
 }
 
 .ana-chat-role-btn:hover {
@@ -2485,9 +2491,10 @@
  * 通用工具类（替代内联 style 赋值）
  * ============================================================ */
 
-/* 模型配置弹窗：全宽左对齐输入框 */
-.ana-modal-input-full {
-  width: 100% !important;
+/* 模型配置弹窗：全宽左对齐输入框。
+ * 加 .modal 前缀提高特异性即可，不需要 !important。 */
+.modal .ana-modal-input-full {
+  width: 100%;
   text-align: left;
 }
 
@@ -2503,10 +2510,14 @@
   display: none;
 }
 
-/* 拖拽调整高度时禁止文本选择 */
-.ana-no-select {
-  user-select: none !important;
-  -webkit-user-select: none !important;
+/* 拖拽调整高度时禁止文本选择。
+ * 类挂在 <body> 上，但 .ana-chat-text / .ana-chat-bubble 自身声明了
+ * user-select: text —— 同为 (0,1,0)，用后代选择器 + 源顺序在后取胜，
+ * 而不是 !important。 */
+.ana-no-select,
+.ana-no-select * {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* 聊天区拖拽调整输入框高度（通过 CSS 变量驱动，避免内联 style） */
@@ -2521,9 +2532,11 @@
   font-size: 45%;
 }
 
-/* 通用隐藏类（替代 style.display="none"） */
-.is-hidden {
-  display: none !important;
+/* 通用隐藏类（替代 style.display="none"）。
+ * 目标元素多为 .ana-chat-action / .ana-chat-stop 等单类名规则（display: inline-flex），
+ * 重复一次类名把特异性提到 (0,2,0) 即可压过它们，不必用 !important。 */
+.is-hidden.is-hidden {
+  display: none;
 }
 
 /* 设置页 Tab 面板：默认隐藏，is-active 时显示 */

@@ -5,13 +5,13 @@ import zh from "./locales/zh.json";
 type Dict = Record<string, string>;
 
 const locales: Record<string, Dict> = {
-  en: en as Dict,
-  zh: zh as Dict,
+  en: en,
+  zh: zh,
   // region/locale aliases map onto the base language dictionary
-  "zh-cn": zh as Dict,
-  "zh-tw": zh as Dict,
-  "zh-hans": zh as Dict,
-  "zh-hant": zh as Dict,
+  "zh-cn": zh,
+  "zh-tw": zh,
+  "zh-hans": zh,
+  "zh-hant": zh,
 };
 
 let currentLang = "en";

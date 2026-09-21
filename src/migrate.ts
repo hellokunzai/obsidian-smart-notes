@@ -3,13 +3,13 @@ import {
   DEFAULT_SETTINGS,
   genId,
   type ModelLink,
-  type ProviderType,
   type RoleInfo,
   migrateModelLinkApiKeyToKeychain,
 } from "./settings";
 import { t } from "./i18n";
 import { App } from "obsidian";
 import { migrateWebApiKeysToKeychain } from "./utils/secret";
+import { asText } from "./utils/json";
 
 /**
  * 设置迁移：把旧版扁平字段（单一 provider / customInstructions）
@@ -26,7 +26,7 @@ import { migrateWebApiKeysToKeychain } from "./utils/secret";
  * @param settings 已与 DEFAULT_SETTINGS 合并的设置对象，迁移结果写回此处
  */
 export function migrateSettings(
-  loaded: Record<string, any>,
+  loaded: Record<string, unknown>,
   settings: AiNoteAgentSettings,
   app: App
 ): void {
@@ -41,15 +41,17 @@ export function migrateSettings(
       loaded.ollamaModel;
     if (hasLegacy) {
       const isOllama = loaded.provider === "ollama";
-      const modelId = isOllama ? loaded.ollamaModel : loaded.openaiModel;
+      const modelId = asText(
+        isOllama ? loaded.ollamaModel : loaded.openaiModel
+      );
       const link: ModelLink & { apiKey?: string } = {
         id: genId(),
         name: t("settings.modelLinks.legacyName"),
-        type: (isOllama ? "ollama" : "openai") as ProviderType,
+        type: (isOllama ? "ollama" : "openai"),
         baseUrl: isOllama
-          ? loaded.ollamaBaseUrl || DEFAULT_SETTINGS.ollamaBaseUrl
-          : loaded.openaiBaseUrl || DEFAULT_SETTINGS.openaiBaseUrl,
-        apiKey: loaded.openaiApiKey || "",
+          ? asText(loaded.ollamaBaseUrl) || DEFAULT_SETTINGS.ollamaBaseUrl
+          : asText(loaded.openaiBaseUrl) || DEFAULT_SETTINGS.openaiBaseUrl,
+        apiKey: asText(loaded.openaiApiKey),
         models: modelId ? [modelId] : [],
       };
       // 旧版 openaiApiKey 从 data.json 迁移到 Obsidian keychain
@@ -75,7 +77,7 @@ export function migrateSettings(
   for (const link of settings.modelLinks) {
     migrateModelLinkApiKeyToKeychain(
       app,
-      link as ModelLink & { apiKey?: string }
+      link
     );
   }
 
@@ -90,18 +92,13 @@ export function migrateSettings(
     "brave",
   ];
   for (const prov of webProviders) {
-    const refField = `${prov}ApiKeyRef` as
-      | "tavilyApiKeyRef"
-      | "serperApiKeyRef"
-      | "braveApiKeyRef";
+    const refField = `${prov}ApiKeyRef`;
     const settingsAny = settings as unknown as Record<string, string>;
     // 已是单值引用且非空 → 无需处理
     if (settingsAny[refField]) continue;
 
     // b) 上轮遗留的引用数组：第一个元素本身就是 keychain ID
-    const legacyRefs = (loaded as Record<string, unknown>)[
-      `${prov}ApiKeyRefs`
-    ];
+    const legacyRefs = loaded[`${prov}ApiKeyRefs`];
     if (
       Array.isArray(legacyRefs) &&
       legacyRefs.length > 0 &&
@@ -113,9 +110,7 @@ export function migrateSettings(
     }
 
     // a) 最早的明文数组 → 迁入 keychain，取第一个
-    const legacyKeys = (loaded as Record<string, unknown>)[
-      `${prov}ApiKeys`
-    ];
+    const legacyKeys = loaded[`${prov}ApiKeys`];
     if (Array.isArray(legacyKeys) && legacyKeys.length > 0) {
       const ref = migrateWebApiKeysToKeychain(
         app,
@@ -136,8 +131,8 @@ export function migrateSettings(
 
   // ── 迁移 2：旧版单一 customInstructions（系统指令）→ 单条「默认角色」──
   if (!settings.roles || settings.roles.length === 0) {
-    const legacy = loaded.customInstructions;
-    if (legacy && legacy.trim()) {
+    const legacy = asText(loaded.customInstructions);
+    if (legacy.trim()) {
       const role: RoleInfo = {
         id: genId(),
         name: t("settings.roles.legacyName"),

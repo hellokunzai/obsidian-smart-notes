@@ -1,8 +1,5 @@
 import { ChatMessage } from "./provider";
 
-const SYSTEM_JSON =
-  "You are a knowledge-base assistant for Obsidian. You reply with valid JSON only, no prose, no markdown fences.";
-
 /**
  * 构造统一的 system prompt，并把用户在设置中选中的「默认角色」提示词注入其中。
  * 若 rolePrompt 为空，则原样返回 base（无注入）。

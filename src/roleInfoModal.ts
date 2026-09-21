@@ -83,7 +83,7 @@ export class RoleInfoModal extends Modal {
       });
 
     // 底部按钮
-    const footer = contentEl.createEl("div", {
+    const footer = contentEl.createDiv({
       cls: "ana-modal-button-row",
     });
     new ButtonComponent(footer)
@@ -146,7 +146,7 @@ export class RoleInfoModal extends Modal {
     this.fileInput = block.createEl("input", {
       cls: "ana-role-avatar-file-input",
       attr: { type: "file", accept: "image/*" },
-    }) as HTMLInputElement;
+    });
     this.fileInput.addEventListener("change", () => this.onFileChosen());
 
     // 说明文字

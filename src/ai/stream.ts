@@ -60,5 +60,18 @@ export async function readStreamLines(
 
 /** 检查 fetch 环境是否可用（Obsidian 1.4+ 内置 fetch）。 */
 export function isFetchAvailable(): boolean {
-  return typeof fetch !== "undefined";
+  return typeof window !== "undefined" && typeof window.fetch === "function";
+}
+
+/**
+ * 发起一次需要读取响应流的请求。
+ *
+ * 为什么不用 `requestUrl`：它只能把响应整体读成 text / json，拿不到
+ * `ReadableStream`，而流式输出（逐字上屏、推理过程实时刷新）正是靠读流实现的。
+ * 这里的 `fetch` 不是「绕过 Obsidian 的网络封装」，而是流式能力唯一的入口；
+ * 环境不支持时调用方会回退到 `complete()` 的非流式请求（见各 provider 的 `stream`）。
+ * 显式写 `window.fetch` 与 Obsidian 自家的 `window.setTimeout` 约定保持一致。
+ */
+export function streamingFetch(url: string, init: RequestInit): Promise<Response> {
+  return window.fetch(url, init);
 }

@@ -8,7 +8,7 @@ export class OptimizeModal extends Modal {
     app: App,
     private original: string,
     private optimized: string,
-    private onApply: (text: string) => void
+    private onApply: (text: string) => void | Promise<void>
   ) {
     super(app);
   }
@@ -41,7 +41,7 @@ export class OptimizeModal extends Modal {
     });
     apply.addEventListener("click", () => {
       this.applied = true;
-      this.onApply(taN.value);
+      void this.onApply(taN.value);
       this.close();
     });
   }

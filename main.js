@@ -27,10 +27,17 @@ __export(main_exports, {
   default: () => AiNoteAgentPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian11 = require("obsidian");
+
+// src/utils/dom.ts
+function addAsyncListener(el, type, handler) {
+  el.addEventListener(type, () => {
+    void handler();
+  });
+}
 
 // src/i18n/index.ts
 var import_obsidian = require("obsidian");
@@ -69,8 +76,10 @@ var en_default = {
   "settings.openaiKey.desc": "Select a secret from the Obsidian keychain; secrets are not stored in data.json. Sent only to the Base URL you configure.",
   "settings.openaiBaseUrl.name": "Base URL",
   "settings.openaiBaseUrl.desc": "Default: https://api.openai.com/v1",
+  "settings.openaiBaseUrl.placeholder": "https://api.openai.com/v1",
   "settings.ollamaBaseUrl.name": "Ollama Base URL",
   "settings.ollamaBaseUrl.desc": "Default: http://localhost:11434",
+  "settings.ollamaBaseUrl.placeholder": "http://localhost:11434",
   "settings.modelLinks.legacyName": "Default",
   "settings.modelLinks.add.name": "Add model link",
   "settings.modelLinks.add.desc": "Add a new AI backend link. You can configure multiple models under one link.",
@@ -259,26 +268,26 @@ var en_default = {
   "settings.memoryFile.desc": "View and edit the AI-curated long-term profile memory. Changes are auto-saved to memory/MEMORY.md in the AI folder 0.5 seconds after you stop typing.",
   "settings.memoryFile.placeholder": "Memory content will load here. If nothing appears yet, background organization may still be running.",
   "settings.includeVaultIndex.name": "Enable file index",
-  "settings.includeVaultIndex.desc": "The AI can search file paths on demand via the search_vault_paths tool.",
+  "settings.includeVaultIndex.desc": "The AI can search file paths on demand via the search_vault_paths tool. Matching notes include their content by default, and the AI can read any note with read_vault_notes.",
   "settings.chatContextMaxChars.name": "Max chars per attached file",
-  "settings.chatContextMaxChars.desc": "Truncate each attached file's content to this many characters before sending to the AI.",
+  "settings.chatContextMaxChars.desc": "Truncate each attached file's content (and each note returned by the file search) to this many characters before sending to the AI. Independent from the setting with the same name under Properties.",
   "settings.historyMaxMessages.name": "History window",
   "settings.historyMaxMessages.desc": "Only send the most recent N history messages to the model; earlier turns are compressed into a summary and injected. Set to 0 to disable (send full history, token usage grows linearly with conversation length).",
   "settings.includeFrontmatterIndex.name": "Enable property index",
-  "settings.includeFrontmatterIndex.desc": "When enabled, the AI can search Frontmatter metadata (tags, category, summary, etc.) on demand via the search_vault_frontmatter tool instead of having all metadata injected into the system prompt. Only metadata is searched \u2014 file contents are NOT loaded; contents still require explicit attach or reference. Off by default.",
+  "settings.includeFrontmatterIndex.desc": "When enabled, the AI can search Frontmatter metadata (tags, category, summary, etc.) on demand via the search_vault_frontmatter tool instead of having all metadata injected into the system prompt. Matching notes include their content by default, and the AI can read any note with read_vault_notes.",
   "settings.propertySelectEnabled.name": "Enable property selection",
   "settings.propertySelectEnabled.desc": 'Show the "Select properties" button in the AI chat panel so you can pick which Frontmatter properties to inject into the current conversation, temporarily overriding the "Properties to index" whitelist below. When disabled, the button is hidden (same behavior as "Enable file selection" \u2192 attach button).',
   "settings.vaultIndexMaxFiles.name": "Max files in file index",
-  "settings.vaultIndexMaxFiles.desc": "When Enable file index is on, the search tool returns at most this many file paths (0 = unlimited). Prevents huge vaults from returning too many results.",
-  "settings.frontmatterIndexMaxFiles.name": "Max files in Frontmatter index",
-  "settings.frontmatterIndexMaxFiles.desc": "When Enable property index is on, the search tool returns at most this many files' metadata (0 = unlimited).",
+  "settings.vaultIndexMaxFiles.desc": "When Enable file index is on, the search tool returns at most this many file paths (0 = unlimited). Every returned match also includes its content (truncated to Max chars per attached file), so this number determines how many notes a single search can carry.",
+  "settings.frontmatterIndexMaxFiles.name": "Max files in property index",
+  "settings.frontmatterIndexMaxFiles.desc": "When Enable property index is on, the search tool returns at most this many files' metadata (0 = unlimited). Every returned match also includes its content (truncated to Max chars per attached file).",
   "settings.profileMemoryMaxChars.name": "Profile memory char cap",
   "settings.profileMemoryMaxChars.desc": "Before injecting MEMORY.md into the system prompt, truncate it to this many characters so long-term memory cannot grow unbounded and blow the token budget.",
   "settings.frontmatterIndexKeys.name": "Properties to index",
   "settings.frontmatterIndexKeys.desc": "Only index the listed Frontmatter properties, one per line or comma-separated. Leave empty to index all non-empty properties.",
   "settings.frontmatterIndexKeys.placeholder": "e.g. tags, category, summary",
-  "settings.frontmatterIndexMaxChars.name": "Max chars per property",
-  "settings.frontmatterIndexMaxChars.desc": "Truncate each Frontmatter property value to this many characters to avoid long fields like summary blowing up the token budget.",
+  "settings.frontmatterContentMaxChars.name": "Max chars per attached file",
+  "settings.frontmatterContentMaxChars.desc": "Truncate the content of each note returned by the property search to this many characters. Independent from the setting with the same name under Files.",
   "settings.section.skills": "Skills",
   "settings.section.skills.desc": "Manage the AI skills added to chats as an index (the AI chooses whether to invoke them).",
   "settings.skillsEnabled.name": "Enable skills",
@@ -315,6 +324,10 @@ var en_default = {
   "settings.webSearchEnabled.desc": "Master switch for web search. Even when on, it only runs when you explicitly toggle the \u{1F310} button in a chat.",
   "settings.webSearchProvider.name": "Search provider",
   "settings.webSearchProvider.desc": "Which search backend to use. Tavily / Serper (Google) / Brave / SearXNG.",
+  "settings.webSearchProvider.option.tavily": "Tavily",
+  "settings.webSearchProvider.option.serper": "Serper (Google)",
+  "settings.webSearchProvider.option.brave": "Brave Search",
+  "settings.webSearchProvider.option.searxng": "SearXNG",
   "settings.webKeys.tavily.name": "Tavily API key",
   "settings.webKeys.tavily.desc": 'Key is stored in the Obsidian keychain (not written to data.json). Click "Select key" to pick or create a single secret.',
   "settings.webKeys.serper.name": "Serper API key",
@@ -420,8 +433,10 @@ var zh_default = {
   "settings.openaiKey.desc": "\u4ECE Obsidian \u94A5\u5319\u4E32\u4E2D\u9009\u62E9\u5BC6\u94A5\uFF1B\u5BC6\u94A5\u4E0D\u4F1A\u4FDD\u5B58\u5230 data.json\uFF0C\u53EA\u53D1\u9001\u7ED9\u4F60\u6240\u914D\u7F6E\u7684 Base URL\u3002",
   "settings.openaiBaseUrl.name": "Base URL",
   "settings.openaiBaseUrl.desc": "\u9ED8\u8BA4\uFF1Ahttps://api.openai.com/v1",
+  "settings.openaiBaseUrl.placeholder": "https://api.openai.com/v1",
   "settings.ollamaBaseUrl.name": "Ollama Base URL",
   "settings.ollamaBaseUrl.desc": "\u9ED8\u8BA4\uFF1Ahttp://localhost:11434",
+  "settings.ollamaBaseUrl.placeholder": "http://localhost:11434",
   "settings.modelLinks.legacyName": "\u9ED8\u8BA4",
   "settings.modelLinks.add.name": "\u6DFB\u52A0\u6A21\u578B\u94FE\u63A5",
   "settings.modelLinks.add.desc": "\u6DFB\u52A0\u4E00\u4E2A\u65B0\u7684 AI \u540E\u7AEF\u94FE\u63A5\uFF0C\u53EF\u5728\u6B64\u94FE\u63A5\u4E0B\u914D\u7F6E\u591A\u4E2A\u6A21\u578B\u3002",
@@ -612,26 +627,26 @@ var zh_default = {
   "settings.aiFolderName.name": "\u6570\u636E\u5B58\u50A8\u8DEF\u5F84",
   "settings.aiFolderName.desc": "Vault \u6839\u76EE\u5F55\u4E0B\u7528\u4E8E\u5B58\u653E\u8BB0\u5FC6\u4E0E skill \u7684\u6570\u636E\u6587\u4EF6\u5939\u540D\u79F0\u3002\u4FEE\u6539\u8DEF\u5F84\u4E0D\u4F1A\u81EA\u52A8\u8FC1\u79FB\u65E7\u76EE\u5F55\u7684\u6570\u636E\u3002",
   "settings.includeVaultIndex.name": "\u542F\u7528\u6587\u4EF6\u7D22\u5F15",
-  "settings.includeVaultIndex.desc": "AI \u53EF\u901A\u8FC7 search_vault_paths \u5DE5\u5177\u6309\u9700\u641C\u7D22\u6587\u4EF6\u8DEF\u5F84\u3002",
+  "settings.includeVaultIndex.desc": "AI \u53EF\u901A\u8FC7 search_vault_paths \u5DE5\u5177\u6309\u9700\u641C\u7D22\u6587\u4EF6\u8DEF\u5F84\uFF0C\u547D\u4E2D\u7ED3\u679C\u9ED8\u8BA4\u9644\u5E26\u6587\u4EF6\u6B63\u6587\uFF1B\u9700\u8981\u8BFB\u53D6\u66F4\u591A\u6587\u4EF6\u65F6\uFF0CAI \u53EF\u8C03\u7528 read_vault_notes \u6309\u8DEF\u5F84\u8BFB\u53D6\u3002",
   "settings.chatContextMaxChars.name": "\u5355\u6587\u4EF6\u6CE8\u5165\u5B57\u7B26\u4E0A\u9650",
-  "settings.chatContextMaxChars.desc": "\u53D1\u9001\u524D\u5C06\u6BCF\u4E2A\u9644\u52A0\u6587\u4EF6\u7684\u5185\u5BB9\u622A\u65AD\u5230\u6B64\u957F\u5EA6\uFF0C\u907F\u514D\u8D85\u5927\u6587\u4EF6\u6491\u7206 token\u3002",
+  "settings.chatContextMaxChars.desc": "\u53D1\u9001\u524D\u5C06\u6BCF\u4E2A\u9644\u52A0\u6587\u4EF6\uFF08\u4EE5\u53CA\u6587\u4EF6\u641C\u7D22\u8FD4\u56DE\u7684\u6B63\u6587\uFF09\u622A\u65AD\u5230\u6B64\u957F\u5EA6\uFF0C\u907F\u514D\u8D85\u5927\u6587\u4EF6\u6491\u7206 token\u3002\u4E0E\u300C\u5C5E\u6027\u300D\u5206\u7EC4\u4E0B\u7684\u540C\u540D\u8BBE\u7F6E\u76F8\u4E92\u72EC\u7ACB\u3002",
   "settings.historyMaxMessages.name": "\u5386\u53F2\u6D88\u606F\u7A97\u53E3",
   "settings.historyMaxMessages.desc": "\u53EA\u53D1\u9001\u6700\u8FD1 N \u6761\u5386\u53F2\u6D88\u606F\u7ED9\u6A21\u578B\uFF0C\u66F4\u65E9\u7684\u5BF9\u8BDD\u4F1A\u88AB\u538B\u7F29\u6210\u6458\u8981\u6CE8\u5165\u3002\u8BBE\u4E3A 0 \u8868\u793A\u4E0D\u9650\u5236\uFF08\u53D1\u9001\u5168\u90E8\u5386\u53F2\uFF0Ctoken \u6D88\u8017\u968F\u5BF9\u8BDD\u53D8\u957F\u7EBF\u6027\u589E\u957F\uFF09\u3002",
   "settings.includeFrontmatterIndex.name": "\u542F\u7528\u5C5E\u6027\u7D22\u5F15",
-  "settings.includeFrontmatterIndex.desc": "\u542F\u7528\u540E\uFF0CAI \u53EF\u901A\u8FC7 search_vault_frontmatter \u5DE5\u5177\u6309\u9700\u641C\u7D22 Frontmatter \u5143\u6570\u636E\uFF08tags\u3001category\u3001summary \u7B49\uFF09\uFF0C\u4E0D\u518D\u81EA\u52A8\u5C06\u5168\u90E8\u5143\u6570\u636E\u6CE8\u5165 system prompt\u3002\u4EC5\u641C\u7D22\u5143\u6570\u636E\uFF0C\u4E0D\u52A0\u8F7D\u6B63\u6587\uFF1B\u6B63\u6587\u4ECD\u9700\u901A\u8FC7\u9644\u52A0\u6216\u70B9\u540D\u53D1\u9001\u3002\u9ED8\u8BA4\u5173\u95ED\u3002",
+  "settings.includeFrontmatterIndex.desc": "\u542F\u7528\u540E\uFF0CAI \u53EF\u901A\u8FC7 search_vault_frontmatter \u5DE5\u5177\u6309\u9700\u641C\u7D22 Frontmatter \u5143\u6570\u636E\uFF08tags\u3001category\u3001summary \u7B49\uFF09\uFF0C\u4E0D\u518D\u81EA\u52A8\u5C06\u5168\u90E8\u5143\u6570\u636E\u6CE8\u5165 system prompt\u3002\u547D\u4E2D\u7ED3\u679C\u9ED8\u8BA4\u9644\u5E26\u6587\u4EF6\u6B63\u6587\uFF1BAI \u4E5F\u53EF\u8C03\u7528 read_vault_notes \u6309\u8DEF\u5F84\u8BFB\u53D6\u4EFB\u610F\u6587\u4EF6\u6B63\u6587\u3002",
   "settings.propertySelectEnabled.name": "\u542F\u7528\u5C5E\u6027\u9009\u62E9\u529F\u80FD",
   "settings.propertySelectEnabled.desc": "\u5728 AI \u5BF9\u8BDD\u6846\u663E\u793A\u300C\u9009\u62E9\u5C5E\u6027\u300D\u6309\u94AE\uFF0C\u5141\u8BB8\u4E3A\u5F53\u524D\u5BF9\u8BDD\u6311\u9009\u8981\u6CE8\u5165\u7684 Frontmatter \u5C5E\u6027\uFF0C\u4E34\u65F6\u8986\u76D6\u4E0B\u65B9\u300C\u8981\u7D22\u5F15\u7684\u5C5E\u6027\u300D\u767D\u540D\u5355\u3002\u5173\u95ED\u540E\u8BE5\u6309\u94AE\u9690\u85CF\uFF08\u4E0E\u300C\u542F\u7528\u6587\u4EF6\u9009\u62E9\u529F\u80FD \u2192 \u9644\u4EF6\u6309\u94AE\u300D\u884C\u4E3A\u4E00\u81F4\uFF09\u3002",
   "settings.vaultIndexMaxFiles.name": "\u6587\u4EF6\u7D22\u5F15\u6700\u591A\u6587\u4EF6\u6570",
-  "settings.vaultIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u6587\u4EF6\u7D22\u5F15\u300D\u540E\uFF0CAI \u8C03\u7528\u641C\u7D22\u5DE5\u5177\u65F6\u6700\u591A\u8FD4\u56DE\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u8DEF\u5F84\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002\u9632\u6B62\u5927\u5E93\u8FD4\u56DE\u7ED3\u679C\u8FC7\u591A\u3002",
-  "settings.frontmatterIndexMaxFiles.name": "Frontmatter \u7D22\u5F15\u6700\u591A\u6587\u4EF6\u6570",
-  "settings.frontmatterIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u5C5E\u6027\u7D22\u5F15\u300D\u540E\uFF0CAI \u8C03\u7528\u641C\u7D22\u5DE5\u5177\u65F6\u6700\u591A\u8FD4\u56DE\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u7684\u5143\u6570\u636E\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002",
+  "settings.vaultIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u6587\u4EF6\u7D22\u5F15\u300D\u540E\uFF0CAI \u8C03\u7528\u641C\u7D22\u5DE5\u5177\u65F6\u6700\u591A\u8FD4\u56DE\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u8DEF\u5F84\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002\u8FD4\u56DE\u7684\u6BCF\u4E2A\u547D\u4E2D\u90FD\u4F1A\u9644\u5E26\u6B63\u6587\uFF08\u6309\u300C\u5355\u6587\u4EF6\u6CE8\u5165\u5B57\u7B26\u4E0A\u9650\u300D\u622A\u65AD\uFF09\uFF0C\u8FD9\u4E2A\u6570\u5B57\u540C\u65F6\u4E5F\u51B3\u5B9A\u4E00\u6B21\u641C\u7D22\u80FD\u5E26\u591A\u5C11\u7BC7\u6B63\u6587\u3002",
+  "settings.frontmatterIndexMaxFiles.name": "\u5C5E\u6027\u7D22\u5F15\u6700\u591A\u6587\u4EF6\u6570",
+  "settings.frontmatterIndexMaxFiles.desc": "\u5F00\u542F\u300C\u542F\u7528\u5C5E\u6027\u7D22\u5F15\u300D\u540E\uFF0CAI \u8C03\u7528\u641C\u7D22\u5DE5\u5177\u65F6\u6700\u591A\u8FD4\u56DE\u8FD9\u4E48\u591A\u4E2A\u6587\u4EF6\u7684\u5143\u6570\u636E\uFF080 = \u4E0D\u9650\u5236\uFF09\u3002\u8FD4\u56DE\u7684\u6BCF\u4E2A\u547D\u4E2D\u90FD\u4F1A\u9644\u5E26\u6B63\u6587\uFF08\u6309\u300C\u5355\u6587\u4EF6\u6CE8\u5165\u5B57\u7B26\u4E0A\u9650\u300D\u622A\u65AD\uFF09\u3002",
   "settings.profileMemoryMaxChars.name": "\u753B\u50CF\u8BB0\u5FC6\u6CE8\u5165\u5B57\u7B26\u4E0A\u9650",
   "settings.profileMemoryMaxChars.desc": "\u6CE8\u5165 system prompt \u524D\uFF0C\u628A MEMORY.md \u622A\u65AD\u5230\u6B64\u5B57\u7B26\u6570\uFF0C\u9632\u6B62\u957F\u671F\u8BB0\u5FC6\u65E0\u9650\u81A8\u80C0\u6491\u7206 token\u3002",
   "settings.frontmatterIndexKeys.name": "\u8981\u7D22\u5F15\u7684\u5C5E\u6027",
   "settings.frontmatterIndexKeys.desc": "\u53EA\u7D22\u5F15\u5217\u51FA\u7684 Frontmatter \u5C5E\u6027\uFF0C\u6BCF\u884C\u4E00\u4E2A\u6216\u7528\u9017\u53F7\u5206\u9694\uFF1B\u7559\u7A7A\u8868\u793A\u7D22\u5F15\u6240\u6709\u975E\u7A7A\u5C5E\u6027\u3002",
   "settings.frontmatterIndexKeys.placeholder": "\u4F8B\u5982\uFF1Atags, category, summary",
-  "settings.frontmatterIndexMaxChars.name": "\u5355\u5C5E\u6027\u5B57\u7B26\u4E0A\u9650",
-  "settings.frontmatterIndexMaxChars.desc": "\u6BCF\u4E2A Frontmatter \u5C5E\u6027\u503C\u622A\u65AD\u5230\u6B64\u957F\u5EA6\uFF0C\u907F\u514D summary \u7B49\u957F\u5B57\u6BB5\u6491\u7206 token\u3002",
+  "settings.frontmatterContentMaxChars.name": "\u5355\u6587\u4EF6\u6CE8\u5165\u5B57\u7B26\u4E0A\u9650",
+  "settings.frontmatterContentMaxChars.desc": "AI \u641C\u7D22\u5C5E\u6027\u65F6\uFF0C\u6BCF\u4E2A\u547D\u4E2D\u6587\u4EF6\u9644\u5E26\u7684\u6B63\u6587\u622A\u65AD\u5230\u6B64\u957F\u5EA6\uFF0C\u907F\u514D\u8D85\u5927\u6587\u4EF6\u6491\u7206 token\u3002\u4E0E\u300C\u6587\u4EF6\u300D\u5206\u7EC4\u4E0B\u7684\u540C\u540D\u8BBE\u7F6E\u76F8\u4E92\u72EC\u7ACB\u3002",
   "settings.section.skills": "Skill \u6280\u80FD",
   "settings.section.skills.desc": "\u7BA1\u7406\u9ED8\u8BA4\u52A0\u5165\u5BF9\u8BDD\u7684 AI skill \u7D22\u5F15\uFF08AI \u53EF\u81EA\u884C\u9009\u62E9\u662F\u5426\u8C03\u7528\uFF09\u3002",
   "settings.skillsEnabled.name": "\u542F\u7528\u6280\u80FD",
@@ -666,6 +681,10 @@ var zh_default = {
   "settings.webSearchEnabled.desc": "\u8054\u7F51\u641C\u7D22\u603B\u5F00\u5173\u3002\u5373\u4F7F\u5F00\u542F\uFF0C\u4E5F\u53EA\u6709\u5728\u5BF9\u8BDD\u4E2D\u663E\u5F0F\u6253\u5F00 \u{1F310} \u6309\u94AE\u65F6\u624D\u4F1A\u771F\u6B63\u53D1\u8D77\u641C\u7D22\u3002",
   "settings.webSearchProvider.name": "\u641C\u7D22\u63D0\u4F9B\u5546",
   "settings.webSearchProvider.desc": "\u4F7F\u7528\u54EA\u4E2A\u641C\u7D22\u540E\u7AEF\uFF1ATavily / Serper\uFF08Google\uFF09/ Brave / SearXNG\u3002",
+  "settings.webSearchProvider.option.tavily": "Tavily",
+  "settings.webSearchProvider.option.serper": "Serper (Google)",
+  "settings.webSearchProvider.option.brave": "Brave Search",
+  "settings.webSearchProvider.option.searxng": "SearXNG",
   "settings.webKeys.tavily.name": "Tavily API Key",
   "settings.webKeys.tavily.desc": "\u5BC6\u94A5\u4FDD\u5B58\u5728 Obsidian \u94A5\u5319\u4E32\u4E2D\uFF08\u4E0D\u5199\u5165 data.json\uFF09\u3002\u70B9\u51FB\u300C\u9009\u62E9\u5BC6\u94A5\u300D\u4ECE\u94A5\u5319\u4E32\u9009\u62E9\u6216\u65B0\u5EFA\u4E00\u4E2A\u5BC6\u94A5\u3002",
   "settings.webKeys.serper.name": "Serper API Key",
@@ -805,41 +824,91 @@ async function readStreamLines(body, onChunk, parseLine) {
   return { content: fullContent, reasoning: fullReasoning || void 0, usage };
 }
 function isFetchAvailable() {
-  return typeof fetch !== "undefined";
+  return typeof window !== "undefined" && typeof window.fetch === "function";
+}
+function streamingFetch(url, init) {
+  return window.fetch(url, init);
+}
+
+// src/utils/json.ts
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return void 0;
+  }
+}
+function parseJsonOrThrow(text) {
+  return JSON.parse(text);
+}
+function asRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
+}
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+function asText(value, fallback = "") {
+  if (typeof value === "string")
+    return value;
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  return fallback;
+}
+function asNumber(value, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+function errorText(value) {
+  var _a2;
+  if (typeof value === "string")
+    return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  if (value === null || value === void 0)
+    return "";
+  try {
+    return (_a2 = JSON.stringify(value)) != null ? _a2 : "";
+  } catch (e) {
+    return "";
+  }
+}
+function toError(value) {
+  if (value instanceof Error)
+    return value;
+  return new Error(errorText(value) || "unknown error");
 }
 
 // src/ai/openai.ts
 function parseSSELine(line) {
-  var _a2, _b2, _c, _d, _e, _f, _g, _h;
+  var _a2;
   const trimmed = line.trim();
   if (!trimmed || !trimmed.startsWith("data:"))
     return null;
   const data = trimmed.slice(5).trim();
   if (data === "[DONE]")
     return null;
-  try {
-    const json = JSON.parse(data);
-    const delta = (_c = (_b2 = (_a2 = json.choices) == null ? void 0 : _a2[0]) == null ? void 0 : _b2.delta) != null ? _c : {};
-    const reasoning = (_d = delta.reasoning_content) != null ? _d : delta.reasoning;
-    const content = delta.content;
-    const result = {};
-    if (typeof reasoning === "string" && reasoning.length > 0)
-      result.reasoning = reasoning;
-    if (typeof content === "string" && content.length > 0)
-      result.content = content;
-    if (json.usage) {
-      const details = json.usage.completion_tokens_details;
-      result.usage = {
-        promptTokens: (_e = json.usage.prompt_tokens) != null ? _e : 0,
-        completionTokens: (_f = json.usage.completion_tokens) != null ? _f : 0,
-        totalTokens: (_g = json.usage.total_tokens) != null ? _g : 0,
-        reasoningTokens: (_h = details == null ? void 0 : details.reasoning_tokens) != null ? _h : void 0
-      };
-    }
-    return Object.keys(result).length > 0 ? result : null;
-  } catch (e) {
-    return null;
+  const json = asRecord(parseJson(data));
+  const choices = Array.isArray(json.choices) ? json.choices : [];
+  const delta = asRecord(asRecord(choices[0]).delta);
+  const reasoning = (_a2 = delta.reasoning_content) != null ? _a2 : delta.reasoning;
+  const content = delta.content;
+  const result = {};
+  if (typeof reasoning === "string" && reasoning.length > 0)
+    result.reasoning = reasoning;
+  if (typeof content === "string" && content.length > 0)
+    result.content = content;
+  const usage = json.usage;
+  if (usage) {
+    const u = asRecord(usage);
+    const details = asRecord(u.completion_tokens_details);
+    result.usage = {
+      promptTokens: asNumber(u.prompt_tokens),
+      completionTokens: asNumber(u.completion_tokens),
+      totalTokens: asNumber(u.total_tokens),
+      reasoningTokens: typeof details.reasoning_tokens === "number" ? details.reasoning_tokens : void 0
+    };
   }
+  return Object.keys(result).length > 0 ? result : null;
 }
 function toOpenAIMessages(messages) {
   return messages.map((m) => {
@@ -864,26 +933,24 @@ function toOpenAIMessages(messages) {
   });
 }
 function parseCompletionResponse(json) {
-  var _a2, _b2, _c, _d, _e;
-  const j = json;
+  const j = asRecord(json);
   const choices = Array.isArray(j.choices) ? j.choices : [];
-  const message = (_a2 = choices[0]) == null ? void 0 : _a2.message;
-  const content = (message == null ? void 0 : message.content) || "";
+  const message = asRecord(asRecord(choices[0]).message);
+  const content = asText(message.content);
   let toolCalls;
-  const rawToolCalls = message == null ? void 0 : message.tool_calls;
+  const rawToolCalls = message.tool_calls;
   if (Array.isArray(rawToolCalls) && rawToolCalls.length > 0) {
     toolCalls = rawToolCalls.map((tc) => {
-      var _a3, _b3, _c2;
-      const t2 = tc;
-      const fn = t2.function;
-      if (!fn)
+      const call = asRecord(tc);
+      const fn = asRecord(call.function);
+      if (Object.keys(fn).length === 0)
         return null;
       return {
-        id: String((_a3 = t2.id) != null ? _a3 : ""),
+        id: asText(call.id),
         type: "function",
         function: {
-          name: String((_b3 = fn.name) != null ? _b3 : ""),
-          arguments: String((_c2 = fn.arguments) != null ? _c2 : "{}")
+          name: asText(fn.name),
+          arguments: asText(fn.arguments, "{}")
         }
       };
     }).filter((tc) => tc !== null);
@@ -891,12 +958,13 @@ function parseCompletionResponse(json) {
   let usage;
   const u = j.usage;
   if (u) {
-    const details = u.completion_tokens_details;
+    const record = asRecord(u);
+    const details = asRecord(record.completion_tokens_details);
     usage = {
-      promptTokens: (_b2 = u.prompt_tokens) != null ? _b2 : 0,
-      completionTokens: (_c = u.completion_tokens) != null ? _c : 0,
-      totalTokens: (_d = u.total_tokens) != null ? _d : 0,
-      reasoningTokens: (_e = details == null ? void 0 : details.reasoning_tokens) != null ? _e : void 0
+      promptTokens: asNumber(record.prompt_tokens),
+      completionTokens: asNumber(record.completion_tokens),
+      totalTokens: asNumber(record.total_tokens),
+      reasoningTokens: typeof details.reasoning_tokens === "number" ? details.reasoning_tokens : void 0
     };
   }
   return { content: content.trim(), usage, toolCalls };
@@ -967,7 +1035,7 @@ var OpenAIProvider = class {
     if ((opts == null ? void 0 : opts.tools) && opts.tools.length > 0) {
       body.tools = opts.tools;
     }
-    const resp = await fetch(url, {
+    const resp = await streamingFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -994,43 +1062,33 @@ var OpenAIProvider = class {
 // src/ai/ollama.ts
 var import_obsidian3 = require("obsidian");
 function parseNDJSONLine(line) {
-  var _a2, _b2;
+  var _a2;
   if (!line.trim())
     return null;
-  try {
-    const json = JSON.parse(line);
-    const msg = (_a2 = json.message) != null ? _a2 : {};
-    const thinking = (_b2 = msg.thinking) != null ? _b2 : msg.reasoning_content;
-    const delta = msg.content;
-    const result = {};
-    if (typeof thinking === "string" && thinking.length > 0)
-      result.reasoning = thinking;
-    if (typeof delta === "string" && delta.length > 0)
-      result.content = delta;
-    if (json.done) {
-      let promptTokens = 0;
-      let completionTokens = 0;
-      let gotUsage = false;
-      if (typeof json.prompt_eval_count === "number") {
-        promptTokens = json.prompt_eval_count;
-        gotUsage = true;
-      }
-      if (typeof json.eval_count === "number") {
-        completionTokens = json.eval_count;
-        gotUsage = true;
-      }
-      if (gotUsage) {
-        result.usage = {
-          promptTokens,
-          completionTokens,
-          totalTokens: promptTokens + completionTokens
-        };
-      }
+  const json = asRecord(parseJson(line));
+  const msg = asRecord(json.message);
+  const thinking = (_a2 = msg.thinking) != null ? _a2 : msg.reasoning_content;
+  const delta = msg.content;
+  const result = {};
+  if (typeof thinking === "string" && thinking.length > 0)
+    result.reasoning = thinking;
+  if (typeof delta === "string" && delta.length > 0)
+    result.content = delta;
+  if (json.done) {
+    const rawPrompt = json.prompt_eval_count;
+    const rawCompletion = json.eval_count;
+    const gotUsage = typeof rawPrompt === "number" || typeof rawCompletion === "number";
+    if (gotUsage) {
+      const promptTokens = asNumber(rawPrompt);
+      const completionTokens = asNumber(rawCompletion);
+      result.usage = {
+        promptTokens,
+        completionTokens,
+        totalTokens: promptTokens + completionTokens
+      };
     }
-    return Object.keys(result).length > 0 ? result : null;
-  } catch (e) {
-    return null;
   }
+  return Object.keys(result).length > 0 ? result : null;
 }
 function toOllamaMessages(messages) {
   return messages.map((m) => {
@@ -1042,7 +1100,7 @@ function toOllamaMessages(messages) {
       base.tool_calls = m.toolCalls.map((tc) => ({
         function: {
           name: tc.function.name,
-          arguments: JSON.parse(tc.function.arguments || "{}")
+          arguments: parseJsonOrThrow(tc.function.arguments || "{}")
         }
       }));
     }
@@ -1053,39 +1111,39 @@ function toOllamaMessages(messages) {
   });
 }
 function parseCompletionResponse2(json) {
-  var _a2, _b2, _c, _d;
-  const j = json;
-  const message = j.message;
-  const content = (message == null ? void 0 : message.content) || "";
+  const j = asRecord(json);
+  const message = asRecord(j.message);
+  const content = asText(message.content);
   let toolCalls;
-  const rawToolCalls = message == null ? void 0 : message.tool_calls;
+  const rawToolCalls = message.tool_calls;
   if (Array.isArray(rawToolCalls) && rawToolCalls.length > 0) {
     toolCalls = rawToolCalls.map((tc, idx) => {
-      var _a3, _b3;
-      const t2 = tc;
-      const fn = t2.function;
-      if (!fn)
+      const call = asRecord(tc);
+      const fn = asRecord(call.function);
+      if (Object.keys(fn).length === 0)
         return null;
       const args = fn.arguments;
       const argsStr = typeof args === "string" ? args : JSON.stringify(args != null ? args : {});
       return {
-        id: String((_a3 = t2.id) != null ? _a3 : `call_ollama_${idx}`),
+        id: asText(call.id) || `call_ollama_${idx}`,
         type: "function",
         function: {
-          name: String((_b3 = fn.name) != null ? _b3 : ""),
+          name: asText(fn.name),
           arguments: argsStr
         }
       };
     }).filter((tc) => tc !== null);
   }
   let usage;
-  const gotPrompt = typeof j.prompt_eval_count === "number";
-  const gotComplete = typeof j.eval_count === "number";
-  if (gotPrompt || gotComplete) {
+  const rawPrompt = j.prompt_eval_count;
+  const rawCompletion = j.eval_count;
+  if (typeof rawPrompt === "number" || typeof rawCompletion === "number") {
+    const promptTokens = asNumber(rawPrompt);
+    const completionTokens = asNumber(rawCompletion);
     usage = {
-      promptTokens: (_a2 = j.prompt_eval_count) != null ? _a2 : 0,
-      completionTokens: (_b2 = j.eval_count) != null ? _b2 : 0,
-      totalTokens: ((_c = j.prompt_eval_count) != null ? _c : 0) + ((_d = j.eval_count) != null ? _d : 0)
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens
     };
   }
   return { content: content.trim(), usage, toolCalls };
@@ -1153,7 +1211,7 @@ var OllamaProvider = class {
     if ((opts == null ? void 0 : opts.tools) && opts.tools.length > 0) {
       body.tools = opts.tools;
     }
-    const resp = await fetch(url, {
+    const resp = await streamingFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -1270,7 +1328,7 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
         this.name = v;
       });
     });
-    this.dynamicEl = contentEl.createEl("div");
+    this.dynamicEl = contentEl.createDiv();
     this.renderDynamic();
     let maxTokensInputEl = null;
     new import_obsidian4.Setting(contentEl).setName(t("settings.maxTokens.name")).setDesc(t("settings.modelLinks.modal.maxTokensDesc")).addText((tc) => {
@@ -1301,7 +1359,7 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
         this.temperature = v.trim();
       });
     });
-    requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
       if (nameInputEl && maxTokensInputEl && temperatureInputEl) {
         const nameWidth = nameInputEl.offsetWidth;
         if (nameWidth > 0) {
@@ -1318,7 +1376,7 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
         }
       }
     });
-    const footer = contentEl.createEl("div", {
+    const footer = contentEl.createDiv({
       cls: "ana-modal-button-row"
     });
     new import_obsidian4.ButtonComponent(footer).setButtonText(t("modal.cancel")).onClick(() => this.close());
@@ -1334,14 +1392,14 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
     this.dynamicEl.empty();
     if (this.type === "openai") {
       new import_obsidian4.Setting(this.dynamicEl).setName(t("settings.openaiBaseUrl.name")).setDesc(t("settings.openaiBaseUrl.desc")).addText((tc) => {
-        tc.setPlaceholder("https://api.openai.com/v1");
+        tc.setPlaceholder(t("settings.openaiBaseUrl.placeholder"));
         tc.setValue(this.baseUrl);
         tc.onChange((v) => {
           this.baseUrl = v.trim();
         });
       });
       const keySetting = new import_obsidian4.Setting(this.dynamicEl).setName(t("settings.openaiKey.name")).setDesc(t("settings.openaiKey.desc")).setClass("ana-setting-key-row");
-      const btnRow = keySetting.controlEl.createEl("div", {
+      const btnRow = keySetting.controlEl.createDiv({
         cls: "ana-model-link-key-btn-row"
       });
       const updateSelectBtnText = () => {
@@ -1366,7 +1424,7 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
         cls: "ana-model-link-btn",
         text: t("settings.test.button")
       });
-      testBtn.addEventListener("click", async () => {
+      addAsyncListener(testBtn, "click", async () => {
         if (this.models.length === 0) {
           new import_obsidian4.Notice(t("settings.test.noModel"));
           return;
@@ -1395,7 +1453,7 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
       });
     } else {
       new import_obsidian4.Setting(this.dynamicEl).setName(t("settings.ollamaBaseUrl.name")).setDesc(t("settings.ollamaBaseUrl.desc")).addText((tc) => {
-        tc.setPlaceholder("http://localhost:11434");
+        tc.setPlaceholder(t("settings.ollamaBaseUrl.placeholder"));
         tc.setValue(this.baseUrl);
         tc.onChange((v) => {
           this.baseUrl = v.trim();
@@ -1403,7 +1461,7 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
       });
     }
     const modelSetting = new import_obsidian4.Setting(this.dynamicEl).setName(t("settings.modelLinks.modal.models")).setDesc(t("settings.modelLinks.modal.modelsDesc")).setClass("ana-setting-textarea-full");
-    const inputRow = modelSetting.controlEl.createEl("div", {
+    const inputRow = modelSetting.controlEl.createDiv({
       cls: "ana-model-link-input-row"
     });
     const input = inputRow.createEl("input", {
@@ -1423,17 +1481,17 @@ var ModelLinkModal = class extends import_obsidian4.Modal {
       text: t("settings.modelLinks.modal.addModel")
     });
     addBtn.addEventListener("click", () => this.addModelsFromInput(input));
-    this.tagsEl = this.dynamicEl.createEl("div", {
+    this.tagsEl = this.dynamicEl.createDiv({
       cls: "ana-model-link-tags-editor"
     });
     this.renderTags = () => {
       this.tagsEl.empty();
       for (const m of this.models) {
-        const tag = this.tagsEl.createEl("span", {
+        const tag = this.tagsEl.createSpan({
           cls: "ana-model-link-tag",
           text: m
         });
-        const x = tag.createEl("span", {
+        const x = tag.createSpan({
           cls: "ana-model-link-tag-x",
           text: "\xD7"
         });
@@ -1527,7 +1585,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
     contentEl.createEl("h2", {
       text: t("settings.modelLinks.modal.secretPicker.title")
     });
-    const searchWrap = contentEl.createEl("div", {
+    const searchWrap = contentEl.createDiv({
       cls: "ana-secret-picker-search"
     });
     this.searchInput = searchWrap.createEl("input", {
@@ -1539,10 +1597,10 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
       this.searchQuery = this.searchInput.value.trim();
       this.renderList();
     });
-    this.addFormEl = contentEl.createEl("div", {
+    this.addFormEl = contentEl.createDiv({
       cls: "ana-secret-picker-add-form"
     });
-    this.listContainer = contentEl.createEl("div", {
+    this.listContainer = contentEl.createDiv({
       cls: "ana-secret-picker-list"
     });
     if (this.currentKey) {
@@ -1556,7 +1614,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
       }
     }
     this.renderList();
-    const footer = contentEl.createEl("div", {
+    const footer = contentEl.createDiv({
       cls: "ana-secret-picker-footer"
     });
     const addBtn = footer.createEl("button", {
@@ -1564,7 +1622,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
       text: t("settings.modelLinks.modal.secretPicker.addNew")
     });
     addBtn.addEventListener("click", () => this.showAddSecret());
-    const btnGroup = footer.createEl("div", {
+    const btnGroup = footer.createDiv({
       cls: "ana-secret-picker-btn-group"
     });
     const cancelBtn = btnGroup.createEl("button", {
@@ -1582,15 +1640,15 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
       var _a3;
       if (this.selectedId) {
         if ((_a3 = this.options) == null ? void 0 : _a3.returnId) {
-          this.onConfirm(this.selectedId);
+          void this.onConfirm(this.selectedId);
         } else {
           const val = this.app.secretStorage.getSecret(this.selectedId);
-          this.onConfirm(val != null ? val : "");
+          void this.onConfirm(val != null ? val : "");
         }
       }
       this.close();
     });
-    setTimeout(() => this.searchInput.focus(), 50);
+    window.setTimeout(() => this.searchInput.focus(), 50);
   }
   /** 渲染密钥列表（带搜索过滤）。 */
   renderList() {
@@ -1601,14 +1659,14 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
       ids = ids.filter((id) => id.toLowerCase().includes(q));
     }
     if (ids.length === 0) {
-      this.listContainer.createEl("div", {
+      this.listContainer.createDiv({
         cls: "ana-secret-picker-empty",
         text: q ? t("settings.modelLinks.modal.secretPicker.noMatch") : t("settings.modelLinks.modal.secretPicker.empty")
       });
       return;
     }
     for (const id of ids) {
-      const row = this.listContainer.createEl("div", {
+      const row = this.listContainer.createDiv({
         cls: "ana-secret-picker-row"
       });
       const isSelected = id === this.selectedId;
@@ -1625,15 +1683,15 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
         if (this.saveBtnEl)
           this.saveBtnEl.disabled = false;
       });
-      const info = row.createEl("div", { cls: "ana-secret-picker-info" });
-      info.createEl("span", { cls: "ana-secret-picker-name", text: id });
+      const info = row.createDiv({ cls: "ana-secret-picker-info" });
+      info.createSpan({ cls: "ana-secret-picker-name", text: id });
       if (isSelected) {
-        info.createEl("span", {
+        info.createSpan({
           cls: "ana-secret-picker-selected-badge",
           text: t("settings.modelLinks.modal.secretPicker.selected")
         });
       }
-      const actions = row.createEl("div", {
+      const actions = row.createDiv({
         cls: "ana-secret-picker-actions"
       });
       const viewBtn = actions.createEl("button", {
@@ -1647,7 +1705,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
       });
       if (this.expandedId === id) {
         const val = this.app.secretStorage.getSecret(id);
-        const expandEl = row.createEl("div", {
+        row.createDiv({
           cls: "ana-secret-picker-expanded",
           text: val || t("settings.modelLinks.modal.secretPicker.noValue")
         });
@@ -1658,7 +1716,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
         attr: { "aria-label": t("settings.modelLinks.modal.secretPicker.delete") }
       });
       (0, import_obsidian4.setIcon)(delBtn, "trash");
-      delBtn.addEventListener("click", async () => {
+      addAsyncListener(delBtn, "click", async () => {
         try {
           this.app.secretStorage.setSecret(id, "");
           if (this.selectedId === id)
@@ -1698,7 +1756,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
     valueInput.addEventListener("input", () => {
       secretVal = valueInput.value.trim();
     });
-    const btnRow = this.addFormEl.createEl("div", {
+    const btnRow = this.addFormEl.createDiv({
       cls: "ana-secret-picker-add-btn-row"
     });
     const confirmBtn = btnRow.createEl("button", {
@@ -1711,7 +1769,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
     };
     nameInput.addEventListener("input", checkValid);
     valueInput.addEventListener("input", checkValid);
-    confirmBtn.addEventListener("click", async () => {
+    addAsyncListener(confirmBtn, "click", async () => {
       if (!nameVal || !secretVal)
         return;
       try {
@@ -1731,7 +1789,7 @@ var SecretPickerModal = class extends import_obsidian4.Modal {
       text: t("modal.cancel")
     });
     cancelBtn.addEventListener("click", () => this.hideAddForm());
-    setTimeout(() => nameInput.focus(), 50);
+    window.setTimeout(() => nameInput.focus(), 50);
   }
   /** 收起内联添加表单。 */
   hideAddForm() {
@@ -1889,7 +1947,7 @@ var RoleInfoModal = class extends import_obsidian6.Modal {
         this.prompt = v;
       });
     });
-    const footer = contentEl.createEl("div", {
+    const footer = contentEl.createDiv({
       cls: "ana-modal-button-row"
     });
     new import_obsidian6.ButtonComponent(footer).setButtonText(t("modal.cancel")).onClick(() => this.close());
@@ -2257,7 +2315,7 @@ async function loadSessionFile(plugin, id) {
     const content = await vault.adapter.read(path);
     if (!content.trim())
       return null;
-    const obj = JSON.parse(content);
+    const obj = parseJson(content);
     if (isValidSession(obj))
       return obj;
   } catch (e) {
@@ -2608,7 +2666,6 @@ ${capped.trim()}`;
 var import_obsidian7 = require("obsidian");
 var TavilyProvider = class {
   async search(query, keys, max2) {
-    var _a2;
     let lastErr = null;
     for (const key of keys) {
       try {
@@ -2628,22 +2685,22 @@ var TavilyProvider = class {
           lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
           continue;
         }
-        const data = resp.json;
-        if (data == null ? void 0 : data.error) {
-          lastErr = new Error(String(data.error));
+        const data = asRecord(resp.json);
+        const error = data.error;
+        if (error) {
+          lastErr = new Error(errorText(error));
           continue;
         }
-        const results = (_a2 = data == null ? void 0 : data.results) != null ? _a2 : [];
-        return results.map((r) => {
-          var _a3, _b2, _c;
+        return asArray(data.results).map((r) => {
+          const row = asRecord(r);
           return {
-            title: String((_a3 = r.title) != null ? _a3 : ""),
-            url: String((_b2 = r.url) != null ? _b2 : ""),
-            content: String((_c = r.content) != null ? _c : "")
+            title: asText(row.title),
+            url: asText(row.url),
+            content: asText(row.content)
           };
         }).filter((r) => r.url);
       } catch (e) {
-        lastErr = e;
+        lastErr = toError(e);
       }
     }
     if (lastErr)
@@ -2653,7 +2710,6 @@ var TavilyProvider = class {
 };
 var SerperProvider = class {
   async search(query, keys, max2) {
-    var _a2;
     let lastErr = null;
     for (const key of keys) {
       try {
@@ -2670,22 +2726,22 @@ var SerperProvider = class {
           lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
           continue;
         }
-        const data = resp.json;
-        if (data == null ? void 0 : data.error) {
-          lastErr = new Error(String(data.error));
+        const data = asRecord(resp.json);
+        const error = data.error;
+        if (error) {
+          lastErr = new Error(errorText(error));
           continue;
         }
-        const organic = (_a2 = data == null ? void 0 : data.organic) != null ? _a2 : [];
-        return organic.slice(0, max2).map((r) => {
-          var _a3, _b2, _c;
+        return asArray(data.organic).slice(0, max2).map((r) => {
+          const row = asRecord(r);
           return {
-            title: String((_a3 = r.title) != null ? _a3 : ""),
-            url: String((_b2 = r.link) != null ? _b2 : ""),
-            content: String((_c = r.snippet) != null ? _c : "")
+            title: asText(row.title),
+            url: asText(row.link),
+            content: asText(row.snippet)
           };
         }).filter((r) => r.url);
       } catch (e) {
-        lastErr = e;
+        lastErr = toError(e);
       }
     }
     if (lastErr)
@@ -2695,7 +2751,6 @@ var SerperProvider = class {
 };
 var BraveProvider = class {
   async search(query, keys, max2) {
-    var _a2, _b2;
     let lastErr = null;
     for (const key of keys) {
       try {
@@ -2713,23 +2768,23 @@ var BraveProvider = class {
           lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
           continue;
         }
-        const data = resp.json;
-        if (data == null ? void 0 : data.error) {
-          lastErr = new Error(String(data.error));
+        const data = asRecord(resp.json);
+        const error = data.error;
+        if (error) {
+          lastErr = new Error(errorText(error));
           continue;
         }
-        const web = (_a2 = data == null ? void 0 : data.web) != null ? _a2 : {};
-        const items = (_b2 = web == null ? void 0 : web.results) != null ? _b2 : [];
-        return items.slice(0, max2).map((r) => {
-          var _a3, _b3, _c;
+        const web = asRecord(data.web);
+        return asArray(web.results).slice(0, max2).map((r) => {
+          const row = asRecord(r);
           return {
-            title: String((_a3 = r.title) != null ? _a3 : ""),
-            url: String((_b3 = r.url) != null ? _b3 : ""),
-            content: String((_c = r.description) != null ? _c : "")
+            title: asText(row.title),
+            url: asText(row.url),
+            content: asText(row.description)
           };
         }).filter((r) => r.url);
       } catch (e) {
-        lastErr = e;
+        lastErr = toError(e);
       }
     }
     if (lastErr)
@@ -2739,7 +2794,6 @@ var BraveProvider = class {
 };
 var SearXNGProvider = class {
   async search(query, keys, max2) {
-    var _a2;
     let lastErr = null;
     for (const base of keys) {
       const baseUrl = base.replace(/\/+$/, "");
@@ -2753,22 +2807,22 @@ var SearXNGProvider = class {
           lastErr = new Error(t("settings.test.httpError", { status: String(resp.status) }));
           continue;
         }
-        const data = resp.json;
-        if (data == null ? void 0 : data.error) {
-          lastErr = new Error(String(data.error));
+        const data = asRecord(resp.json);
+        const error = data.error;
+        if (error) {
+          lastErr = new Error(errorText(error));
           continue;
         }
-        const items = (_a2 = data == null ? void 0 : data.results) != null ? _a2 : [];
-        return items.slice(0, max2).map((r) => {
-          var _a3, _b2, _c, _d;
+        return asArray(data.results).slice(0, max2).map((r) => {
+          const row = asRecord(r);
           return {
-            title: String((_a3 = r.title) != null ? _a3 : ""),
-            url: String((_b2 = r.url) != null ? _b2 : ""),
-            content: String((_d = (_c = r.content) != null ? _c : r.snippet) != null ? _d : "")
+            title: asText(row.title),
+            url: asText(row.url),
+            content: asText(row.content) || asText(row.snippet)
           };
         }).filter((r) => r.url);
       } catch (e) {
-        lastErr = e;
+        lastErr = toError(e);
       }
     }
     if (lastErr)
@@ -3795,15 +3849,15 @@ var DEFAULT_SETTINGS = {
   profileMemoryMaxChars: 4e3,
   fileSelectionEnabled: true,
   includeVaultIndex: false,
-  vaultIndexMaxFiles: 200,
+  vaultIndexMaxFiles: 5,
   chatContextMaxChars: 8e3,
   historyMaxMessages: 20,
   chatActivityTimeout: 60,
   propertySelectEnabled: true,
   includeFrontmatterIndex: false,
-  frontmatterIndexMaxFiles: 200,
+  frontmatterIndexMaxFiles: 5,
   frontmatterIndexKeys: "",
-  frontmatterIndexMaxChars: 500,
+  frontmatterContentMaxChars: 8e3,
   skillsEnabled: true,
   defaultSkills: [],
   webSearchEnabled: false,
@@ -3882,15 +3936,13 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         render: (el) => this.renderWebTab(el)
       }
     ];
-    const tabsEl = containerEl.createEl("div", { cls: "ana-settings-tabs" });
-    const panelsEl = containerEl.createEl("div", {
+    const tabsEl = containerEl.createDiv({ cls: "ana-settings-tabs" });
+    const panelsEl = containerEl.createDiv({
       cls: "ana-settings-panels"
     });
     const tabButtons = [];
     const panels = [];
-    let activeIndex = 0;
     const activate = (idx) => {
-      activeIndex = idx;
       this.activeTabIndex = idx;
       tabButtons.forEach((btn, i) => {
         btn.toggleClass("is-active", i === idx);
@@ -3911,8 +3963,8 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       });
       btn.addEventListener("click", () => activate(idx));
       tabButtons.push(btn);
-      const panel = panelsEl.createEl("div", { cls: "ana-settings-panel" });
-      const body = panel.createEl("div", { cls: "ana-settings-panel-body" });
+      const panel = panelsEl.createDiv({ cls: "ana-settings-panel" });
+      const body = panel.createDiv({ cls: "ana-settings-panel-body" });
       sec.render(body);
       panels.push(panel);
     });
@@ -3921,15 +3973,18 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
   // ===== 标签页：模型配置 =====
   renderProviderTab(bodyEl) {
     this.createGroupHeader(bodyEl, "settings.providerGroup.storage");
-    new import_obsidian11.Setting(bodyEl).setName(t("settings.aiFolderName.name")).setDesc(t("settings.aiFolderName.desc")).addText(
-      (t2) => t2.setPlaceholder(".smartnotes").setValue(this.plugin.settings.aiFolderName).inputEl.addEventListener("blur", async () => {
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.aiFolderName.name")).setDesc(t("settings.aiFolderName.desc")).addText((t2) => {
+      t2.setPlaceholder(".smartnotes").setValue(
+        this.plugin.settings.aiFolderName
+      );
+      addAsyncListener(t2.inputEl, "blur", async () => {
         const name = t2.inputEl.value.trim();
         if (name && name !== this.plugin.settings.aiFolderName) {
           this.plugin.settings.aiFolderName = name;
           await this.plugin.saveSettings();
         }
-      })
-    );
+      });
+    });
     this.createGroupHeader(bodyEl, "settings.providerGroup.link");
     new import_obsidian11.Setting(bodyEl).setName(t("settings.modelLinks.add.name")).setDesc(t("settings.modelLinks.add.desc")).addButton((btn) => {
       btn.setButtonText(t("settings.modelLinks.add.button")).setCta();
@@ -3950,7 +4005,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         this.renderModelLinkList(listContainer, searchQuery);
       });
     });
-    const listContainer = bodyEl.createEl("div", {
+    const listContainer = bodyEl.createDiv({
       cls: "ana-model-link-list"
     });
     this.renderModelLinkList(listContainer, "");
@@ -3965,7 +4020,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
     const q = query.trim().toLowerCase();
     const filtered = q ? links.filter((l) => l.name.toLowerCase().includes(q)) : links;
     if (filtered.length === 0) {
-      container.createEl("div", {
+      container.createDiv({
         cls: "ana-model-link-empty",
         text: q ? t("settings.modelLinks.searchNoResults") : t("settings.modelLinks.empty")
       });
@@ -3988,9 +4043,9 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       const tr = tbody.createEl("tr");
       const isDefault = link.id === this.plugin.settings.defaultModelLinkId;
       const tdName = tr.createEl("td", { cls: "ana-model-link-col-name" });
-      tdName.createEl("span", { cls: "ana-model-link-name", text: link.name });
+      tdName.createSpan({ cls: "ana-model-link-name", text: link.name });
       if (isDefault) {
-        tdName.createEl("span", {
+        tdName.createSpan({
           cls: "ana-model-link-default-badge",
           text: t("settings.modelLinks.defaultBadge")
         });
@@ -4000,17 +4055,17 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         text: link.type === "ollama" ? t("settings.provider.ollama") : t("settings.provider.openai")
       });
       const tdModels = tr.createEl("td", { cls: "ana-model-link-col-models" });
-      const modelsWrap = tdModels.createEl("div", {
+      const modelsWrap = tdModels.createDiv({
         cls: "ana-model-link-models-wrap"
       });
       if (link.models.length === 0) {
-        modelsWrap.createEl("span", {
+        modelsWrap.createSpan({
           cls: "ana-model-link-tag-empty",
           text: t("settings.modelLinks.noModel")
         });
       } else {
         for (const m of link.models) {
-          modelsWrap.createEl("span", { cls: "ana-model-link-tag", text: m });
+          modelsWrap.createSpan({ cls: "ana-model-link-tag", text: m });
         }
       }
       const tdActions = tr.createEl("td", {
@@ -4021,7 +4076,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       });
       defaultBtn.setAttribute("aria-label", isDefault ? t("settings.modelLinks.defaultActive") : t("settings.modelLinks.setDefault"));
       (0, import_obsidian11.setIcon)(defaultBtn, "star");
-      defaultBtn.addEventListener("click", async () => {
+      addAsyncListener(defaultBtn, "click", async () => {
         this.plugin.settings.defaultModelLinkId = link.id;
         await this.plugin.saveSettings();
         this.renderModelLinkList(container, query);
@@ -4044,7 +4099,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       });
       delBtn.setAttribute("aria-label", t("settings.modelLinks.delete"));
       (0, import_obsidian11.setIcon)(delBtn, "trash");
-      delBtn.addEventListener("click", async () => {
+      addAsyncListener(delBtn, "click", async () => {
         var _a2, _b2;
         this.plugin.settings.modelLinks = this.plugin.settings.modelLinks.filter((l) => l.id !== link.id);
         if (this.plugin.settings.defaultModelLinkId === link.id) {
@@ -4065,7 +4120,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
     const q = query.trim().toLowerCase();
     const filtered = q ? roles.filter((r) => r.name.toLowerCase().includes(q)) : roles;
     if (filtered.length === 0) {
-      container.createEl("div", {
+      container.createDiv({
         cls: "ana-model-link-empty",
         text: q ? t("settings.roles.searchNoResults") : t("settings.roles.empty")
       });
@@ -4089,9 +4144,9 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       const nameRow = tdName.createDiv({ cls: "ana-role-list-name-row" });
       const avatarWrap = nameRow.createDiv({ cls: "ana-role-list-avatar" });
       renderAvatar(this.app, avatarWrap, role, 24);
-      nameRow.createEl("span", { cls: "ana-model-link-name", text: role.name });
+      nameRow.createSpan({ cls: "ana-model-link-name", text: role.name });
       if (isDefault) {
-        nameRow.createEl("span", {
+        nameRow.createSpan({
           cls: "ana-model-link-default-badge",
           text: t("settings.roles.defaultBadge")
         });
@@ -4104,7 +4159,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       });
       defaultBtn.setAttribute("aria-label", isDefault ? t("settings.roles.defaultActive") : t("settings.roles.setDefault"));
       (0, import_obsidian11.setIcon)(defaultBtn, "star");
-      defaultBtn.addEventListener("click", async () => {
+      addAsyncListener(defaultBtn, "click", async () => {
         this.plugin.settings.defaultRoleId = role.id;
         await this.plugin.saveSettings();
         this.renderRoleList(container, query);
@@ -4127,7 +4182,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       });
       delBtn.setAttribute("aria-label", t("settings.roles.delete"));
       (0, import_obsidian11.setIcon)(delBtn, "trash");
-      delBtn.addEventListener("click", async () => {
+      addAsyncListener(delBtn, "click", async () => {
         var _a2, _b2;
         this.plugin.settings.roles = this.plugin.settings.roles.filter(
           (r) => r.id !== role.id
@@ -4143,7 +4198,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
   // ===== 标签页：知识库 =====
   renderKnowledgeTab(bodyEl) {
     this.createGroupHeader(bodyEl, "settings.knowledgeGroup.files");
-    const includeVaultIndexSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.includeVaultIndex.name")).setDesc(t("settings.includeVaultIndex.desc")).addToggle(
+    new import_obsidian11.Setting(bodyEl).setName(t("settings.includeVaultIndex.name")).setDesc(t("settings.includeVaultIndex.desc")).addToggle(
       (t2) => t2.setValue(this.plugin.settings.includeVaultIndex).onChange(async (v) => {
         this.plugin.settings.includeVaultIndex = v;
         await this.plugin.saveSettings();
@@ -4211,28 +4266,28 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       });
       ta.inputEl.rows = 4;
     }).setDisabled(!this.plugin.settings.includeFrontmatterIndex);
-    fmMaxCharsSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterIndexMaxChars.name")).setDesc(t("settings.frontmatterIndexMaxChars.desc")).addText((t2) => {
-      t2.inputEl.type = "number";
-      t2.inputEl.min = "1";
-      t2.inputEl.step = "1";
-      t2.inputEl.inputMode = "numeric";
-      t2.setPlaceholder("500").setValue(String(this.plugin.settings.frontmatterIndexMaxChars)).onChange(async (v) => {
-        const n = parseInt(v, 10);
-        if (!isNaN(n) && n > 0) {
-          this.plugin.settings.frontmatterIndexMaxChars = n;
-          await this.plugin.saveSettings();
-        }
-      });
-    }).setDisabled(!this.plugin.settings.includeFrontmatterIndex);
     fmMaxFilesSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterIndexMaxFiles.name")).setDesc(t("settings.frontmatterIndexMaxFiles.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "0";
       t2.inputEl.step = "1";
       t2.inputEl.inputMode = "numeric";
-      t2.setPlaceholder("200").setValue(String(this.plugin.settings.frontmatterIndexMaxFiles)).onChange(async (v) => {
+      t2.setPlaceholder("5").setValue(String(this.plugin.settings.frontmatterIndexMaxFiles)).onChange(async (v) => {
         const n = parseInt(v, 10);
         if (!isNaN(n) && n >= 0) {
           this.plugin.settings.frontmatterIndexMaxFiles = n;
+          await this.plugin.saveSettings();
+        }
+      });
+    }).setDisabled(!this.plugin.settings.includeFrontmatterIndex);
+    fmMaxCharsSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterContentMaxChars.name")).setDesc(t("settings.frontmatterContentMaxChars.desc")).addText((t2) => {
+      t2.inputEl.type = "number";
+      t2.inputEl.min = "1";
+      t2.inputEl.step = "1";
+      t2.inputEl.inputMode = "numeric";
+      t2.setPlaceholder("8000").setValue(String(this.plugin.settings.frontmatterContentMaxChars)).onChange(async (v) => {
+        const n = parseInt(v, 10);
+        if (!isNaN(n) && n > 0) {
+          this.plugin.settings.frontmatterContentMaxChars = n;
           await this.plugin.saveSettings();
         }
       });
@@ -4330,7 +4385,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         this.renderRoleList(roleListContainer, roleSearchQuery);
       });
     });
-    const roleListContainer = bodyEl.createEl("div", {
+    const roleListContainer = bodyEl.createDiv({
       cls: "ana-model-link-list"
     });
     this.renderRoleList(roleListContainer, "");
@@ -4480,7 +4535,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       })
     );
     providerSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.webSearchProvider.name")).setDesc(t("settings.webSearchProvider.desc")).addDropdown(
-      (dd) => dd.addOption("tavily", "Tavily").addOption("serper", "Serper (Google)").addOption("brave", "Brave Search").addOption("searxng", "SearXNG").setValue(this.plugin.settings.webSearchProvider).onChange(async (v) => {
+      (dd) => dd.addOption("tavily", t("settings.webSearchProvider.option.tavily")).addOption("serper", t("settings.webSearchProvider.option.serper")).addOption("brave", t("settings.webSearchProvider.option.brave")).addOption("searxng", t("settings.webSearchProvider.option.searxng")).setValue(this.plugin.settings.webSearchProvider).onChange(async (v) => {
         this.plugin.settings.webSearchProvider = v;
         await this.plugin.saveSettings();
         this.display();
@@ -4497,7 +4552,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         this.plugin.settings[refField] = ref;
       };
       keysSetting = new import_obsidian11.Setting(bodyEl).setName(t(`settings.webKeys.${prov}.name`)).setDesc(t(`settings.webKeys.${prov}.desc`)).setClass("ana-setting-key-row");
-      const btnRow = keysSetting.controlEl.createEl("div", {
+      const btnRow = keysSetting.controlEl.createDiv({
         cls: "ana-model-link-key-btn-row"
       });
       const selectBtn = btnRow.createEl("button", {
@@ -4520,7 +4575,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         cls: "ana-model-link-btn",
         text: t("settings.test.button")
       });
-      webTestBtn.addEventListener("click", async () => {
+      addAsyncListener(webTestBtn, "click", async () => {
         if (!getRef()) {
           new import_obsidian11.Notice(t("settings.test.noKey"));
           return;
@@ -4659,11 +4714,11 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         void renderSkillsList();
       });
     });
-    const listContainer = bodyEl.createEl("div", { cls: "ana-skills-list" });
+    const listContainer = bodyEl.createDiv({ cls: "ana-skills-list" });
     const renderSkillsList = async () => {
       listContainer.toggleClass("is-disabled", !plugin.settings.skillsEnabled);
       listContainer.empty();
-      listContainer.createEl("div", {
+      listContainer.createDiv({
         text: t("settings.defaultSkills.loading"),
         cls: "ana-settings-skills-loading"
       });
@@ -4675,7 +4730,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
       }
       listContainer.empty();
       if (skills.length === 0) {
-        listContainer.createEl("div", {
+        listContainer.createDiv({
           text: t("settings.defaultSkills.empty"),
           cls: "ana-settings-skills-empty"
         });
@@ -4686,7 +4741,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         (s) => s.name.toLowerCase().includes(q) || s.path.toLowerCase().includes(q)
       ) : skills;
       if (filtered.length === 0) {
-        listContainer.createEl("div", {
+        listContainer.createDiv({
           text: t("settings.defaultSkills.search.noResults"),
           cls: "ana-settings-skills-empty"
         });
@@ -4800,7 +4855,7 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
   }
   /** 在面板内创建一个小型分组标题。 */
   createGroupHeader(containerEl, titleKey) {
-    containerEl.createEl("div", {
+    containerEl.createDiv({
       cls: "ana-settings-group-title",
       text: t(titleKey)
     });
@@ -4857,7 +4912,7 @@ var OptimizeModal = class extends import_obsidian12.Modal {
     });
     apply.addEventListener("click", () => {
       this.applied = true;
-      this.onApply(taN.value);
+      void this.onApply(taN.value);
       this.close();
     });
   }
@@ -4989,7 +5044,7 @@ function createRealtimeExtension(plugin) {
         if (u.transactions.some((t2) => t2.annotation(acceptAnnotation)))
           return;
         if (this.timer !== null)
-          clearTimeout(this.timer);
+          window.clearTimeout(this.timer);
         const view = u.view;
         const debounce = plugin.settings.realtimeDebounceMs;
         this.timer = window.setTimeout(() => {
@@ -4998,7 +5053,7 @@ function createRealtimeExtension(plugin) {
       }
       destroy() {
         if (this.timer !== null)
-          clearTimeout(this.timer);
+          window.clearTimeout(this.timer);
       }
     }
   );
@@ -5033,7 +5088,7 @@ async function autopromptAtCursor(plugin, editor) {
 }
 
 // src/view/chatView.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 
 // src/utils/cssVars.ts
 function setCssVars(el, vars) {
@@ -5554,12 +5609,11 @@ function buildKnowledgeIndex(app, enabled, maxFiles = 0, query = "") {
     ...lines
   ].join("\n");
 }
-function buildFrontmatterIndex(app, enabled, keysRaw, maxChars, maxFiles = 0, query = "") {
+function buildFrontmatterIndex(app, enabled, keysRaw, maxFiles = 0, query = "") {
   var _a2;
   if (!enabled)
     return "";
   const keys = parseKeyWhitelist(keysRaw);
-  const limit = Math.max(1, maxChars || 500);
   const mdFiles = app.vault.getMarkdownFiles();
   if (mdFiles.length === 0)
     return "";
@@ -5575,7 +5629,7 @@ function buildFrontmatterIndex(app, enabled, keysRaw, maxChars, maxFiles = 0, qu
         continue;
       if (keys.length > 0 && !keys.includes(k.toLowerCase()))
         continue;
-      const formatted = formatFrontmatterValue(v, limit);
+      const formatted = formatFrontmatterValue(v);
       if (formatted === "")
         continue;
       pairs.push(`${k}=${formatted}`);
@@ -5623,21 +5677,18 @@ function collectFrontmatterKeys(app) {
   }
   return Array.from(counts.entries()).map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }
-function formatFrontmatterValue(v, maxChars) {
+function formatFrontmatterValue(v) {
   let s;
   if (Array.isArray(v)) {
-    s = v.map((x) => String(x)).join(", ");
+    s = v.map((x) => asText(x)).join(", ");
   } else if (v && typeof v === "object") {
     try {
       s = JSON.stringify(v);
     } catch (e) {
-      s = String(v);
+      s = "";
     }
   } else {
-    s = v == null ? "" : String(v);
-  }
-  if (s.length > maxChars) {
-    s = s.slice(0, maxChars) + "...";
+    s = asText(v);
   }
   return s;
 }
@@ -5724,13 +5775,14 @@ async function buildAttachmentContext(app, attachments, message, maxChars) {
 }
 
 // src/context/tools.ts
+var import_obsidian17 = require("obsidian");
 function createVaultToolDefinitions() {
   return [
     {
       type: "function",
       function: {
         name: "search_vault_paths",
-        description: "Search for Markdown files in the vault by keywords. Returns matching file paths. Use this when you need to locate files related to a specific topic.",
+        description: "Search for Markdown files in the vault by keywords. Returns matching file paths together with their content. Use this when you need to locate files related to a specific topic and see what they contain.",
         parameters: {
           type: "object",
           properties: {
@@ -5741,6 +5793,10 @@ function createVaultToolDefinitions() {
             maxResults: {
               type: "number",
               description: "Maximum number of results to return (default 20)"
+            },
+            includeContent: {
+              type: "boolean",
+              description: "Whether to also return each matching note's content (default true). Set to false when you only need the file list."
             }
           },
           required: ["keywords"]
@@ -5751,7 +5807,7 @@ function createVaultToolDefinitions() {
       type: "function",
       function: {
         name: "search_vault_frontmatter",
-        description: "Search for files by their Frontmatter (YAML metadata). Returns file paths along with matching metadata key-value pairs. Use this when you need to find files by tags, dates, categories, or other metadata.",
+        description: "Search for files by their Frontmatter (YAML metadata). Returns file paths along with matching metadata key-value pairs and each matching note's content. Use this when you need to find files by tags, dates, categories, or other metadata.",
         parameters: {
           type: "object",
           properties: {
@@ -5762,6 +5818,10 @@ function createVaultToolDefinitions() {
             maxResults: {
               type: "number",
               description: "Maximum number of results to return (default 20)"
+            },
+            includeContent: {
+              type: "boolean",
+              description: "Whether to also return each matching note's content (default true). Set to false when you only need the file list with metadata."
             }
           },
           required: ["keywords"]
@@ -5792,6 +5852,31 @@ function createVaultToolDefinitions() {
           required: ["keywords"]
         }
       }
+    },
+    {
+      type: "function",
+      function: {
+        name: "read_vault_notes",
+        description: "Read the content of one or more Markdown notes by their exact vault paths. Use this after a search when a note was returned as a path only, or when you need to read further into a note whose content was truncated. Never invent paths \u2014 use paths returned by the search tools.",
+        parameters: {
+          type: "object",
+          properties: {
+            paths: {
+              type: "string",
+              description: "One or more vault paths of the notes to read, separated by newlines or commas. Example: 'Projects/roadmap.md, Daily/2026-01-02.md'"
+            },
+            maxCharsPerFile: {
+              type: "number",
+              description: "Maximum characters per note (default: the configured max chars per attached file)."
+            },
+            maxFiles: {
+              type: "number",
+              description: "Maximum number of notes to read (default 5)"
+            }
+          },
+          required: ["paths"]
+        }
+      }
     }
   ];
 }
@@ -5801,7 +5886,7 @@ function createVaultToolHandlers(app, settings) {
     name: "search_vault_paths",
     definition: createVaultToolDefinitions()[0],
     async execute(args) {
-      const keywordsRaw = String(args.keywords || "");
+      const keywordsRaw = asText(args.keywords);
       const settingsMax = settings && settings.vaultIndexMaxFiles > 0 ? settings.vaultIndexMaxFiles : 20;
       const maxResults = Math.max(
         1,
@@ -5819,12 +5904,20 @@ function createVaultToolHandlers(app, settings) {
       if (sliced.length === 0) {
         return "No matching files found.";
       }
-      let result = sliced.map((p) => `- ${p}`).join("\n");
-      if (total > sliced.length) {
-        result += `
+      if (args.includeContent === false) {
+        let result = sliced.map((p) => `- ${p}`).join("\n");
+        if (total > sliced.length) {
+          result += `
 ... (${total - sliced.length} more files omitted)`;
+        }
+        return result;
       }
-      return result;
+      return buildHitsResult(
+        app,
+        sliced.map((p) => ({ path: p })),
+        resolveContentMaxChars(settings == null ? void 0 : settings.chatContextMaxChars),
+        total
+      );
     }
   };
   handlers["search_vault_frontmatter"] = {
@@ -5832,7 +5925,7 @@ function createVaultToolHandlers(app, settings) {
     definition: createVaultToolDefinitions()[1],
     async execute(args) {
       var _a2, _b2;
-      const keywordsRaw = String(args.keywords || "");
+      const keywordsRaw = asText(args.keywords);
       const settingsMax = settings && settings.frontmatterIndexMaxFiles > 0 ? settings.frontmatterIndexMaxFiles : 20;
       const maxResults = Math.max(
         1,
@@ -5841,9 +5934,8 @@ function createVaultToolHandlers(app, settings) {
       const keywords = extractQueryKeywords(keywordsRaw);
       const keysRaw = (_a2 = settings == null ? void 0 : settings.frontmatterIndexKeys) != null ? _a2 : "";
       const keys = parseKeyWhitelist2(keysRaw);
-      const maxChars = Math.max(1, (settings == null ? void 0 : settings.frontmatterIndexMaxChars) || 500);
       const mdFiles = app.vault.getMarkdownFiles();
-      const lines = [];
+      const hits = [];
       for (const f of mdFiles) {
         const fm = (_b2 = app.metadataCache.getFileCache(f)) == null ? void 0 : _b2.frontmatter;
         if (!fm || Object.keys(fm).length === 0)
@@ -5854,37 +5946,46 @@ function createVaultToolHandlers(app, settings) {
             continue;
           if (keys.length > 0 && !keys.includes(k.toLowerCase()))
             continue;
-          const formatted = formatFrontmatterValue2(v, maxChars);
+          const formatted = formatFrontmatterValue2(v);
           if (formatted === "")
             continue;
           pairs.push(`${k}=${formatted}`);
         }
         if (pairs.length === 0)
           continue;
-        const line = `- ${f.path}: ${pairs.join("; ")}`;
+        const meta = pairs.join("; ");
+        const line = `- ${f.path}: ${meta}`;
         if (keywords.length === 0 || matchesKeywords(line, keywords)) {
-          lines.push(line);
+          hits.push({ path: f.path, meta });
         }
       }
-      lines.sort();
-      const total = lines.length;
-      const sliced = lines.slice(0, maxResults);
+      hits.sort((a, b) => a.path.localeCompare(b.path));
+      const total = hits.length;
+      const sliced = hits.slice(0, maxResults);
       if (sliced.length === 0) {
         return "No matching files with Frontmatter found.";
       }
-      let result = sliced.join("\n");
-      if (total > sliced.length) {
-        result += `
+      if (args.includeContent === false) {
+        let result = sliced.map((h) => `- ${h.path}: ${h.meta}`).join("\n");
+        if (total > sliced.length) {
+          result += `
 ... (${total - sliced.length} more files omitted)`;
+        }
+        return result;
       }
-      return result;
+      return buildHitsResult(
+        app,
+        sliced,
+        resolveContentMaxChars(settings == null ? void 0 : settings.frontmatterContentMaxChars),
+        total
+      );
     }
   };
   handlers["search_vault_content"] = {
     name: "search_vault_content",
     definition: createVaultToolDefinitions()[2],
     async execute(args) {
-      const keywordsRaw = String(args.keywords || "");
+      const keywordsRaw = asText(args.keywords);
       const maxResults = Math.max(1, Math.min(50, Number(args.maxResults) || 5));
       const settingsMaxChars = settings && settings.chatContextMaxChars > 0 ? settings.chatContextMaxChars : 800;
       const maxCharsPerFile = Math.max(
@@ -5917,7 +6018,111 @@ function createVaultToolHandlers(app, settings) {
 ${r.snippet}`).join("\n\n---\n\n");
     }
   };
+  handlers["read_vault_notes"] = {
+    name: "read_vault_notes",
+    definition: createVaultToolDefinitions()[3],
+    async execute(args) {
+      const raw = asText(args.paths);
+      const requested = raw.split(/[\n,，;；]/).map((s) => s.trim()).filter((s) => s.length > 0);
+      if (requested.length === 0) {
+        return "No file paths provided.";
+      }
+      const maxFiles = Math.max(1, Math.min(20, Number(args.maxFiles) || 5));
+      const argMaxChars = Number(args.maxCharsPerFile);
+      const maxChars = argMaxChars > 0 ? Math.max(200, Math.min(5e4, argMaxChars)) : resolveContentMaxChars(settings == null ? void 0 : settings.chatContextMaxChars);
+      const seen = /* @__PURE__ */ new Set();
+      const blocks = [];
+      const missing = [];
+      for (const p of requested) {
+        if (blocks.length >= maxFiles)
+          break;
+        const file = resolveNote(app, p);
+        if (!file) {
+          missing.push(p);
+          continue;
+        }
+        if (seen.has(file.path))
+          continue;
+        seen.add(file.path);
+        const body = await readNoteBody(app, file.path, maxChars);
+        blocks.push(
+          body ? `## ${file.path}
+
+${body}` : `## ${file.path}
+
+(Content unavailable.)`
+        );
+      }
+      const parts = [];
+      if (blocks.length > 0) {
+        parts.push(blocks.join("\n\n---\n\n"));
+      }
+      if (missing.length > 0) {
+        parts.push(
+          `Notes not found in the vault: ${missing.join(", ")}. Use a search tool first to get exact paths.`
+        );
+      }
+      if (requested.length > maxFiles) {
+        parts.push(`... (${requested.length - maxFiles} more requested paths omitted)`);
+      }
+      return parts.length > 0 ? parts.join("\n\n") : "Nothing to read.";
+    }
+  };
   return handlers;
+}
+function resolveContentMaxChars(raw) {
+  const n = raw != null ? raw : 0;
+  return Math.max(200, Math.min(5e4, n > 0 ? n : 8e3));
+}
+async function readNoteBody(app, path, maxChars) {
+  const file = app.vault.getAbstractFileByPath(path);
+  if (!(file instanceof import_obsidian17.TFile) || file.extension !== "md")
+    return "";
+  try {
+    const raw = (await app.vault.cachedRead(file)).trim();
+    if (raw.length <= maxChars)
+      return raw;
+    return `${raw.slice(0, maxChars).trimEnd()}
+... (truncated to ${maxChars} chars, total ${raw.length})`;
+  } catch (e) {
+    return "";
+  }
+}
+function resolveNote(app, rawPath) {
+  const cleaned = rawPath.replace(/^\[\[|\]\]$/g, "").replace(/^\.\//, "").trim();
+  if (cleaned === "")
+    return null;
+  const direct = app.vault.getAbstractFileByPath(cleaned);
+  if (direct instanceof import_obsidian17.TFile && direct.extension === "md")
+    return direct;
+  const lower = cleaned.toLowerCase();
+  const lowerNoExt = lower.replace(/\.md$/, "");
+  const matches = app.vault.getMarkdownFiles().filter(
+    (f) => f.path.toLowerCase() === lower || f.path.toLowerCase().replace(/\.md$/, "") === lowerNoExt || f.basename.toLowerCase() === lowerNoExt
+  );
+  return matches.length > 0 ? matches[0] : null;
+}
+async function buildHitsResult(app, hits, maxChars, total) {
+  const blocks = [];
+  for (const hit of hits) {
+    const body = await readNoteBody(app, hit.path, maxChars);
+    const head = hit.meta ? `## ${hit.path}
+
+meta: ${hit.meta}` : `## ${hit.path}`;
+    blocks.push(
+      body ? `${head}
+
+${body}` : `${head}
+
+(Content unavailable for this note.)`
+    );
+  }
+  let out = blocks.join("\n\n---\n\n");
+  if (total > hits.length) {
+    out += `
+... (${total - hits.length} more files omitted)`;
+  }
+  return out;
 }
 function findContentSnippet(content, keywords, maxChars) {
   const lower = content.toLowerCase();
@@ -5954,7 +6159,7 @@ function findContentSnippet(content, keywords, maxChars) {
     snippet = snippet + "...";
   return snippet;
 }
-function formatFrontmatterValue2(value, maxChars) {
+function formatFrontmatterValue2(value) {
   let str;
   if (value === null || value === void 0)
     return "";
@@ -5967,11 +6172,7 @@ function formatFrontmatterValue2(value, maxChars) {
   } else {
     str = JSON.stringify(value);
   }
-  str = str.replace(/\n/g, " ");
-  if (str.length > maxChars) {
-    str = str.slice(0, maxChars) + "\u2026";
-  }
-  return str;
+  return str.replace(/\n/g, " ");
 }
 async function executeToolCalls(app, toolCalls, settings) {
   const handlers = createVaultToolHandlers(app, settings);
@@ -6038,7 +6239,7 @@ var SIDEBAR_COLLAPSE_ICON = "smart-notes-sidebar-collapse";
 var SIDEBAR_COLLAPSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="1.77" width="22" height="1.96" rx="0.98"/><rect x="8.1" y="10.82" width="14.9" height="1.96" rx="0.98"/><rect x="1" y="19.87" width="22" height="1.96" rx="0.98"/><path d="M1 11.8 L5.26 8.95 L5.26 14.65 Z"/></svg>';
 var SIDEBAR_EXPAND_ICON = "smart-notes-sidebar-expand";
 var SIDEBAR_EXPAND_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="1" y="2.3" width="22" height="1.96" rx="0.98"/><rect x="9" y="8.06" width="14" height="1.96" rx="0.98"/><rect x="9" y="14.03" width="14" height="1.96" rx="0.98"/><rect x="1" y="19.66" width="22" height="1.96" rx="0.98"/><path d="M1.43 8.18 L5.99 11.9 L1.43 15.65 Z"/></svg>';
-var ChatView = class extends import_obsidian17.ItemView {
+var ChatView = class extends import_obsidian18.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     // 多会话状态
@@ -6184,7 +6385,7 @@ var ChatView = class extends import_obsidian17.ItemView {
       })
     );
     if (this.sessions.length > 0) {
-      new import_obsidian17.Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
+      new import_obsidian18.Notice(t("view.sessionsLoaded", { count: this.sessions.length }));
     }
   }
   /** 用完整会话数据替换内存中同 id 的占位对象（不存在则追加）。 */
@@ -6229,83 +6430,83 @@ var ChatView = class extends import_obsidian17.ItemView {
     const container = this.contentEl;
     container.empty();
     container.addClass("ana-chat-view");
-    const body = container.createEl("div", { cls: "ana-chat-body" });
-    this.sidebarEl = body.createEl("div", { cls: "ana-chat-sidebar" });
+    const body = container.createDiv({ cls: "ana-chat-body" });
+    this.sidebarEl = body.createDiv({ cls: "ana-chat-sidebar" });
     this.renderSidebar();
     this.sidebarEl.toggleClass("is-collapsed", this.sidebarCollapsed);
-    const main = body.createEl("div", { cls: "ana-chat-main" });
-    const header = main.createEl("div", { cls: "ana-chat-header" });
-    const leftGroup = header.createEl("div", { cls: "ana-chat-header-left" });
+    const main = body.createDiv({ cls: "ana-chat-main" });
+    const header = main.createDiv({ cls: "ana-chat-header" });
+    const leftGroup = header.createDiv({ cls: "ana-chat-header-left" });
     this.sidebarToggleBtn = leftGroup.createEl("button", {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.toggleSidebar") }
     });
     this.renderSidebarToggle();
     this.sidebarToggleBtn.addEventListener("click", () => this.toggleSidebar());
-    const titleEl = leftGroup.createEl("span", {
+    const titleEl = leftGroup.createSpan({
       text: t("view.title"),
       cls: "ana-chat-title"
     });
-    const rightGroup = header.createEl("div", { cls: "ana-chat-header-right" });
+    const rightGroup = header.createDiv({ cls: "ana-chat-header-right" });
     const newBtn = rightGroup.createEl("button", {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.newSession") }
     });
-    (0, import_obsidian17.setIcon)(newBtn, "plus");
+    (0, import_obsidian18.setIcon)(newBtn, "plus");
     newBtn.addEventListener("click", () => void this.newSession());
     const clearBtn = rightGroup.createEl("button", {
       cls: "clickable-icon ana-chat-header-btn",
       attr: { "aria-label": t("view.clearCurrent") }
     });
-    (0, import_obsidian17.setIcon)(clearBtn, "brush-cleaning");
+    (0, import_obsidian18.setIcon)(clearBtn, "brush-cleaning");
     clearBtn.addEventListener("click", () => void this.clearCurrentSession());
-    this.messagesEl = main.createEl("div", { cls: "ana-chat-messages" });
+    this.messagesEl = main.createDiv({ cls: "ana-chat-messages" });
     this.attachLinkHandler(this.messagesEl);
-    const footer = main.createEl("div", { cls: "ana-chat-footer" });
-    const attachRow = footer.createEl("div", { cls: "ana-chat-attach-row" });
+    const footer = main.createDiv({ cls: "ana-chat-footer" });
+    const attachRow = footer.createDiv({ cls: "ana-chat-attach-row" });
     this.modelBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-model-btn",
       attr: { "aria-label": t("view.modelSelect") }
     });
-    (0, import_obsidian17.setIcon)(this.modelBtn, "sparkle");
+    (0, import_obsidian18.setIcon)(this.modelBtn, "sparkle");
     this.modelBtn.addEventListener("click", () => void this.openModelPicker());
     this.roleBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-role-btn",
       attr: { "aria-label": t("view.roleSelect") }
     });
-    (0, import_obsidian17.setIcon)(this.roleBtn, "user");
+    (0, import_obsidian18.setIcon)(this.roleBtn, "user");
     this.roleBtn.addEventListener("click", () => void this.openRolePicker());
     this.skillBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.manageSkills") }
     });
-    (0, import_obsidian17.setIcon)(this.skillBtn, "puzzle");
+    (0, import_obsidian18.setIcon)(this.skillBtn, "puzzle");
     this.skillBtn.addEventListener("click", () => this.openSkillPicker());
     this.webToggleBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.webToggle") }
     });
-    (0, import_obsidian17.setIcon)(this.webToggleBtn, "globe");
+    (0, import_obsidian18.setIcon)(this.webToggleBtn, "globe");
     this.webToggleBtn.addEventListener("click", () => void this.toggleWebSearch());
     this.attachBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action ana-chat-attach-action",
       attr: { "aria-label": t("view.addAttachment") }
     });
-    (0, import_obsidian17.setIcon)(this.attachBtn, "folder-open");
+    (0, import_obsidian18.setIcon)(this.attachBtn, "folder-open");
     this.attachBtn.addEventListener("click", () => this.openAttachmentPicker());
     this.propBtn = attachRow.createEl("button", {
       cls: "clickable-icon ana-chat-action",
       attr: { "aria-label": t("view.selectProperties") }
     });
-    (0, import_obsidian17.setIcon)(this.propBtn, "tag");
+    (0, import_obsidian18.setIcon)(this.propBtn, "tag");
     this.propBtn.addEventListener("click", () => this.openPropertyPicker());
-    const inputArea = footer.createEl("div", { cls: "ana-chat-input-area" });
-    this.inputWrapEl = inputArea.createEl("div", { cls: "ana-chat-input-wrap" });
-    this.resizeHandleEl = this.inputWrapEl.createEl("div", {
+    const inputArea = footer.createDiv({ cls: "ana-chat-input-area" });
+    this.inputWrapEl = inputArea.createDiv({ cls: "ana-chat-input-wrap" });
+    this.resizeHandleEl = this.inputWrapEl.createDiv({
       cls: "ana-chat-resize-handle",
       prepend: true
     });
-    this.chipsEl = this.inputWrapEl.createEl("div", { cls: "ana-chat-chips" });
+    this.chipsEl = this.inputWrapEl.createDiv({ cls: "ana-chat-chips" });
     this.inputEl = this.inputWrapEl.createEl("textarea", {
       cls: "ana-chat-input",
       attr: { placeholder: t("view.placeholder"), rows: "2" }
@@ -6316,33 +6517,33 @@ var ChatView = class extends import_obsidian17.ItemView {
         void this.handleSend();
       }
     });
-    const inputBar = this.inputWrapEl.createEl("div", { cls: "ana-chat-input-bar" });
-    this.modelLabelEl = inputBar.createEl("span", {
+    const inputBar = this.inputWrapEl.createDiv({ cls: "ana-chat-input-bar" });
+    this.modelLabelEl = inputBar.createSpan({
       cls: "ana-chat-model-label"
     });
-    this.modelLabelPartEl = this.modelLabelEl.createEl("span", {
+    this.modelLabelPartEl = this.modelLabelEl.createSpan({
       cls: "ana-chat-model-part"
     });
-    this.modelLabelSepEl = this.modelLabelEl.createEl("span", {
+    this.modelLabelSepEl = this.modelLabelEl.createSpan({
       cls: "ana-chat-model-sep",
       text: "/"
     });
-    this.modelLabelRoleEl = this.modelLabelEl.createEl("span", {
+    this.modelLabelRoleEl = this.modelLabelEl.createSpan({
       cls: "ana-chat-role-part"
     });
     this.renderModelSelect();
-    const rightActions = inputBar.createEl("div", { cls: "ana-chat-input-actions-right" });
+    const rightActions = inputBar.createDiv({ cls: "ana-chat-input-actions-right" });
     this.sendBtn = rightActions.createEl("button", {
       cls: "clickable-icon ana-chat-send",
       attr: { "aria-label": t("view.send") }
     });
-    (0, import_obsidian17.setIcon)(this.sendBtn, "send");
+    (0, import_obsidian18.setIcon)(this.sendBtn, "send");
     this.sendBtn.addEventListener("click", () => void this.handleSend());
     this.stopBtn = rightActions.createEl("button", {
       cls: "clickable-icon ana-chat-stop",
       attr: { "aria-label": t("view.stop") }
     });
-    (0, import_obsidian17.setIcon)(this.stopBtn, "square");
+    (0, import_obsidian18.setIcon)(this.stopBtn, "square");
     this.stopBtn.addEventListener("click", () => this.handleStop());
     this.stopBtn.addClass("is-hidden");
     this.renderChips();
@@ -6385,10 +6586,10 @@ var ChatView = class extends import_obsidian17.ItemView {
       this.batchSelected.clear();
     }
     this.sidebarEl.empty();
-    this.sidebarHeadEl = this.sidebarEl.createEl("div", {
+    this.sidebarHeadEl = this.sidebarEl.createDiv({
       cls: "ana-chat-sidebar-head"
     });
-    this.sessionListEl = this.sidebarEl.createEl("div", {
+    this.sessionListEl = this.sidebarEl.createDiv({
       cls: "ana-chat-session-list"
     });
     this.refreshSessions();
@@ -6405,7 +6606,7 @@ var ChatView = class extends import_obsidian17.ItemView {
   renderSidebarHead() {
     this.sidebarHeadEl.empty();
     if (!this.batchMode) {
-      this.sidebarHeadEl.createEl("span", {
+      this.sidebarHeadEl.createSpan({
         text: t("view.history"),
         cls: "ana-chat-sidebar-title"
       });
@@ -6418,10 +6619,10 @@ var ChatView = class extends import_obsidian17.ItemView {
         "aria-pressed": this.allSelected ? "true" : "false"
       }
     });
-    selectAll.createEl("span", {
+    selectAll.createSpan({
       cls: "ana-chat-session-check" + (this.allSelected ? " is-checked" : "")
     });
-    selectAll.createEl("span", {
+    selectAll.createSpan({
       cls: "ana-chat-sidebar-title",
       text: t("view.history")
     });
@@ -6432,7 +6633,7 @@ var ChatView = class extends import_obsidian17.ItemView {
       cls: "clickable-icon ana-chat-header-btn ana-chat-batch-del",
       attr: { "aria-label": t("view.batchDelete") }
     });
-    (0, import_obsidian17.setIcon)(delBtn, "trash-2");
+    (0, import_obsidian18.setIcon)(delBtn, "trash-2");
     delBtn.disabled = this.batchSelected.size === 0;
     delBtn.addEventListener("click", () => this.confirmDeleteSelected());
   }
@@ -6455,7 +6656,7 @@ var ChatView = class extends import_obsidian17.ItemView {
     const scrollTop = this.sessionListEl.scrollTop;
     this.sessionListEl.empty();
     if (this.sessions.length === 0) {
-      this.sessionListEl.createEl("div", {
+      this.sessionListEl.createDiv({
         text: t("view.noSessions"),
         cls: "ana-chat-session-empty"
       });
@@ -6464,24 +6665,24 @@ var ChatView = class extends import_obsidian17.ItemView {
     const ordered = [...this.sessions].sort((a, b) => b.updatedAt - a.updatedAt);
     for (const s of ordered) {
       const selected = this.batchMode && this.batchSelected.has(s.id);
-      const item = this.sessionListEl.createEl("div", {
+      const item = this.sessionListEl.createDiv({
         // 批量态下不渲染 is-active：此刻的高亮全指勾选，
         // 让「当前会话」再占一层底色只会让人分不清哪个是勾了哪个是正在看
         cls: "ana-chat-session-item" + (selected ? " is-selected" : "") + (!this.batchMode && s.id === this.activeId ? " is-active" : "")
       });
       if (this.batchMode) {
-        item.createEl("span", {
+        item.createSpan({
           cls: "ana-chat-session-check" + (selected ? " is-checked" : "")
         });
       }
       const title = s.title || t("view.defaultTitle");
-      item.createEl("span", {
+      item.createSpan({
         text: title,
         cls: "ana-chat-session-label"
       });
       applyTooltip(item, title);
       attachSessionRowTrigger(item, {
-        enableLongPress: import_obsidian17.Platform.isMobile,
+        enableLongPress: import_obsidian18.Platform.isMobile,
         onSelect: () => {
           if (this.batchMode)
             this.toggleBatchSelection(s.id);
@@ -6510,7 +6711,7 @@ var ChatView = class extends import_obsidian17.ItemView {
    * 让图标指向点击后侧栏移动的方向，而不是描述当前状态。
    */
   renderSidebarToggle() {
-    (0, import_obsidian17.setIcon)(
+    (0, import_obsidian18.setIcon)(
       this.sidebarToggleBtn,
       this.sidebarCollapsed ? SIDEBAR_EXPAND_ICON : SIDEBAR_COLLAPSE_ICON
     );
@@ -6550,15 +6751,15 @@ var ChatView = class extends import_obsidian17.ItemView {
     this.renderActions();
   }
   renameSession(s) {
-    const modal = new import_obsidian17.Modal(this.plugin.app);
+    const modal = new import_obsidian18.Modal(this.plugin.app);
     modal.titleEl.setText(t("view.rename"));
     const input = modal.contentEl.createEl("input", {
       cls: "ana-chat-rename-input",
       attr: { type: "text" }
     });
     input.value = s.title;
-    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian17.ButtonComponent(btns).setButtonText(t("modal.apply")).setCta().onClick(async () => {
+    const btns = modal.contentEl.createDiv({ cls: "ana-chat-modal-actions" });
+    new import_obsidian18.ButtonComponent(btns).setButtonText(t("modal.apply")).setCta().onClick(async () => {
       s.title = input.value.trim() || t("view.defaultTitle");
       s.updatedAt = Date.now();
       modal.close();
@@ -6571,12 +6772,12 @@ var ChatView = class extends import_obsidian17.ItemView {
     input.focus();
   }
   confirmDeleteSession(s) {
-    const modal = new import_obsidian17.Modal(this.plugin.app);
+    const modal = new import_obsidian18.Modal(this.plugin.app);
     modal.titleEl.setText(t("view.deleteSession"));
     modal.contentEl.createEl("p", { text: t("view.confirmDelete", { title: s.title }) });
-    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian17.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
-    new import_obsidian17.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
+    const btns = modal.contentEl.createDiv({ cls: "ana-chat-modal-actions" });
+    new import_obsidian18.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
+    new import_obsidian18.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
       modal.close();
       await this.deleteSessions([s.id]);
     });
@@ -6626,14 +6827,14 @@ var ChatView = class extends import_obsidian17.ItemView {
     const ids = this.sessions.filter((s) => this.batchSelected.has(s.id)).map((s) => s.id);
     if (ids.length === 0)
       return;
-    const modal = new import_obsidian17.Modal(this.plugin.app);
+    const modal = new import_obsidian18.Modal(this.plugin.app);
     modal.titleEl.setText(t("view.batchDelete"));
     modal.contentEl.createEl("p", {
       text: t("view.batchConfirmDelete", { count: String(ids.length) })
     });
-    const btns = modal.contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian17.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
-    new import_obsidian17.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
+    const btns = modal.contentEl.createDiv({ cls: "ana-chat-modal-actions" });
+    new import_obsidian18.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => modal.close());
+    new import_obsidian18.ButtonComponent(btns).setButtonText(t("view.deleteSession")).setWarning().onClick(async () => {
       modal.close();
       await this.deleteSessions(ids);
     });
@@ -6678,49 +6879,49 @@ var ChatView = class extends import_obsidian17.ItemView {
       return;
     for (let i = 0; i < s.attachments.length; i++) {
       const ref = s.attachments[i];
-      const chip = this.chipsEl.createEl("div", { cls: "ana-chat-chip" });
+      const chip = this.chipsEl.createDiv({ cls: "ana-chat-chip" });
       const icon = ref.type === "folder" ? "folder" : "file-text";
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian17.setIcon)(iconSpan, icon);
+      (0, import_obsidian18.setIcon)(iconSpan, icon);
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeAttachment") }
       });
-      (0, import_obsidian17.setIcon)(x, "x");
+      (0, import_obsidian18.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeAttachment(i));
     }
     for (let i = 0; i < s.skills.length; i++) {
       const path = s.skills[i];
-      const chip = this.chipsEl.createEl("div", {
+      const chip = this.chipsEl.createDiv({
         cls: "ana-chat-chip ana-chat-chip-skill"
       });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian17.setIcon)(iconSpan, "puzzle");
+      (0, import_obsidian18.setIcon)(iconSpan, "puzzle");
       chip.createSpan({ text: path, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeSkill") }
       });
-      (0, import_obsidian17.setIcon)(x, "x");
+      (0, import_obsidian18.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeSkill(i));
     }
     const props = (_a2 = s.frontmatterProps) != null ? _a2 : [];
     for (let i = 0; i < props.length; i++) {
       const key = props[i];
-      const chip = this.chipsEl.createEl("div", {
+      const chip = this.chipsEl.createDiv({
         cls: "ana-chat-chip ana-chat-chip-prop"
       });
       const kindIcon = chip.createSpan({
         cls: "ana-chat-chip-kind ana-chat-chip-kind-icon"
       });
-      (0, import_obsidian17.setIcon)(kindIcon, "tag");
+      (0, import_obsidian18.setIcon)(kindIcon, "tag");
       chip.createSpan({ text: key, cls: "ana-chat-chip-label" });
       const x = chip.createEl("button", {
         cls: "clickable-icon ana-chat-chip-x",
         attr: { "aria-label": t("view.removeProperty", { key }) }
       });
-      (0, import_obsidian17.setIcon)(x, "x");
+      (0, import_obsidian18.setIcon)(x, "x");
       x.addEventListener("click", () => void this.removeFrontmatterProp(i));
     }
   }
@@ -6754,7 +6955,7 @@ var ChatView = class extends import_obsidian17.ItemView {
       }
     }
     if (added === 0) {
-      new import_obsidian17.Notice(t("view.noNewAttachment"));
+      new import_obsidian18.Notice(t("view.noNewAttachment"));
       return;
     }
     s.updatedAt = Date.now();
@@ -6805,7 +7006,7 @@ var ChatView = class extends import_obsidian17.ItemView {
       }
     }
     if (added === 0) {
-      new import_obsidian17.Notice(t("view.noNewSkill"));
+      new import_obsidian18.Notice(t("view.noNewSkill"));
       return;
     }
     s.updatedAt = Date.now();
@@ -7034,7 +7235,7 @@ var ChatView = class extends import_obsidian17.ItemView {
     if (s.webSearch) {
       const cfg = this.buildSearchConfig();
       if (!new WebSearchService(this.app, cfg).hasCredentials()) {
-        new import_obsidian17.Notice(t("view.webNoCredentials"));
+        new import_obsidian18.Notice(t("view.webNoCredentials"));
       }
     }
   }
@@ -7067,11 +7268,11 @@ var ChatView = class extends import_obsidian17.ItemView {
     }
   }
   addMessage(role, text, usage, reasoning, roleId, meta) {
-    const row = this.messagesEl.createEl("div", {
+    const row = this.messagesEl.createDiv({
       cls: `ana-chat-message ana-chat-message-${role}`
     });
-    const bubble = row.createEl("div", { cls: "ana-chat-bubble" });
-    const content = bubble.createEl("div", { cls: "ana-chat-text" });
+    const bubble = row.createDiv({ cls: "ana-chat-bubble" });
+    const content = bubble.createDiv({ cls: "ana-chat-text" });
     if (role === "assistant" && this.plugin.settings.rolesEnabled) {
       const roleInfo = this.resolveRole(roleId);
       if (roleInfo) {
@@ -7172,17 +7373,17 @@ var ChatView = class extends import_obsidian17.ItemView {
     var _a2, _b2;
     const footer = bubble.createDiv({ cls: "ana-chat-msg-meta" });
     for (const p of (_a2 = meta.skills) != null ? _a2 : []) {
-      const chip = footer.createEl("div", {
+      const chip = footer.createDiv({
         cls: "ana-chat-chip ana-chat-chip-skill"
       });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian17.setIcon)(iconSpan, "puzzle");
+      (0, import_obsidian18.setIcon)(iconSpan, "puzzle");
       chip.createSpan({ text: this.skillDisplayName(p), cls: "ana-chat-chip-label" });
     }
     for (const ref of (_b2 = meta.attachments) != null ? _b2 : []) {
-      const chip = footer.createEl("div", { cls: "ana-chat-chip" });
+      const chip = footer.createDiv({ cls: "ana-chat-chip" });
       const iconSpan = chip.createSpan({ cls: "ana-chat-chip-icon" });
-      (0, import_obsidian17.setIcon)(iconSpan, ref.type === "folder" ? "folder" : "file-text");
+      (0, import_obsidian18.setIcon)(iconSpan, ref.type === "folder" ? "folder" : "file-text");
       chip.createSpan({ text: ref.path, cls: "ana-chat-chip-label" });
     }
     if (meta.createdAt) {
@@ -7194,11 +7395,16 @@ var ChatView = class extends import_obsidian17.ItemView {
   }
   /** 发送时间格式化：当天仅显示 HH:mm，否则显示 YYYY-MM-DD HH:mm。 */
   formatMessageTime(ts) {
-    const d = (0, import_obsidian17.moment)(ts);
-    if (d.isSame((0, import_obsidian17.moment)(), "day")) {
-      return d.format("HH:mm");
-    }
-    return d.format("YYYY-MM-DD HH:mm");
+    const d = new Date(ts);
+    const now = /* @__PURE__ */ new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const hhmm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    if (sameDay)
+      return hhmm;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate()
+    )} ${hhmm}`;
   }
   /** 从 skill 路径推导展示名（取 SKILL.md 所在文件夹名）。 */
   skillDisplayName(path) {
@@ -7259,10 +7465,10 @@ var ChatView = class extends import_obsidian17.ItemView {
       evt.stopPropagation();
       const cleanPath = filePath.split("?")[0].split("#")[0];
       const file = this.app.vault.getAbstractFileByPath(cleanPath);
-      if (file instanceof import_obsidian17.TFile) {
+      if (file instanceof import_obsidian18.TFile) {
         void this.app.workspace.getLeaf(false).openFile(file);
       } else {
-        new import_obsidian17.Notice(t("view.fileNotFound", { path: cleanPath }));
+        new import_obsidian18.Notice(t("view.fileNotFound", { path: cleanPath }));
       }
     });
   }
@@ -7275,7 +7481,7 @@ var ChatView = class extends import_obsidian17.ItemView {
       return;
     }
     try {
-      await import_obsidian17.MarkdownRenderer.renderMarkdown(text, el, "", this);
+      await import_obsidian18.MarkdownRenderer.render(this.app, text, el, "", this);
     } catch (e) {
       el.setText(text);
     }
@@ -7286,7 +7492,7 @@ var ChatView = class extends import_obsidian17.ItemView {
     const existing = bubbleEl.querySelector(".ana-chat-token-usage");
     if (existing)
       existing.remove();
-    const footer = bubbleEl.createEl("div", {
+    const footer = bubbleEl.createDiv({
       cls: "ana-chat-token-usage",
       text: this.formatTokenUsage(usage)
     });
@@ -7357,7 +7563,7 @@ var ChatView = class extends import_obsidian17.ItemView {
     if (!this.streamingContentEl)
       return;
     this.removeStreamingCursor();
-    this.streamingCursorEl = this.streamingContentEl.createEl("span", {
+    this.streamingCursorEl = this.streamingContentEl.createSpan({
       cls: "ana-chat-streaming-cursor",
       text: "\u258D"
     });
@@ -7475,7 +7681,7 @@ var ChatView = class extends import_obsidian17.ItemView {
           sess.messages.pop();
       }
       this.transientSkillPaths.push(...r0.reenterPaths);
-      new import_obsidian17.Notice(t("view.skillReenter", { count: r0.reenterPaths.length }));
+      new import_obsidian18.Notice(t("view.skillReenter", { count: r0.reenterPaths.length }));
       await this.runTurn(1);
       this.transientSkillPaths = [];
     }
@@ -7499,7 +7705,7 @@ var ChatView = class extends import_obsidian17.ItemView {
    * - assistantRowEl：本轮助手气泡的行元素，重入前用于移除中间态气泡
    */
   async runTurn(depth) {
-    var _a2;
+    var _a2, _b2;
     const s = this.activeSession;
     if (!s) {
       return { needsReenter: false, reenterPaths: [], assistantRowEl: void 0 };
@@ -7588,28 +7794,32 @@ ${extra}` : text
       const useTools = st.includeVaultIndex || st.includeFrontmatterIndex;
       if (useTools) {
         const vaultTools = createVaultToolDefinitions();
-        try {
-          const toolCheck = await this.withTimeout(
-            provider.complete(messages, {
-              maxTokens: Math.min(params.maxTokens || 1024, 2048),
-              temperature: 0.1,
-              // 低温度让模型更确定地判断
-              tools: vaultTools
-            }),
-            3e4
-          );
-          if (toolCheck.toolCalls && toolCheck.toolCalls.length > 0) {
+        const MAX_TOOL_ROUNDS = 3;
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+          try {
+            const toolCheck = await this.withTimeout(
+              provider.complete(messages, {
+                maxTokens: Math.min(params.maxTokens || 1024, 2048),
+                temperature: 0.1,
+                // 低温度让模型更确定地判断
+                tools: vaultTools
+              }),
+              3e4
+            );
+            const calls = (_b2 = toolCheck.toolCalls) != null ? _b2 : [];
+            if (calls.length === 0)
+              break;
             this.hideTypingIndicator(assistantContentEl);
-            this.showToolCallsNotice(assistantContentEl, toolCheck.toolCalls);
+            this.showToolCallsNotice(assistantContentEl, calls);
             const toolResults = await executeToolCalls(
               this.plugin.app,
-              toolCheck.toolCalls,
+              calls,
               this.plugin.settings
             );
             messages.push({
               role: "assistant",
               content: toolCheck.content || "",
-              toolCalls: toolCheck.toolCalls
+              toolCalls: calls
             });
             for (const tr of toolResults) {
               messages.push({
@@ -7619,8 +7829,9 @@ ${extra}` : text
               });
             }
             this.showTypingIndicator(assistantContentEl);
+          } catch (e) {
+            break;
           }
-        } catch (e) {
         }
       }
       this.abortCtrl = new AbortController();
@@ -7639,7 +7850,7 @@ ${extra}` : text
       const needsReenter = detected.length > 0 && depth < 1;
       if (detected.length > 0 && !needsReenter) {
         this.renderChips();
-        new import_obsidian17.Notice(t("view.skillAutoLoaded", { count: detected.length }));
+        new import_obsidian18.Notice(t("view.skillAutoLoaded", { count: detected.length }));
       }
       let usage = result.usage;
       if (!usage && reply.length > 0) {
@@ -7706,7 +7917,7 @@ ${extra}` : text
     this.inputEl.disabled = disabled;
     this.sendBtn.disabled = disabled;
     this.sendBtn.setAttr("aria-label", disabled ? t("view.thinking") : t("view.send"));
-    (0, import_obsidian17.setIcon)(this.sendBtn, disabled ? "loader" : "send");
+    (0, import_obsidian18.setIcon)(this.sendBtn, disabled ? "loader" : "send");
     this.sendBtn.toggleClass("is-hidden", disabled);
     this.stopBtn.toggleClass("is-hidden", !disabled);
   }
@@ -7720,7 +7931,7 @@ ${extra}` : text
     this.clearStreamingState();
     this.removeStreamingCursor();
     if (this.streamingContentEl && this.streamingRawContent) {
-      const stopEl = this.streamingContentEl.createEl("span", {
+      this.streamingContentEl.createSpan({
         cls: "ana-chat-stopped-badge",
         text: ` ${t("view.stopped")}`
       });
@@ -7741,7 +7952,7 @@ ${extra}` : text
         },
         (err2) => {
           window.clearTimeout(timer);
-          reject(err2);
+          reject(toError(err2));
         }
       );
     });
@@ -7834,17 +8045,17 @@ ${extra}` : text
       }).catch((err2) => {
         signal.removeEventListener("abort", onAbort);
         cleanup();
-        reject(err2);
+        reject(toError(err2));
       });
     });
   }
   /** 在助手消息气泡中显示「思考中」跳点动画。 */
   showTypingIndicator(contentEl) {
     contentEl.addClass("ana-chat-typing");
-    contentEl.createEl("span", { cls: "ana-chat-typing-text", text: t("view.thinking") });
-    const dots = contentEl.createEl("span", { cls: "ana-chat-typing-dots" });
+    contentEl.createSpan({ cls: "ana-chat-typing-text", text: t("view.thinking") });
+    const dots = contentEl.createSpan({ cls: "ana-chat-typing-dots" });
     for (let i = 0; i < 3; i++)
-      dots.createEl("span", { cls: "ana-chat-typing-dot" });
+      dots.createSpan({ cls: "ana-chat-typing-dot" });
   }
   /** 移除助手消息气泡中的「思考中」跳点动画。 */
   hideTypingIndicator(contentEl) {
@@ -7855,7 +8066,7 @@ ${extra}` : text
   showToolCallsNotice(contentEl, toolCalls) {
     contentEl.empty();
     const names = toolCalls.map((tc) => tc.function.name).join(", ");
-    contentEl.createEl("div", {
+    contentEl.createDiv({
       cls: "ana-chat-tool-notice",
       text: `\u{1F50D} Using tools: ${names}...`
     });
@@ -7904,7 +8115,6 @@ ${extra}` : text
       st.vaultIndexMaxFiles,
       st.includeFrontmatterIndex,
       fmKeys,
-      st.frontmatterIndexMaxChars,
       st.frontmatterIndexMaxFiles,
       st.defaultSkills,
       st.aiFolderName,
@@ -7925,7 +8135,6 @@ ${extra}` : text
       this.plugin.app,
       st.includeFrontmatterIndex,
       fmKeys,
-      st.frontmatterIndexMaxChars,
       st.frontmatterIndexMaxFiles,
       query
     )) != null ? _d : void 0 : void 0;
@@ -7943,18 +8152,21 @@ ${extra}` : text
       const tools = [];
       if (hasVaultIndex) {
         tools.push(
-          `- search_vault_paths: Search for files by path/name keywords. Returns matching file paths.`
+          `- search_vault_paths: Search for files by path/name keywords. Returns matching file paths, each with its content.`
         );
       }
       if (hasFrontmatterIndex) {
         tools.push(
-          `- search_vault_frontmatter: Search for files by their metadata (tags, dates, categories, etc.). Returns file paths with matching metadata.`
+          `- search_vault_frontmatter: Search for files by their metadata (tags, dates, categories, etc.). Returns file paths with matching metadata, each with its content.`
         );
       }
       tools.push(
         `- search_vault_content: Search inside the actual content of files. Returns file paths and relevant text snippets.`
       );
-      base += " You have access to the following search tools to explore the vault on demand:\n" + tools.join("\n") + "\nWhen you need to find files or information in the vault, call the appropriate tool with relevant keywords extracted from the user's question. File contents are only provided when you explicitly search for them or when the user attaches files.";
+      tools.push(
+        `- read_vault_notes: Read the full text of one or more notes by their exact vault paths.`
+      );
+      base += " You have access to the following search tools to explore the vault on demand:\n" + tools.join("\n") + "\nWhen you need to find files or information in the vault, call the appropriate tool with relevant keywords extracted from the user's question. Search results already include the content of every returned note; if the note you need was beyond the result limit, or its content was truncated, call read_vault_notes with that exact path to read it. File contents are never provided for notes you have not searched for or read.";
     } else {
       base += " Note: you cannot see the vault's file list or file contents unless the user explicitly attaches files/folders or references a file in their message.";
     }
@@ -7986,7 +8198,7 @@ ${extra}` : text
     return parts.join("\n\n");
   }
 };
-var AttachmentPickerModal = class extends import_obsidian17.Modal {
+var AttachmentPickerModal = class extends import_obsidian18.Modal {
   constructor(app, plugin, onSubmit) {
     super(app);
     /** 被选中的 file/folder 的 path 集合（folder 整文件夹也算一条）。 */
@@ -7995,6 +8207,7 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
     this.expanded = /* @__PURE__ */ new Set();
     /** 搜索关键字。 */
     this.query = "";
+    this.confirmBtn = null;
     this.plugin = plugin;
     this.onSubmit = onSubmit;
   }
@@ -8015,15 +8228,15 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
       this.query = this.searchEl.value;
       this.render();
     });
-    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+    this.listEl = contentEl.createDiv({ cls: "ana-picker-list" });
     this.vaultRoot().children.forEach((c) => {
-      if (c instanceof import_obsidian17.TFolder)
+      if (c instanceof import_obsidian18.TFolder)
         this.expanded.add(c.path);
     });
     this.render();
-    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian17.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
-    this.confirmBtn = new import_obsidian17.ButtonComponent(btns).setButtonText(t("view.picker.confirm")).setCta().onClick(() => {
+    const btns = contentEl.createDiv({ cls: "ana-chat-modal-actions" });
+    new import_obsidian18.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
+    this.confirmBtn = new import_obsidian18.ButtonComponent(btns).setButtonText(t("view.picker.confirm")).setCta().onClick(() => {
       const refs = this.buildRefs();
       this.close();
       this.onSubmit(refs);
@@ -8037,7 +8250,7 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
   /** 递归遍历所有 folder（含自身），对每个 folder 调用 cb。 */
   walkFolders(node, cb) {
     for (const child of node.children) {
-      if (child instanceof import_obsidian17.TFolder) {
+      if (child instanceof import_obsidian18.TFolder) {
         cb(child);
         this.walkFolders(child, cb);
       }
@@ -8047,9 +8260,9 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
   allLeaves(folder) {
     const out = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian17.TFile && child.extension === "md")
+      if (child instanceof import_obsidian18.TFile && child.extension === "md")
         out.push(child);
-      else if (child instanceof import_obsidian17.TFolder)
+      else if (child instanceof import_obsidian18.TFolder)
         out.push(...this.allLeaves(child));
     }
     return out;
@@ -8082,9 +8295,9 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
     const walk = (node) => {
       const selfHit = node.name.toLowerCase().includes(q);
       let childHit = false;
-      if (node instanceof import_obsidian17.TFolder) {
+      if (node instanceof import_obsidian18.TFolder) {
         for (const child of node.children) {
-          if (child instanceof import_obsidian17.TFolder || child instanceof import_obsidian17.TFile) {
+          if (child instanceof import_obsidian18.TFolder || child instanceof import_obsidian18.TFile) {
             if (walk(child))
               childHit = true;
           }
@@ -8095,7 +8308,7 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
       return selfHit || childHit;
     };
     for (const child of this.vaultRoot().children) {
-      if (child instanceof import_obsidian17.TFolder || child instanceof import_obsidian17.TFile)
+      if (child instanceof import_obsidian18.TFolder || child instanceof import_obsidian18.TFile)
         walk(child);
     }
     return visible;
@@ -8110,7 +8323,7 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
     return [
       name.slice(0, idx),
       (() => {
-        const m = document.createElement("mark");
+        const m = createEl("mark");
         m.textContent = name.slice(idx, idx + q.length);
         return m;
       })(),
@@ -8126,12 +8339,12 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
       if (visible && !visible.has(node.path))
         return;
       shown++;
-      const row = this.listEl.createEl("div", {
-        cls: "ana-tree-row" + (node instanceof import_obsidian17.TFolder ? " is-folder" : "")
+      const row = this.listEl.createDiv({
+        cls: "ana-tree-row" + (node instanceof import_obsidian18.TFolder ? " is-folder" : "")
       });
       setCssVars(row, { "--ana-tree-indent": `${6 + depth * 18}px` });
-      const toggle = row.createEl("span", { cls: "ana-tree-toggle" });
-      if (node instanceof import_obsidian17.TFolder) {
+      const toggle = row.createSpan({ cls: "ana-tree-toggle" });
+      if (node instanceof import_obsidian18.TFolder) {
         const isOpen = this.expanded.has(node.path) || visible !== null && visible.has(node.path);
         if (!isOpen)
           toggle.classList.add("collapsed");
@@ -8149,7 +8362,7 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
       }
       const cb = row.createEl("input", { cls: "ana-tree-cb" });
       cb.type = "checkbox";
-      if (node instanceof import_obsidian17.TFolder) {
+      if (node instanceof import_obsidian18.TFolder) {
         const st = this.folderState(node);
         if (st === "checked")
           cb.checked = true;
@@ -8161,9 +8374,9 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
       cb.addEventListener("click", (e) => e.stopPropagation());
       cb.addEventListener("change", () => this.onToggle(node));
       row.appendChild(cb);
-      const icon = row.createEl("span", { cls: "ana-tree-icon" });
-      icon.setText(node instanceof import_obsidian17.TFolder ? "\u{1F4C1}" : "\u{1F4C4}");
-      const nameEl = row.createEl("span", { cls: "ana-tree-name" });
+      const icon = row.createSpan({ cls: "ana-tree-icon" });
+      icon.setText(node instanceof import_obsidian18.TFolder ? "\u{1F4C1}" : "\u{1F4C4}");
+      const nameEl = row.createSpan({ cls: "ana-tree-name" });
       for (const part of this.highlight(node.name)) {
         if (typeof part === "string")
           nameEl.appendChild(document.createTextNode(part));
@@ -8171,26 +8384,26 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
           nameEl.appendChild(part);
       }
       row.addEventListener("click", () => {
-        if (node instanceof import_obsidian17.TFolder) {
+        if (node instanceof import_obsidian18.TFolder) {
           toggle.click();
         } else {
           cb.checked = !cb.checked;
           cb.dispatchEvent(new Event("change"));
         }
       });
-      if (node instanceof import_obsidian17.TFolder && (this.expanded.has(node.path) || visible !== null && visible.has(node.path))) {
+      if (node instanceof import_obsidian18.TFolder && (this.expanded.has(node.path) || visible !== null && visible.has(node.path))) {
         for (const child of node.children) {
-          if (child instanceof import_obsidian17.TFolder || child instanceof import_obsidian17.TFile)
+          if (child instanceof import_obsidian18.TFolder || child instanceof import_obsidian18.TFile)
             walk(child, depth + 1);
         }
       }
     };
     for (const child of this.vaultRoot().children) {
-      if (child instanceof import_obsidian17.TFolder || child instanceof import_obsidian17.TFile)
+      if (child instanceof import_obsidian18.TFolder || child instanceof import_obsidian18.TFile)
         walk(child, 0);
     }
     if (shown === 0) {
-      this.listEl.createEl("div", {
+      this.listEl.createDiv({
         text: t("view.picker.empty"),
         cls: "ana-picker-empty"
       });
@@ -8199,7 +8412,7 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
   }
   // ---- 勾选逻辑 ----
   onToggle(node) {
-    if (node instanceof import_obsidian17.TFolder) {
+    if (node instanceof import_obsidian18.TFolder) {
       const wantSelect = this.folderState(node) !== "checked";
       if (wantSelect) {
         this.selected.add(node.path);
@@ -8223,7 +8436,7 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
       const node = this.findNode(p);
       if (!node)
         return false;
-      if (node instanceof import_obsidian17.TFile) {
+      if (node instanceof import_obsidian18.TFile) {
         const parts = p.split("/");
         for (let i = 1; i < parts.length; i++) {
           if (this.selected.has(parts.slice(0, i).join("/")))
@@ -8234,7 +8447,7 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
     });
     return result.map((p) => {
       const node = this.findNode(p);
-      return { type: node instanceof import_obsidian17.TFolder ? "folder" : "file", path: p };
+      return { type: node instanceof import_obsidian18.TFolder ? "folder" : "file", path: p };
     });
   }
   findNode(path) {
@@ -8242,10 +8455,10 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
       if (node.path === path)
         return node;
       for (const child of node.children) {
-        if (child.path === path && (child instanceof import_obsidian17.TFolder || child instanceof import_obsidian17.TFile)) {
+        if (child.path === path && (child instanceof import_obsidian18.TFolder || child instanceof import_obsidian18.TFile)) {
           return child;
         }
-        if (child instanceof import_obsidian17.TFolder) {
+        if (child instanceof import_obsidian18.TFolder) {
           const found = walk(child);
           if (found)
             return found;
@@ -8257,14 +8470,14 @@ var AttachmentPickerModal = class extends import_obsidian17.Modal {
   }
   /** 同步「附加所选」按钮可用态：未选任何项时禁用。 */
   updateCount() {
-    if (this.confirmBtn)
+    if (this.confirmBtn !== null)
       this.confirmBtn.setDisabled(this.selected.size === 0);
   }
   onClose() {
     this.contentEl.empty();
   }
 };
-var BaseListPickerModal = class extends import_obsidian17.Modal {
+var BaseListPickerModal = class extends import_obsidian18.Modal {
   /** 是否显示确认按钮（多选模式）。默认 false（单选：选中即关闭）。 */
   hasConfirmButton() {
     return false;
@@ -8295,13 +8508,13 @@ var BaseListPickerModal = class extends import_obsidian17.Modal {
       attr: { type: "text", placeholder: this.getSearchPlaceholder() }
     });
     this.searchEl.addEventListener("input", () => this.renderList());
-    this.listEl = contentEl.createEl("div", { cls: "ana-picker-list" });
+    this.listEl = contentEl.createDiv({ cls: "ana-picker-list" });
     await this.loadItems();
     this.renderList();
-    const btns = contentEl.createEl("div", { cls: "ana-chat-modal-actions" });
-    new import_obsidian17.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
+    const btns = contentEl.createDiv({ cls: "ana-chat-modal-actions" });
+    new import_obsidian18.ButtonComponent(btns).setButtonText(t("modal.cancel")).onClick(() => this.close());
     if (this.hasConfirmButton()) {
-      new import_obsidian17.ButtonComponent(btns).setButtonText(this.getConfirmButtonText()).setCta().onClick(() => {
+      new import_obsidian18.ButtonComponent(btns).setButtonText(this.getConfirmButtonText()).setCta().onClick(() => {
         this.onConfirm();
         this.close();
       });
@@ -8312,7 +8525,7 @@ var BaseListPickerModal = class extends import_obsidian17.Modal {
     this.listEl.empty();
     const all = this.getItems();
     if (all.length === 0) {
-      this.listEl.createEl("div", {
+      this.listEl.createDiv({
         text: this.getEmptyText(),
         cls: "ana-picker-empty"
       });
@@ -8321,7 +8534,7 @@ var BaseListPickerModal = class extends import_obsidian17.Modal {
     const q = this.searchEl.value.trim().toLowerCase();
     const filtered = q ? all.filter((item) => this.getItemFilterText(item).includes(q)) : all;
     if (filtered.length === 0) {
-      this.listEl.createEl("div", {
+      this.listEl.createDiv({
         text: this.getNoResultsText(),
         cls: "ana-picker-empty"
       });
@@ -8389,7 +8602,7 @@ var SkillPickerModal = class extends BaseListPickerModal {
         this.selected.delete(e.path);
     });
     row.createSpan({ text: `\u{1F9E9} ${e.name}`, cls: "ana-picker-name" });
-    row.createEl("span", { text: e.path, cls: "ana-picker-path" });
+    row.createSpan({ text: e.path, cls: "ana-picker-path" });
   }
 };
 var PropertyPickerModal = class extends BaseListPickerModal {
@@ -8447,7 +8660,7 @@ var PropertyPickerModal = class extends BaseListPickerModal {
     });
     const name = row.createSpan({ cls: "ana-picker-name" });
     name.textContent = e.key;
-    row.createEl("span", {
+    row.createSpan({
       text: t("view.propertyPicker.usage", { count: String(e.count) }),
       cls: "ana-picker-path"
     });
@@ -8491,14 +8704,14 @@ var ModelPickerModal = class extends BaseListPickerModal {
   }
   renderRow(item, listEl) {
     const isSelected = item.value === this.currentValue;
-    const row = listEl.createEl("div", {
+    const row = listEl.createDiv({
       cls: "ana-picker-row" + (isSelected ? " is-selected" : "")
     });
     row.createSpan({
       text: `\u2728 ${item.label}`,
       cls: "ana-picker-name"
     });
-    row.createEl("span", {
+    row.createSpan({
       text: item.linkName,
       cls: "ana-picker-path"
     });
@@ -8538,7 +8751,7 @@ var RolePickerModal = class extends BaseListPickerModal {
   }
   renderRow(role, listEl) {
     const isSelected = role.id === this.currentId;
-    const row = listEl.createEl("div", {
+    const row = listEl.createDiv({
       cls: "ana-picker-row" + (isSelected ? " is-selected" : "")
     });
     renderAvatar(
@@ -8564,13 +8777,15 @@ function migrateSettings(loaded, settings, app) {
     const hasLegacy = loaded.provider || loaded.openaiApiKey || loaded.openaiBaseUrl || loaded.ollamaBaseUrl || loaded.openaiModel || loaded.ollamaModel;
     if (hasLegacy) {
       const isOllama = loaded.provider === "ollama";
-      const modelId = isOllama ? loaded.ollamaModel : loaded.openaiModel;
+      const modelId = asText(
+        isOllama ? loaded.ollamaModel : loaded.openaiModel
+      );
       const link = {
         id: genId(),
         name: t("settings.modelLinks.legacyName"),
         type: isOllama ? "ollama" : "openai",
-        baseUrl: isOllama ? loaded.ollamaBaseUrl || DEFAULT_SETTINGS.ollamaBaseUrl : loaded.openaiBaseUrl || DEFAULT_SETTINGS.openaiBaseUrl,
-        apiKey: loaded.openaiApiKey || "",
+        baseUrl: isOllama ? asText(loaded.ollamaBaseUrl) || DEFAULT_SETTINGS.ollamaBaseUrl : asText(loaded.openaiBaseUrl) || DEFAULT_SETTINGS.openaiBaseUrl,
+        apiKey: asText(loaded.openaiApiKey),
         models: modelId ? [modelId] : []
       };
       migrateModelLinkApiKeyToKeychain(app, link);
@@ -8624,8 +8839,8 @@ function migrateSettings(loaded, settings, app) {
   delete settings.serperApiKeys;
   delete settings.braveApiKeys;
   if (!settings.roles || settings.roles.length === 0) {
-    const legacy = loaded.customInstructions;
-    if (legacy && legacy.trim()) {
+    const legacy = asText(loaded.customInstructions);
+    if (legacy.trim()) {
       const role = {
         id: genId(),
         name: t("settings.roles.legacyName"),
@@ -8648,11 +8863,11 @@ function migrateSettings(loaded, settings, app) {
 var SLASH_TRIGGER_LINE = /^(\s*\/[a-zA-Z0-9\u4e00-\u9fff]+.*)$/;
 var SLASH_TRIGGER_STANDALONE = /^[ \t]*\/[a-zA-Z0-9\u4e00-\u9fff]+[ \t]*$/gm;
 var ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg>`;
-var AiNoteAgentPlugin = class extends import_obsidian18.Plugin {
+var AiNoteAgentPlugin = class extends import_obsidian19.Plugin {
   constructor() {
     super(...arguments);
     /** 设置变更事件总线（用于通知已打开的视图刷新 UI）。 */
-    this.settingsEvents = new import_obsidian18.Events();
+    this.settingsEvents = new import_obsidian19.Events();
     /**
      * Ribbon 图标 DOM 引用，用于在关闭 chatPanelEnabled 时移除。
      * null 表示尚未添加或已主动 remove。
@@ -8672,7 +8887,8 @@ var AiNoteAgentPlugin = class extends import_obsidian18.Plugin {
     const enabled = !!this.settings.chatPanelEnabled;
     const fullCmdId = `${this.manifest.id}:open-chat`;
     try {
-      this.app.commands.removeCommand(fullCmdId);
+      const commands = this.app.commands;
+      commands == null ? void 0 : commands.removeCommand(fullCmdId);
     } catch (e) {
     }
     if (this.ribbonEl) {
@@ -8701,9 +8917,9 @@ var AiNoteAgentPlugin = class extends import_obsidian18.Plugin {
     await this.loadSettings();
     this.provider = createProvider(this.app, this.settings);
     initI18n(this.app);
-    (0, import_obsidian18.addIcon)("smart-notes", ICON_SVG);
-    (0, import_obsidian18.addIcon)(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
-    (0, import_obsidian18.addIcon)(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
+    (0, import_obsidian19.addIcon)("smart-notes", ICON_SVG);
+    (0, import_obsidian19.addIcon)(SIDEBAR_COLLAPSE_ICON, SIDEBAR_COLLAPSE_SVG);
+    (0, import_obsidian19.addIcon)(SIDEBAR_EXPAND_ICON, SIDEBAR_EXPAND_SVG);
     void ensureAiFolder(this);
     if (this.settings.memoryProfileEnabled && this.settings.profileUpdateMode === "startup") {
       this.memoryRebuildTimeout = window.setTimeout(
@@ -8720,7 +8936,7 @@ var AiNoteAgentPlugin = class extends import_obsidian18.Plugin {
   }
   async openChatView(file) {
     if (!this.settings.chatPanelEnabled) {
-      new import_obsidian18.Notice(t("settings.chatPanel.desc"));
+      new import_obsidian19.Notice(t("settings.chatPanel.desc"));
       return;
     }
     const { workspace } = this.app;
@@ -8738,7 +8954,7 @@ var AiNoteAgentPlugin = class extends import_obsidian18.Plugin {
     }
     const rightLeaf = workspace.getRightLeaf(false);
     if (!rightLeaf) {
-      new import_obsidian18.Notice(t("view.openFailed"));
+      new import_obsidian19.Notice(t("view.openFailed"));
       return;
     }
     await rightLeaf.setViewState({
@@ -8776,18 +8992,18 @@ var AiNoteAgentPlugin = class extends import_obsidian18.Plugin {
     }
   }
   async runWithNotice(msg, fn) {
-    const notice = new import_obsidian18.Notice(msg, 0);
+    const notice = new import_obsidian19.Notice(msg, 0);
     try {
       await fn();
       notice.hide();
-      new import_obsidian18.Notice(t("notice.done"));
+      new import_obsidian19.Notice(t("notice.done"));
     } catch (e) {
       notice.hide();
-      new import_obsidian18.Notice(t("notice.error", { error: e.message }));
+      new import_obsidian19.Notice(t("notice.error", { error: e.message }));
     }
   }
   async optimizeCommand(file) {
-    const notice = new import_obsidian18.Notice(t("notice.optimizing"), 0);
+    const notice = new import_obsidian19.Notice(t("notice.optimizing"), 0);
     try {
       const content = await this.app.vault.read(file);
       const optimized = await optimizeNote(
@@ -8799,15 +9015,15 @@ var AiNoteAgentPlugin = class extends import_obsidian18.Plugin {
       notice.hide();
       new OptimizeModal(this.app, content, optimized, async (text) => {
         await this.app.vault.modify(file, text);
-        new import_obsidian18.Notice(t("notice.noteUpdated"));
+        new import_obsidian19.Notice(t("notice.noteUpdated"));
       }).open();
     } catch (e) {
       notice.hide();
-      new import_obsidian18.Notice(t("notice.error", { error: e.message }));
+      new import_obsidian19.Notice(t("notice.error", { error: e.message }));
     }
   }
   async generateFrontmatterCommand(file) {
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian18.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
     const editor = view == null ? void 0 : view.editor;
     let content = editor ? editor.getValue() : await this.app.vault.read(file);
     if (editor) {
@@ -8915,10 +9131,11 @@ ${body}`);
           return !!this.settings.frontmatterGenerationEnabled && ((_a2 = ctx.file) == null ? void 0 : _a2.extension) === "md";
         },
         run: (ctx) => {
-          if (ctx.file) {
+          const file = ctx.file;
+          if (file) {
             void this.runWithNotice(
               t("notice.generatingFrontmatter"),
-              () => this.generateFrontmatterCommand(ctx.file)
+              () => this.generateFrontmatterCommand(file)
             );
           }
         }
@@ -8928,7 +9145,7 @@ ${body}`);
   /** 命令面板路径的上下文：以当前活动文件 / 活动 Markdown 视图为准。 */
   activeCommandContext() {
     var _a2, _b2, _c;
-    const view = this.app.workspace.getActiveViewOfType(import_obsidian18.MarkdownView);
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian19.MarkdownView);
     return {
       file: (_b2 = (_a2 = this.app.workspace.getActiveFile()) != null ? _a2 : view == null ? void 0 : view.file) != null ? _b2 : null,
       editor: (_c = view == null ? void 0 : view.editor) != null ? _c : null,
@@ -8966,7 +9183,7 @@ ${body}`);
     if (this.submenuProbe === null) {
       let supported = false;
       try {
-        new import_obsidian18.Menu().addItem((item) => {
+        new import_obsidian19.Menu().addItem((item) => {
           const fn = item.setSubmenu;
           if (typeof fn !== "function")
             return;
@@ -8993,7 +9210,7 @@ ${body}`);
         const ctx = {
           editor,
           file: (_a2 = info.file) != null ? _a2 : null,
-          view: info instanceof import_obsidian18.MarkdownView ? info : null
+          view: info instanceof import_obsidian19.MarkdownView ? info : null
         };
         if (!this.supportsSubmenu()) {
           this.addMenuItems(menu, specs, ctx, true);

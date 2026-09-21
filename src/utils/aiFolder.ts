@@ -1,6 +1,7 @@
 import { Vault } from "obsidian";
 import type AiNoteAgentPlugin from "../main";
 import type { TokenUsage } from "../ai/provider";
+import { parseJson } from "./json";
 
 const SESSIONS_DIR = "sessions";
 const SESSIONS_INDEX = "index.json";
@@ -405,7 +406,7 @@ export async function loadSessionFile(
   try {
     const content = await vault.adapter.read(path);
     if (!content.trim()) return null;
-    const obj = JSON.parse(content);
+    const obj = parseJson(content);
     if (isValidSession(obj)) return obj;
   } catch {
     // 损坏忽略

@@ -2,13 +2,11 @@ import {
   Plugin,
   Notice,
   TFile,
-  WorkspaceLeaf,
   MarkdownView,
   Menu,
   addIcon,
   Events,
   type Editor,
-  type MarkdownFileInfo,
 } from "obsidian";
 import {
   DEFAULT_SETTINGS,
@@ -103,9 +101,12 @@ export default class AiNoteAgentPlugin extends Plugin {
 
     // 1) 命令面板命令：总是先移除再按开关决定是否重新注册（幂等）
     try {
-      ((this.app as any).commands as {
-        removeCommand(id: string): void;
-      }).removeCommand(fullCmdId);
+      const commands = (
+        this.app as unknown as {
+          commands?: { removeCommand(id: string): void };
+        }
+      ).commands;
+      commands?.removeCommand(fullCmdId);
     } catch {
       // 重复移除或尚未注册时静默忽略
     }
@@ -231,7 +232,7 @@ export default class AiNoteAgentPlugin extends Plugin {
 
   async loadSettings() {
     // loadData() returns null when data.json doesn't exist (first install)
-    const loaded = ((await this.loadData()) as Record<string, any>) || {};
+    const loaded = ((await this.loadData()) as Record<string, unknown>) || {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
     // 迁移旧版扁平字段 → modelLinks / roles，并做 defaultId 兜底
     migrateSettings(loaded, this.settings, this.app);
@@ -400,9 +401,10 @@ export default class AiNoteAgentPlugin extends Plugin {
           !!this.settings.frontmatterGenerationEnabled &&
           ctx.file?.extension === "md",
         run: (ctx) => {
-          if (ctx.file) {
+          const file = ctx.file;
+          if (file) {
             void this.runWithNotice(t("notice.generatingFrontmatter"), () =>
-              this.generateFrontmatterCommand(ctx.file as TFile)
+              this.generateFrontmatterCommand(file)
             );
           }
         },
