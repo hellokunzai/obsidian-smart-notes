@@ -4267,13 +4267,6 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    fmKeysSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterIndexKeys.name")).setDesc(t("settings.frontmatterIndexKeys.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
-      ta.setPlaceholder(t("settings.frontmatterIndexKeys.placeholder")).setValue(this.plugin.settings.frontmatterIndexKeys).onChange(async (v) => {
-        this.plugin.settings.frontmatterIndexKeys = v;
-        await this.plugin.saveSettings();
-      });
-      ta.inputEl.rows = 4;
-    }).setDisabled(!this.plugin.settings.includeFrontmatterIndex);
     fmMaxFilesSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterIndexMaxFiles.name")).setDesc(t("settings.frontmatterIndexMaxFiles.desc")).addText((t2) => {
       t2.inputEl.type = "number";
       t2.inputEl.min = "0";
@@ -4299,6 +4292,13 @@ var AiNoteAgentSettingTab = class extends import_obsidian11.PluginSettingTab {
           await this.plugin.saveSettings();
         }
       });
+    }).setDisabled(!this.plugin.settings.includeFrontmatterIndex);
+    fmKeysSetting = new import_obsidian11.Setting(bodyEl).setName(t("settings.frontmatterIndexKeys.name")).setDesc(t("settings.frontmatterIndexKeys.desc")).setClass("ana-setting-textarea-full").addTextArea((ta) => {
+      ta.setPlaceholder(t("settings.frontmatterIndexKeys.placeholder")).setValue(this.plugin.settings.frontmatterIndexKeys).onChange(async (v) => {
+        this.plugin.settings.frontmatterIndexKeys = v;
+        await this.plugin.saveSettings();
+      });
+      ta.inputEl.rows = 4;
     }).setDisabled(!this.plugin.settings.includeFrontmatterIndex);
   }
   // ===== 标签页：用户画像 =====

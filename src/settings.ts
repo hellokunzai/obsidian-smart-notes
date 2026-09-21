@@ -764,23 +764,8 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
           })
       );
 
-    fmKeysSetting = new Setting(bodyEl)
-      .setName(t("settings.frontmatterIndexKeys.name"))
-      .setDesc(t("settings.frontmatterIndexKeys.desc"))
-      .setClass("ana-setting-textarea-full")
-      .addTextArea((ta) => {
-        ta
-          .setPlaceholder(t("settings.frontmatterIndexKeys.placeholder"))
-          .setValue(this.plugin.settings.frontmatterIndexKeys)
-          .onChange(async (v) => {
-            this.plugin.settings.frontmatterIndexKeys = v;
-            await this.plugin.saveSettings();
-          });
-        ta.inputEl.rows = 4;
-      })
-      .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
-
-    // 「最多文件数」在前、「单文件注入字符上限」在后（后者作为本分组最后一项）
+    // 「最多文件数」在前、「单文件注入字符上限」在后，
+    // 「要索引的属性」输入框放在分组最底部
     fmMaxFilesSetting = new Setting(bodyEl)
       .setName(t("settings.frontmatterIndexMaxFiles.name"))
       .setDesc(t("settings.frontmatterIndexMaxFiles.desc"))
@@ -821,6 +806,22 @@ export class AiNoteAgentSettingTab extends PluginSettingTab {
       })
       .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
 
+    // 「要索引的属性」：本分组最后一项（多行输入框独占下方一行全宽显示）
+    fmKeysSetting = new Setting(bodyEl)
+      .setName(t("settings.frontmatterIndexKeys.name"))
+      .setDesc(t("settings.frontmatterIndexKeys.desc"))
+      .setClass("ana-setting-textarea-full")
+      .addTextArea((ta) => {
+        ta
+          .setPlaceholder(t("settings.frontmatterIndexKeys.placeholder"))
+          .setValue(this.plugin.settings.frontmatterIndexKeys)
+          .onChange(async (v) => {
+            this.plugin.settings.frontmatterIndexKeys = v;
+            await this.plugin.saveSettings();
+          });
+        ta.inputEl.rows = 4;
+      })
+      .setDisabled(!this.plugin.settings.includeFrontmatterIndex);
   }
 
   // ===== 标签页：用户画像 =====
