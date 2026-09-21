@@ -190,7 +190,6 @@ export class ChatView extends ItemView {
   private renderFrameId: number | null = null;
   private streamingRawContent = "";
   private streamingContentEl: HTMLElement | null = null;
-  private streamingCursorEl: HTMLElement | null = null;
   private streamingTokenEl: HTMLElement | null = null;
   /** 流式过程中累积的推理（思考）内容。 */
   private streamingRawReasoning = "";
@@ -1735,7 +1734,6 @@ export class ChatView extends ItemView {
         this.streamingContentEl,
         this.streamingRawContent
       );
-      this.appendStreamingCursor();
       this.scrollToBottom();
     } finally {
       this.isRenderingMarkdown = false;
@@ -1751,24 +1749,6 @@ export class ChatView extends ItemView {
     if (this.renderFrameId !== null) {
       window.cancelAnimationFrame(this.renderFrameId);
       this.renderFrameId = null;
-    }
-  }
-
-  private appendStreamingCursor(): void {
-    // 已停止 / 已结束：不再把光标写回气泡（停止瞬间可能仍有渲染帧在执行）
-    if (!this.isStreaming) return;
-    if (!this.streamingContentEl) return;
-    this.removeStreamingCursor();
-    this.streamingCursorEl = this.streamingContentEl.createSpan({
-      cls: "ana-chat-streaming-cursor",
-      text: "▍",
-    });
-  }
-
-  private removeStreamingCursor(): void {
-    if (this.streamingCursorEl) {
-      this.streamingCursorEl.remove();
-      this.streamingCursorEl = null;
     }
   }
 
@@ -1806,7 +1786,6 @@ export class ChatView extends ItemView {
 
   private clearStreamingState(): void {
     this.clearStreamingRender();
-    this.removeStreamingCursor();
     this.streamingContentEl = null;
     this.streamingRawContent = "";
     this.streamingRawReasoning = "";
@@ -2117,7 +2096,6 @@ export class ChatView extends ItemView {
 
       // 流式结束：最终渲染并显示 token 消耗
       this.clearStreamingRender();
-      this.removeStreamingCursor();
 
       // 用户已点「停止」：handleStop 已渲染好部分内容 + 「已停止」徽标，
       // 这里不再重渲染（streamingContentEl 若被清空过会在这里踩 null），
@@ -2252,9 +2230,8 @@ export class ChatView extends ItemView {
       this.abortCtrl = null;
     }
     this.isStreaming = false;
-    // 取消待执行的流式渲染帧与光标，防止停止后仍有内容被写入
+    // 取消待执行的流式渲染帧，防止停止后仍有内容被写入
     this.clearStreamingRender();
-    this.removeStreamingCursor();
     if (this.streamingContentEl) {
       const contentEl = this.streamingContentEl;
       // 移除「思考中」跳点动画与「Using tools」工具提示，

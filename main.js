@@ -6299,7 +6299,6 @@ var ChatView = class extends import_obsidian18.ItemView {
     this.renderFrameId = null;
     this.streamingRawContent = "";
     this.streamingContentEl = null;
-    this.streamingCursorEl = null;
     this.streamingTokenEl = null;
     /** 流式过程中累积的推理（思考）内容。 */
     this.streamingRawReasoning = "";
@@ -7574,7 +7573,6 @@ var ChatView = class extends import_obsidian18.ItemView {
         this.streamingContentEl,
         this.streamingRawContent
       );
-      this.appendStreamingCursor();
       this.scrollToBottom();
     } finally {
       this.isRenderingMarkdown = false;
@@ -7589,23 +7587,6 @@ var ChatView = class extends import_obsidian18.ItemView {
     if (this.renderFrameId !== null) {
       window.cancelAnimationFrame(this.renderFrameId);
       this.renderFrameId = null;
-    }
-  }
-  appendStreamingCursor() {
-    if (!this.isStreaming)
-      return;
-    if (!this.streamingContentEl)
-      return;
-    this.removeStreamingCursor();
-    this.streamingCursorEl = this.streamingContentEl.createSpan({
-      cls: "ana-chat-streaming-cursor",
-      text: "\u258D"
-    });
-  }
-  removeStreamingCursor() {
-    if (this.streamingCursorEl) {
-      this.streamingCursorEl.remove();
-      this.streamingCursorEl = null;
     }
   }
   /**
@@ -7642,7 +7623,6 @@ var ChatView = class extends import_obsidian18.ItemView {
   }
   clearStreamingState() {
     this.clearStreamingRender();
-    this.removeStreamingCursor();
     this.streamingContentEl = null;
     this.streamingRawContent = "";
     this.streamingRawReasoning = "";
@@ -7891,7 +7871,6 @@ ${extra}` : text
         10 * 60 * 1e3
       );
       this.clearStreamingRender();
-      this.removeStreamingCursor();
       if (this.stopRequested) {
         if (this.streamingReasoningEl) {
           this.streamingReasoningEl.addClass("is-collapsed");
@@ -8008,7 +7987,6 @@ ${extra}` : text
     }
     this.isStreaming = false;
     this.clearStreamingRender();
-    this.removeStreamingCursor();
     if (this.streamingContentEl) {
       const contentEl = this.streamingContentEl;
       contentEl.removeClass("ana-chat-typing");

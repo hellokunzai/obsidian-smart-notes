@@ -751,22 +751,6 @@
   text-decoration: underline;
 }
 
-/* ==================== 流式输出光标动画 ==================== */
-.ana-chat-streaming-cursor {
-  display: inline-block;
-  width: 0.5em;
-  height: 1em;
-  background: var(--interactive-accent);
-  margin-left: 2px;
-  vertical-align: text-bottom;
-  animation: ana-cursor-blink 1s step-end infinite;
-}
-
-@keyframes ana-cursor-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
 /* ==================== AI 思考过程（推理）块 ==================== */
 .ana-chat-reasoning {
   margin-bottom: var(--size-4-2);
