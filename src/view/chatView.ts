@@ -513,7 +513,11 @@ export class ChatView extends ItemView {
       cls: "clickable-icon ana-chat-stop",
       attr: { "aria-label": t("view.stop") },
     });
-    setIcon(this.stopBtn, "square"); // Obsidian 内置 square 图标表示停止
+    // 图标：圆圈内含圆角实心方块（对齐主流 AI 应用的停止按钮样式）。
+    // 不用 setIcon("square")——那是孤立小方块；Obsidian 内置 lucide 对
+    // circle-stop 的命名随版本变化，直接内联 SVG 保证样式稳定。
+    this.stopBtn.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor" stroke="none"/></svg>';
     this.stopBtn.addEventListener("click", () => this.handleStop());
     this.stopBtn.addClass("is-hidden"); // 默认隐藏
 
